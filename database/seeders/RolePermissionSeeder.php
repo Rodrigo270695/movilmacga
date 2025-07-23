@@ -19,60 +19,91 @@ class RolePermissionSeeder extends Seeder
         // Limpiar cache de permisos
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Crear permisos básicos
+        // Crear permisos organizados por funcionalidades
         $permissions = [
-            // Usuarios
-            'ver-usuarios',
-            'crear-usuarios',
-            'editar-usuarios',
-            'eliminar-usuarios',
-
-            // Roles y permisos
-            'ver-roles',
-            'crear-roles',
-            'editar-roles',
-            'eliminar-roles',
-            'asignar-permisos',
+            // Acceso a menús principales
+            'menu-dashboard',
+            'menu-admin',
+            'menu-dcs',
 
             // Dashboard
             'ver-dashboard',
             'ver-estadisticas',
 
-            // Configuración
-            'ver-configuracion',
-            'editar-configuracion',
+            // Gestión de roles (módulo actual)
+            'gestor-roles-acceso',
+            'gestor-roles-ver',
+            'gestor-roles-crear',
+            'gestor-roles-editar',
+            'gestor-roles-eliminar',
+            'gestor-roles-cambiar-estado',
+            'gestor-roles-asignar-permisos',
+
+            // Gestión de usuarios (futuro módulo)
+            'gestor-usuarios-acceso',
+            'gestor-usuarios-ver',
+            'gestor-usuarios-crear',
+            'gestor-usuarios-editar',
+            'gestor-usuarios-eliminar',
+            'gestor-usuarios-cambiar-estado',
+
+            // Gestión de zonales (DCS)
+            'gestor-zonal-acceso',
+            'gestor-zonal-ver',
+            'gestor-zonal-crear',
+            'gestor-zonal-editar',
+            'gestor-zonal-eliminar',
+            'gestor-zonal-cambiar-estado',
+
+            // Configuración del sistema (futuro)
+            'configuracion-acceso',
+            'configuracion-general',
+            'configuracion-seguridad',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
-                // Crear rol administrador inicial
-        $adminRole = Role::create(['name' => 'Administrador']);
+        // Crear rol administrador inicial
+        $adminRole = Role::firstOrCreate(['name' => 'Administrador']);
 
-        // Asignar todos los permisos al administrador
-        $adminRole->givePermissionTo(Permission::all());
+        // Asignar todos los permisos al administrador (sincronizar para asegurar que tenga todos)
+        $adminRole->syncPermissions(Permission::all());
 
         // Crear usuario administrador por defecto
-        $adminUser = User::create([
-            'name' => 'Administrador',
-            'dni' => '12345678',
-            'first_name' => 'Admin',
-            'last_name' => 'Sistema',
-            'username' => 'admin',
-            'phone_number' => null,
-            'status' => true,
-            'email' => 'admin@movilmacga.com',
-            'password' => Hash::make('password123'),
-            'email_verified_at' => now(),
-        ]);
+        $adminUser = User::firstOrCreate(
+            ['email' => 'admin@movilmacga.com'],
+            [
+                'name' => 'Administrador',
+                'dni' => '12345678',
+                'first_name' => 'Admin',
+                'last_name' => 'Sistema',
+                'username' => 'admin',
+                'phone_number' => null,
+                'status' => true,
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
+            ]
+        );
 
-        $adminUser->assignRole('Administrador');
+        // Solo asignar rol si no lo tiene ya
+        if (!$adminUser->hasRole('Administrador')) {
+            $adminUser->assignRole('Administrador');
+        }
 
-        $this->command->info('¡Sistema de permisos configurado exitosamente!');
-        $this->command->info('📋 Permisos disponibles: ' . Permission::count());
-        $this->command->info('👑 Rol creado: Administrador (con todos los permisos)');
-        $this->command->info('👤 Usuario administrador: admin@movilmacga.com / password123');
-        $this->command->info('💡 Ahora puedes crear nuevos roles desde la interfaz web y asignar permisos específicos');
+        $this->command->info('🎉 ¡Sistema de permisos configurado exitosamente!');
+        $this->command->info('📋 Permisos totales creados: ' . Permission::count());
+        $this->command->info('👑 Rol creado: Administrador (con acceso completo)');
+        $this->command->info('👤 Usuario admin: admin@movilmacga.com / password123');
+        $this->command->info('');
+        $this->command->info('📁 Estructura de permisos por módulos:');
+        $this->command->info('   🏠 Dashboard: menu-dashboard, ver-dashboard, ver-estadisticas');
+        $this->command->info('   ⚙️  Admin: menu-admin');
+        $this->command->info('   👥 Gestor Roles: gestor-roles-* (7 permisos)');
+        $this->command->info('   👤 Gestor Usuarios: gestor-usuarios-* (7 permisos)');
+        $this->command->info('   🔧 Configuración: configuracion-* (3 permisos)');
+        $this->command->info('');
+        $this->command->info('💡 Los menús se mostrarán automáticamente según los permisos del usuario');
     }
 }

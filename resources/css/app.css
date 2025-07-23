@@ -1,5 +1,20 @@
 @import 'tailwindcss';
 
+/* Estilos para el botón X nativo del Dialog */
+[data-radix-dialog-content] button[aria-label="Close"] {
+    cursor: pointer !important;
+}
+
+/* También para otros selectores posibles del botón de cerrar */
+button[data-dialog-close] {
+    cursor: pointer !important;
+}
+
+/* Selector genérico para botones de cerrar en diálogos */
+[role="dialog"] button[type="button"]:has(svg) {
+    cursor: pointer !important;
+}
+
 @plugin 'tailwindcss-animate';
 
 @source '../views';
