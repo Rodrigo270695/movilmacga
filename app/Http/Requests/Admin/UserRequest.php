@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class UserRequest extends FormRequest
 {
@@ -12,7 +13,7 @@ class UserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return Auth::check();
     }
 
     /**
@@ -28,21 +29,21 @@ class UserRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:25'],
             'last_name' => ['required', 'string', 'max:25'],
             'username' => [
-                'required', 
-                'string', 
+                'required',
+                'string',
                 'max:25',
                 'regex:/^[a-zA-Z0-9_]+$/',
                 Rule::unique('users', 'username')->ignore($userId)
             ],
             'email' => [
-                'required', 
-                'email', 
+                'required',
+                'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($userId)
             ],
             'dni' => [
-                'required', 
-                'string', 
+                'required',
+                'string',
                 'size:8',
                 'regex:/^[0-9]+$/',
                 Rule::unique('users', 'dni')->ignore($userId)
@@ -113,4 +114,4 @@ class UserRequest extends FormRequest
             'roles' => 'roles',
         ];
     }
-} 
+}

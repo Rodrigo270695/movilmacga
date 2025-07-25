@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class RoleRequest extends FormRequest
 {
@@ -12,7 +13,7 @@ class RoleRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Aquí puedes agregar lógica de autorización si es necesario
+        return Auth::check(); // Aquí puedes agregar lógica de autorización si es necesario
     }
 
     /**

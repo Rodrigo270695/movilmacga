@@ -8,26 +8,61 @@
 > **Nota:** Los demás roles se crearán dinámicamente desde la interfaz web, donde podrás asignar permisos específicos a cada nuevo rol mediante checkboxes.
 
 ### Permisos Disponibles
-**Usuarios:**
-- `ver-usuarios`
-- `crear-usuarios`
-- `editar-usuarios`
-- `eliminar-usuarios`
 
-**Roles y Permisos:**
-- `ver-roles`
-- `crear-roles`
-- `editar-roles`
-- `eliminar-roles`
-- `asignar-permisos`
+#### 🏠 **Dashboard**
+- `menu-dashboard` - Acceso al menú del dashboard
+- `ver-dashboard` - Ver el dashboard principal
+- `ver-estadisticas` - Ver estadísticas del sistema
 
-**Dashboard:**
-- `ver-dashboard`
-- `ver-estadisticas`
+#### 👥 **Gestión de Usuarios**
+- `gestor-usuarios-acceso` - Acceso al módulo de usuarios
+- `gestor-usuarios-ver` - Listar y ver usuarios
+- `gestor-usuarios-crear` - Crear nuevos usuarios
+- `gestor-usuarios-editar` - Editar usuarios existentes
+- `gestor-usuarios-eliminar` - Eliminar usuarios
+- `gestor-usuarios-cambiar-estado` - Activar/desactivar usuarios
 
-**Configuración:**
-- `ver-configuracion`
-- `editar-configuracion`
+#### 🛡️ **Gestión de Roles y Permisos**
+- `gestor-roles-acceso` - Acceso al módulo de roles
+- `gestor-roles-ver` - Listar y ver roles
+- `gestor-roles-crear` - Crear nuevos roles
+- `gestor-roles-editar` - Editar roles existentes
+- `gestor-roles-eliminar` - Eliminar roles
+- `gestor-roles-cambiar-estado` - Activar/desactivar roles
+- `gestor-roles-asignar-permisos` - Asignar permisos a roles
+
+#### 📁 **Gestión de Zonales (DCS)**
+- `gestor-zonal-acceso` - Acceso al módulo de zonales
+- `gestor-zonal-ver` - Listar y ver zonales
+- `gestor-zonal-crear` - Crear nuevos zonales
+- `gestor-zonal-editar` - Editar zonales existentes
+- `gestor-zonal-eliminar` - Eliminar zonales
+- `gestor-zonal-cambiar-estado` - Activar/desactivar zonales
+
+#### 🔌 **Gestión de Circuitos (DCS)**
+- `gestor-circuito-acceso` - Acceso al módulo de circuitos
+- `gestor-circuito-ver` - Listar y ver circuitos
+- `gestor-circuito-crear` - Crear nuevos circuitos
+- `gestor-circuito-editar` - Editar circuitos existentes
+- `gestor-circuito-eliminar` - Eliminar circuitos
+- `gestor-circuito-cambiar-estado` - Activar/desactivar circuitos
+
+#### 🛤️ **Gestión de Rutas (DCS)**
+- `gestor-ruta-acceso` - Acceso al módulo de rutas
+- `gestor-ruta-ver` - Listar y ver rutas
+- `gestor-ruta-crear` - Crear nuevas rutas
+- `gestor-ruta-editar` - Editar rutas existentes
+- `gestor-ruta-eliminar` - Eliminar rutas
+- `gestor-ruta-cambiar-estado` - Activar/desactivar rutas
+
+#### ⚙️ **Configuración del Sistema**
+- `configuracion-acceso` - Acceso al módulo de configuración
+- `configuracion-general` - Configuración general del sistema
+- `configuracion-seguridad` - Configuración de seguridad
+
+#### 🚀 **Menús de Navegación**
+- `menu-admin` - Acceso al menú de administración
+- `menu-dcs` - Acceso al menú DCS
 
 ## 👥 Usuario Administrador Inicial
 

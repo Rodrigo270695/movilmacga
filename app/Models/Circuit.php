@@ -4,18 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Zonal extends Model
+class Circuit extends Model
 {
     use HasFactory;
-
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'zonales';
 
     /**
      * The attributes that are mass assignable.
@@ -23,7 +17,9 @@ class Zonal extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'zonal_id',
         'name',
+        'code',
         'status',
     ];
 
@@ -37,7 +33,15 @@ class Zonal extends Model
     ];
 
     /**
-     * Scope para obtener solo zonales activos
+     * Get the zonal that owns the circuit.
+     */
+    public function zonal(): BelongsTo
+    {
+        return $this->belongsTo(Zonal::class);
+    }
+
+    /**
+     * Scope para obtener solo circuitos activos
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @return \Illuminate\Database\Eloquent\Builder
@@ -48,7 +52,7 @@ class Zonal extends Model
     }
 
     /**
-     * Scope para obtener solo zonales inactivos
+     * Scope para obtener solo circuitos inactivos
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @return \Illuminate\Database\Eloquent\Builder
@@ -59,18 +63,30 @@ class Zonal extends Model
     }
 
     /**
-     * Get the circuits for the zonal.
+     * Scope para filtrar por zonal
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $zonalId
+     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function circuits(): HasMany
+    public function scopeByZonal($query, int $zonalId)
     {
-        return $this->hasMany(Circuit::class);
+        return $query->where('zonal_id', $zonalId);
     }
 
     /**
-     * Get only active circuits for the zonal.
+     * Get the routes for the circuit.
      */
-    public function activeCircuits(): HasMany
+    public function routes(): HasMany
     {
-        return $this->hasMany(Circuit::class)->where('status', true);
+        return $this->hasMany(Route::class);
+    }
+
+    /**
+     * Get only active routes for the circuit.
+     */
+    public function activeRoutes(): HasMany
+    {
+        return $this->hasMany(Route::class)->where('status', true);
     }
 }

@@ -68,10 +68,11 @@ export function ConfirmToggleModal({ isOpen, onClose, zonal }: ConfirmToggleModa
 
         return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent 
-                className="sm:max-w-md" 
+            <DialogContent
+                className="sm:max-w-md"
                 aria-describedby={undefined}
                 onPointerDownOutside={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
             >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">

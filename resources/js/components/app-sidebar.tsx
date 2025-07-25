@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Shield, Users } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 
@@ -45,6 +45,18 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/dcs/zonales',
                 icon: LayoutGrid,
                 permission: 'gestor-zonal-acceso',
+            },
+            {
+                title: 'Gestor de circuitos',
+                href: '/dcs/circuits',
+                icon: CircuitBoard,
+                permission: 'gestor-circuito-acceso',
+            },
+            {
+                title: 'Gestor de rutas',
+                href: '/dcs/routes',
+                icon: Route,
+                permission: 'gestor-ruta-acceso',
             },
         ],
     },

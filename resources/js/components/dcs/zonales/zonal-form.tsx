@@ -83,10 +83,11 @@ export function ZonalForm({ isOpen, onClose, zonal }: ZonalFormProps) {
 
         return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent 
-                className="sm:max-w-lg" 
+            <DialogContent
+                className="sm:max-w-lg"
                 aria-describedby={undefined}
                 onPointerDownOutside={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
             >
                 <DialogHeader>
                     <DialogTitle>
@@ -151,4 +152,3 @@ export function ZonalForm({ isOpen, onClose, zonal }: ZonalFormProps) {
         </Dialog>
     );
 }
- 

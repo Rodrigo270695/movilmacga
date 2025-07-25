@@ -55,6 +55,22 @@ class RolePermissionSeeder extends Seeder
             'gestor-zonal-eliminar',
             'gestor-zonal-cambiar-estado',
 
+            // Gestión de circuitos (DCS)
+            'gestor-circuito-acceso',
+            'gestor-circuito-ver',
+            'gestor-circuito-crear',
+            'gestor-circuito-editar',
+            'gestor-circuito-eliminar',
+            'gestor-circuito-cambiar-estado',
+
+            // Gestión de rutas (DCS)
+            'gestor-ruta-acceso',
+            'gestor-ruta-ver',
+            'gestor-ruta-crear',
+            'gestor-ruta-editar',
+            'gestor-ruta-eliminar',
+            'gestor-ruta-cambiar-estado',
+
             // Configuración del sistema (futuro)
             'configuracion-acceso',
             'configuracion-general',

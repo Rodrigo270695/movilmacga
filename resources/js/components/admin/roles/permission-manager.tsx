@@ -16,7 +16,9 @@ import {
     Zap,
     Globe,
     Settings,
-    Folder
+    Folder,
+    CircuitBoard,
+    Route
 } from 'lucide-react';
 
 interface Permission {
@@ -105,6 +107,32 @@ const menuStructure = [
                     { id: 'gestor-zonal-editar', label: 'Editar zonales' },
                     { id: 'gestor-zonal-cambiar-estado', label: 'Activar/Desactivar zonales' }
                 ]
+            },
+            {
+                id: 'circuitos',
+                label: 'Gestión de Circuitos',
+                icon: CircuitBoard,
+                className: 'text-teal-600 bg-teal-100',
+                permission: 'gestor-circuito-acceso',
+                actions: [
+                    { id: 'gestor-circuito-ver', label: 'Ver circuitos' },
+                    { id: 'gestor-circuito-crear', label: 'Crear circuitos' },
+                    { id: 'gestor-circuito-editar', label: 'Editar circuitos' },
+                    { id: 'gestor-circuito-cambiar-estado', label: 'Activar/Desactivar circuitos' }
+                ]
+            },
+            {
+                id: 'rutas',
+                label: 'Gestión de Rutas',
+                icon: Route,
+                className: 'text-emerald-600 bg-emerald-100',
+                permission: 'gestor-ruta-acceso',
+                actions: [
+                    { id: 'gestor-ruta-ver', label: 'Ver rutas' },
+                    { id: 'gestor-ruta-crear', label: 'Crear rutas' },
+                    { id: 'gestor-ruta-editar', label: 'Editar rutas' },
+                    { id: 'gestor-ruta-cambiar-estado', label: 'Activar/Desactivar rutas' }
+                ]
             }
         ]
     },
@@ -141,6 +169,18 @@ const actionLabels: Record<string, string> = {
     'gestor-zonal-eliminar': 'Eliminar zonales',
     'gestor-zonal-cambiar-estado': 'Activar/Desactivar zonales',
 
+    'gestor-circuito-ver': 'Ver circuitos del sistema',
+    'gestor-circuito-crear': 'Crear nuevos circuitos',
+    'gestor-circuito-editar': 'Editar circuitos existentes',
+    'gestor-circuito-eliminar': 'Eliminar circuitos',
+    'gestor-circuito-cambiar-estado': 'Activar/Desactivar circuitos',
+
+    'gestor-ruta-ver': 'Ver rutas del sistema',
+    'gestor-ruta-crear': 'Crear nuevas rutas',
+    'gestor-ruta-editar': 'Editar rutas existentes',
+    'gestor-ruta-eliminar': 'Eliminar rutas',
+    'gestor-ruta-cambiar-estado': 'Activar/Desactivar rutas',
+
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'
 };
@@ -155,8 +195,19 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
     useEffect(() => {
         if (role && isOpen) {
             setSelectedPermissions(role.permissions.map(p => p.name));
+        } else if (!role && isOpen) {
+            setSelectedPermissions([]);
         }
-    }, [role, isOpen]);
+    }, [role?.id, role?.permissions?.length, isOpen]);
+
+    // Limpiar estado cuando se cierra el modal
+    useEffect(() => {
+        if (!isOpen) {
+            setSelectedPermissions([]);
+            setIsSubmitting(false);
+            setActiveTab('access');
+        }
+    }, [isOpen]);
 
     const handleMenuToggle = (menuId: string, permission: string, actions: any[], items: any[]) => {
         setSelectedPermissions(prev => {
@@ -268,6 +319,14 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                     duration: 4000
                 });
                 onClose();
+                // Forzar recarga completa de datos para evitar problemas de caché
+                setTimeout(() => {
+                    router.visit(route('admin.roles.index'), {
+                        preserveState: false,
+                        preserveScroll: false,
+                        replace: true
+                    });
+                }, 100);
             },
             onError: () => {
                 addToast({
@@ -292,7 +351,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent
-                className="max-w-[95vw] sm:max-w-6xl w-full mx-auto max-h-[90vh] overflow-hidden flex flex-col"
+                className="max-w-[95vw] sm:max-w-6xl w-full mx-auto max-h-[85vh] overflow-hidden flex flex-col"
                 style={{ width: '90vw', maxWidth: '1200px' }}
                 onPointerDownOutside={(e) => e.preventDefault()}
             >
@@ -464,7 +523,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                             </TabsContent>
 
                             <TabsContent value="actions" className="h-full m-0">
-                                <div className="h-full overflow-y-auto">
+                                <div className="h-full overflow-y-auto max-h-96 pr-2">
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between mb-4">
                                             <h3 className="text-sm font-medium text-gray-900">
@@ -481,7 +540,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                                                 <p className="text-sm">Primero selecciona módulos en la pestaña "Acceso a Módulos"</p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-2">
                                                 {modulesWithAccess.map((module, moduleIndex) => (
                                                     <div key={module.id} className="border border-gray-200 rounded-lg bg-white transition-all duration-200 ease-out hover:shadow-sm animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${moduleIndex * 100}ms` }}>
                                                         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 transition-colors duration-200 ease-out hover:bg-gray-100">
@@ -561,4 +620,3 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
         </Dialog>
     );
 }
- 

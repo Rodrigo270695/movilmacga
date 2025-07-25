@@ -6,7 +6,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
 import {
-    Folder,
+    CircuitBoard,
     Edit,
     Power,
     CheckCircle2,
@@ -14,22 +14,33 @@ import {
     Search,
     X,
     Calendar,
-    MapPin,
-    CircuitBoard
+    Hash,
+    Route
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 
+interface Circuit {
+    id: number;
+    name: string;
+    code: string;
+    status?: boolean | number;
+    zonal_id: number;
+    created_at: string;
+    routes_count?: number;
+    zonal?: {
+        id: number;
+        name: string;
+    };
+}
+
 interface Zonal {
     id: number;
     name: string;
-    status?: boolean | number;
-    created_at: string;
-    circuits_count?: number;
 }
 
-interface PaginatedZonales {
-    data: Zonal[];
+interface PaginatedCircuits {
+    data: Circuit[];
     current_page: number;
     last_page: number;
     per_page: number;
@@ -38,60 +49,74 @@ interface PaginatedZonales {
     to: number;
 }
 
-interface ZonalesTableProps {
-    zonales: PaginatedZonales;
-    onEdit: (zonal: Zonal) => void;
-    userPermissions: string[];
+interface CircuitsTableProps {
+    circuits: PaginatedCircuits;
+    zonal?: Zonal;
+    onEdit: (circuit: Circuit) => void;
+    userPermissions?: string[];
+    onToggleStatus?: (circuit: Circuit) => void;
+    isGlobalView?: boolean;
 }
 
-export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableProps) {
+export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, isGlobalView = false }: CircuitsTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
-    const [confirmToggleZonal, setConfirmToggleZonal] = useState<Zonal | null>(null);
+    const [confirmToggleCircuit, setConfirmToggleCircuit] = useState<Circuit | null>(null);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
         return userPermissions.includes(permission);
     };
 
-    // Filtrar zonales basado en el término de búsqueda (solo en la página actual)
-    const filteredZonales = useMemo(() => {
-        if (!searchTerm) return zonales.data;
+    // Filtrar circuitos basado en el término de búsqueda (solo en la página actual)
+    const filteredCircuits = useMemo(() => {
+        if (!searchTerm) return circuits.data;
 
         const search = searchTerm.toLowerCase();
-        return zonales.data.filter(zonal => {
+        return circuits.data.filter(circuit => {
             // Buscar por nombre
-            const matchesName = zonal.name.toLowerCase().includes(search);
+            const matchesName = circuit.name.toLowerCase().includes(search);
+
+            // Buscar por código
+            const matchesCode = circuit.code.toLowerCase().includes(search);
 
             // Buscar por estado
-            const status = (zonal.status === false || zonal.status === 0 || zonal.status === null) ? 'inactivo' : 'activo';
+            const status = (circuit.status === false || circuit.status === 0 || circuit.status === null) ? 'inactivo' : 'activo';
             const matchesStatus = status.includes(search);
 
-            return matchesName || matchesStatus;
+            return matchesName || matchesCode || matchesStatus;
         });
-    }, [zonales.data, searchTerm]);
+    }, [circuits.data, searchTerm]);
 
-    const handleToggleStatus = (zonal: Zonal) => {
-        if (!hasPermission('gestor-zonal-cambiar-estado')) {
+    const handleToggleStatus = (circuit: Circuit) => {
+        if (!hasPermission('gestor-circuito-cambiar-estado')) {
             addToast({
                 type: 'error',
                 title: 'Sin permisos',
-                message: 'No tienes permisos para cambiar el estado de zonales.',
+                message: 'No tienes permisos para cambiar el estado de circuitos.',
                 duration: 4000
             });
             return;
         }
-        setConfirmToggleZonal(zonal);
+
+        if (onToggleStatus) {
+            onToggleStatus(circuit);
+        } else {
+            setConfirmToggleCircuit(circuit);
+        }
     };
 
     const closeConfirmToggle = () => {
-        setConfirmToggleZonal(null);
+        setConfirmToggleCircuit(null);
     };
 
     const handlePageChange = (page: number) => {
-        router.get(route('dcs.zonales.index'), {
+        const routeName = isGlobalView ? 'dcs.circuits.index' : 'dcs.zonales.circuits.index';
+        const routeParams = isGlobalView ? {} : { zonal: zonal?.id };
+
+        router.get(route(routeName, routeParams), {
             page,
-            per_page: zonales.per_page
+            per_page: circuits.per_page
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -107,7 +132,10 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
     };
 
     const handlePerPageChange = (perPage: number) => {
-        router.get(route('dcs.zonales.index'), {
+        const routeName = isGlobalView ? 'dcs.circuits.index' : 'dcs.zonales.circuits.index';
+        const routeParams = isGlobalView ? {} : { zonal: zonal?.id };
+
+        router.get(route(routeName, routeParams), {
             page: 1, // Reset to first page when changing per_page
             per_page: perPage
         }, {
@@ -150,38 +178,38 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
         });
     };
 
-    // Componente para las acciones de cada zonal
-    const ZonalActions = ({ zonal }: { zonal: Zonal }) => {
+    // Componente para las acciones de cada circuito
+    const CircuitActions = ({ circuit }: { circuit: Circuit }) => {
         const actions = [];
 
-        if (hasPermission('gestor-zonal-editar')) {
+        if (hasPermission('gestor-circuito-editar')) {
             actions.push(
                 <Button
                     key="edit"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onEdit(zonal)}
+                    onClick={() => onEdit(circuit)}
                     className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer sm:h-8 sm:w-8"
-                    title="Editar zonal"
+                    title="Editar circuito"
                 >
                     <Edit className="w-4 h-4" />
                 </Button>
             );
         }
 
-        if (hasPermission('gestor-zonal-cambiar-estado')) {
+        if (hasPermission('gestor-circuito-cambiar-estado')) {
             actions.push(
                 <Button
                     key="toggle"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleToggleStatus(zonal)}
+                    onClick={() => handleToggleStatus(circuit)}
                     className={`h-8 w-8 p-0 cursor-pointer sm:h-8 sm:w-8 ${
-                        (zonal.status === false || zonal.status === 0 || zonal.status === null)
+                        (circuit.status === false || circuit.status === 0 || circuit.status === null)
                             ? "text-gray-500 hover:text-green-600 hover:bg-green-50"
                             : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"
                     }`}
-                    title={(zonal.status === false || zonal.status === 0 || zonal.status === null) ? "Activar zonal" : "Desactivar zonal"}
+                    title={(circuit.status === false || circuit.status === 0 || circuit.status === null) ? "Activar circuito" : "Desactivar circuito"}
                 >
                     <Power className="w-4 h-4" />
                 </Button>
@@ -191,8 +219,6 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
         return actions;
     };
 
-
-
     return (
         <>
             <Card className="bg-white border border-gray-200 shadow-sm">
@@ -200,12 +226,14 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                 <div className="border-b border-gray-200 bg-gray-50/50 px-4 sm:px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                         <div className="flex items-center gap-3">
-                            <Folder className="w-5 h-5 text-gray-600" />
-                            <h3 className="text-base sm:text-lg font-medium text-gray-900">Zonales del Sistema</h3>
+                            <CircuitBoard className="w-5 h-5 text-gray-600" />
+                            <h3 className="text-base sm:text-lg font-medium text-gray-900">
+                                {isGlobalView ? 'Todos los Circuitos' : `Circuitos de ${zonal?.name || 'N/A'}`}
+                            </h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
                                 {searchTerm
-                                    ? `${filteredZonales.length} de ${zonales.data.length}`
-                                    : `${zonales.total} total`
+                                    ? `${filteredCircuits.length} de ${circuits.data.length}`
+                                    : `${circuits.total} total`
                                 }
                             </Badge>
                         </div>
@@ -216,7 +244,7 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Buscar..."
+                                    placeholder="Buscar por nombre, código o estado..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 pr-10 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
@@ -243,16 +271,24 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Zonal
+                                    Circuito
+                                </th>
+                                {isGlobalView && (
+                                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Zonal
+                                    </th>
+                                )}
+                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Código
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estado
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Circuitos
+                                    Fecha de Creación
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Fecha de Creación
+                                    Rutas
                                 </th>
                                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Acciones
@@ -262,24 +298,42 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
 
                         {/* Body */}
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredZonales.map((zonal) => {
-                                const statusConfig = getStatusConfig(zonal.status);
-                                const actions = ZonalActions({ zonal });
+                            {filteredCircuits.map((circuit) => {
+                                const statusConfig = getStatusConfig(circuit.status);
+                                const actions = CircuitActions({ circuit });
 
                                 return (
-                                    <tr key={zonal.id} className="hover:bg-gray-50 transition-colors">
-                                        {/* Zonal */}
+                                    <tr key={circuit.id} className="hover:bg-gray-50 transition-colors">
+                                        {/* Circuito */}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                    <MapPin className="w-5 h-5 text-blue-600" />
+                                                <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                                                    <CircuitBoard className="w-5 h-5 text-teal-600" />
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-medium text-gray-900">
-                                                        {zonal.name}
+                                                        {circuit.name}
                                                     </div>
-
                                                 </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Zonal (solo en vista global) */}
+                                        {isGlobalView && (
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="text-sm text-gray-900">
+                                                    {circuit.zonal?.name || 'N/A'}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {/* Código */}
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Hash className="w-3 h-3 text-gray-400" />
+                                                <span className="text-sm font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                                                    {circuit.code}
+                                                </span>
                                             </div>
                                         </td>
 
@@ -291,26 +345,26 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                             </Badge>
                                         </td>
 
-                                        {/* Circuitos */}
-                                        <td className="px-6 py-4 text-center">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => router.visit(route('dcs.zonales.circuits.index', zonal.id))}
-                                                className="h-8 px-3 text-xs bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
-                                                title={`Ver circuitos de ${zonal.name}`}
-                                            >
-                                                <CircuitBoard className="w-3 h-3 mr-1.5" />
-                                                {zonal.circuits_count || 0}
-                                            </Button>
-                                        </td>
-
                                         {/* Fecha de creación */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-1 text-sm text-gray-900">
                                                 <Calendar className="w-3 h-3 text-gray-400" />
-                                                {formatDate(zonal.created_at)}
+                                                {formatDate(circuit.created_at)}
                                             </div>
+                                        </td>
+
+                                        {/* Rutas */}
+                                        <td className="px-6 py-4 text-center">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]))}
+                                                className="h-8 px-3 text-xs bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
+                                                title={`Ver rutas de ${circuit.name}`}
+                                            >
+                                                <Route className="w-3 h-3 mr-1.5" />
+                                                {circuit.routes_count || 0}
+                                            </Button>
                                         </td>
 
                                         {/* Acciones */}
@@ -328,26 +382,28 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
 
                 {/* Vista Mobile - Cards */}
                 <div className="sm:hidden divide-y divide-gray-200">
-                    {filteredZonales.map((zonal) => {
-                        const statusConfig = getStatusConfig(zonal.status);
-                        const actions = ZonalActions({ zonal });
+                    {filteredCircuits.map((circuit) => {
+                        const statusConfig = getStatusConfig(circuit.status);
+                        const actions = CircuitActions({ circuit });
 
                         return (
-                            <div key={zonal.id} className="p-4">
+                            <div key={circuit.id} className="p-4">
                                 <div className="space-y-3">
                                     {/* Header del card */}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <MapPin className="w-5 h-5 text-blue-600" />
+                                            <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <CircuitBoard className="w-5 h-5 text-teal-600" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="text-sm font-medium text-gray-900 truncate">
-                                                    {zonal.name}
+                                                    {circuit.name}
                                                 </h4>
-                                                <p className="text-xs text-gray-500">
-
-                                                </p>
+                                                {isGlobalView && circuit.zonal && (
+                                                    <p className="text-xs text-gray-500">
+                                                        Zonal: {circuit.zonal.name}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 
@@ -358,23 +414,30 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                         </Badge>
                                     </div>
 
-                                    {/* Información adicional */}
+                                    {/* Código */}
+                                    <div className="flex items-center gap-1 text-xs">
+                                        <Hash className="w-3 h-3 text-gray-400" />
+                                        <span className="text-gray-500">Código:</span>
+                                        <span className="font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                                            {circuit.code}
+                                        </span>
+                                    </div>
+
+                                    {/* Fecha de registro y Rutas */}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1 text-xs text-gray-500">
                                             <Calendar className="w-3 h-3" />
-                                            Creado: {formatDate(zonal.created_at)}
+                                            Creado: {formatDate(circuit.created_at)}
                                         </div>
-
-                                        {/* Botón de circuitos */}
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => router.visit(route('dcs.zonales.circuits.index', zonal.id))}
+                                            onClick={() => router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]))}
                                             className="h-7 px-2.5 text-xs bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
-                                            title={`Ver circuitos de ${zonal.name}`}
+                                            title={`Ver rutas de ${circuit.name}`}
                                         >
-                                            <CircuitBoard className="w-3 h-3 mr-1" />
-                                            {zonal.circuits_count || 0}
+                                            <Route className="w-3 h-3 mr-1" />
+                                            {circuit.routes_count || 0}
                                         </Button>
                                     </div>
 
@@ -391,20 +454,22 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                 </div>
 
                 {/* Estado vacío */}
-                {filteredZonales.length === 0 && (
+                {filteredCircuits.length === 0 && (
                     <div className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                                <Folder className="w-8 h-8 text-gray-400" />
+                                <CircuitBoard className="w-8 h-8 text-gray-400" />
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                                    {searchTerm ? 'No se encontraron resultados' : 'No hay zonales en esta página'}
+                                    {searchTerm ? 'No se encontraron resultados' : 'No hay circuitos en esta página'}
                                 </h3>
                                 <p className="text-gray-500 text-sm">
                                     {searchTerm
                                         ? 'Intenta con otros términos de búsqueda'
-                                        : 'Navega a otras páginas o crea un nuevo zonal'
+                                        : isGlobalView
+                                            ? 'Crea nuevos circuitos desde el botón superior'
+                                            : `Crea circuitos para el zonal ${zonal?.name || 'seleccionado'}`
                                     }
                                 </p>
                             </div>
@@ -413,21 +478,24 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                 )}
 
                 {/* Paginación */}
-                {zonales.last_page > 1 && (
+                {circuits.last_page > 1 && (
                     <Pagination
-                        data={zonales}
+                        data={circuits}
                         onPageChange={handlePageChange}
                         onPerPageChange={handlePerPageChange}
                     />
                 )}
             </Card>
 
-            {/* Modal de confirmación */}
-            <ConfirmToggleModal
-                isOpen={!!confirmToggleZonal}
-                onClose={closeConfirmToggle}
-                zonal={confirmToggleZonal}
-            />
+            {/* Modal de confirmación (solo en vista jerárquica) */}
+            {!isGlobalView && (
+                <ConfirmToggleModal
+                    isOpen={!!confirmToggleCircuit}
+                    onClose={closeConfirmToggle}
+                    circuit={confirmToggleCircuit}
+                    zonal={zonal}
+                />
+            )}
         </>
     );
 }

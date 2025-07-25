@@ -23,7 +23,7 @@ class ZonalController extends Controller
         $perPage = $request->get('per_page', 10);
         $page = $request->get('page', 1);
 
-        $zonales = Zonal::select('id', 'name', 'status', 'created_at')
+        $zonales = Zonal::withCount('circuits')
             ->orderBy('name')
             ->paginate($perPage);
 

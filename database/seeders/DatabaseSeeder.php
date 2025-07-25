@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,15 +11,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear roles y permisos básicos
-        $this->call(RolePermissionSeeder::class);
+        // Ejecutar seeders en orden jerárquico
+        $this->call([
+            // Seeders de roles y permisos (existentes)
+            RolePermissionSeeder::class,
 
-        // User::factory(10)->create();
-
-        // Comentado para evitar conflictos con usuarios del seeder de roles
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+            // Nuevos seeders de división territorial (orden jerárquico)
+            PaisSeeder::class,
+            DepartamentoSeeder::class,
+            ProvinciaSeeder::class,
+            DistritoSeeder::class,
+            // LocalidadSeeder::class, // No incluido por solicitud del usuario
+        ]);
     }
 }
