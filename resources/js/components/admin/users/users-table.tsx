@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
-import { 
-    Users, 
-    Edit, 
-    Power, 
-    Settings, 
+import {
+    Users,
+    Edit,
+    Power,
+    Settings,
     Shield,
     CheckCircle2,
     XCircle,
@@ -71,30 +71,30 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
     // Filtrar usuarios basado en el término de búsqueda (solo en la página actual)
     const filteredUsers = useMemo(() => {
         if (!searchTerm) return users.data;
-        
+
         const search = searchTerm.toLowerCase();
         return users.data.filter(user => {
             // Buscar por nombre completo
             const matchesName = user.name.toLowerCase().includes(search);
-            
+
             // Buscar por username
             const matchesUsername = user.username.toLowerCase().includes(search);
-            
+
             // Buscar por email
             const matchesEmail = user.email.toLowerCase().includes(search);
-            
+
             // Buscar por DNI
             const matchesDni = user.dni.includes(search);
-            
+
             // Buscar por estado
             const status = (user.status === false || user.status === 0 || user.status === null) ? 'inactivo' : 'activo';
             const matchesStatus = status.includes(search);
-            
+
             // Buscar por roles
-            const matchesRoles = user.roles.some(role => 
+            const matchesRoles = user.roles.some(role =>
                 role.name.toLowerCase().includes(search)
             );
-            
+
             return matchesName || matchesUsername || matchesEmail || matchesDni || matchesStatus || matchesRoles;
         });
     }, [users.data, searchTerm]);
@@ -117,7 +117,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
     };
 
     const handlePageChange = (page: number) => {
-        router.get(route('admin.users.index'), { 
+        router.get(route('admin.users.index'), {
             page,
             per_page: users.per_page
         }, {
@@ -135,7 +135,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
     };
 
     const handlePerPageChange = (perPage: number) => {
-        router.get(route('admin.users.index'), { 
+        router.get(route('admin.users.index'), {
             page: 1, // Reset to first page when changing per_page
             per_page: perPage
         }, {
@@ -186,34 +186,38 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
             actions.push(
                 <Button
                     key="edit"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => onEdit(user)}
-                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer sm:h-8 sm:w-8"
+                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
                     title="Editar usuario"
                 >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 text-blue-600" />
                 </Button>
             );
         }
 
 
 
-        if (hasPermission('gestor-usuarios-cambiar-estado')) {
+                if (hasPermission('gestor-usuarios-cambiar-estado')) {
             actions.push(
                 <Button
                     key="toggle"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleToggleStatus(user)}
-                    className={`h-8 w-8 p-0 cursor-pointer sm:h-8 sm:w-8 ${
-                        (user.status === false || user.status === 0 || user.status === null) 
-                            ? "text-gray-500 hover:text-green-600 hover:bg-green-50" 
-                            : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"
+                    className={`h-8 w-8 p-0 cursor-pointer ${
+                        (user.status === false || user.status === 0 || user.status === null)
+                            ? "hover:bg-green-50 hover:border-green-200"
+                            : "hover:bg-red-50 hover:border-red-200"
                     }`}
                     title={(user.status === false || user.status === 0 || user.status === null) ? "Activar usuario" : "Desactivar usuario"}
                 >
-                    <Power className="w-4 h-4" />
+                    <Power className={`w-4 h-4 ${
+                        (user.status === false || user.status === 0 || user.status === null)
+                            ? "text-green-600"
+                            : "text-red-600"
+                    }`} />
                 </Button>
             );
         }
@@ -231,13 +235,13 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                             <Users className="w-5 h-5 text-gray-600" />
                             <h3 className="text-base sm:text-lg font-medium text-gray-900">Usuarios del Sistema</h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
-                                {searchTerm 
+                                {searchTerm
                                     ? `${filteredUsers.length} de ${users.data.length}`
                                     : `${users.total} total`
                                 }
                             </Badge>
                         </div>
-                        
+
                         {/* Buscador - Responsive */}
                         <div className="flex items-center gap-4">
                             <div className="relative w-full sm:w-80">
@@ -295,7 +299,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredUsers.map((user) => {
                                 const statusConfig = getStatusConfig(user.status);
-                                
+
                                 return (
                                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                         {/* Usuario */}
@@ -335,17 +339,17 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1 max-w-xs">
                                                 {user.roles.slice(0, 2).map((role) => (
-                                                    <Badge 
-                                                        key={role.id} 
-                                                        variant="outline" 
+                                                    <Badge
+                                                        key={role.id}
+                                                        variant="outline"
                                                         className="text-xs bg-purple-50 text-purple-700 border-purple-200"
                                                     >
                                                         {role.name}
                                                     </Badge>
                                                 ))}
                                                 {user.roles.length > 2 && (
-                                                    <Badge 
-                                                        variant="outline" 
+                                                    <Badge
+                                                        variant="outline"
                                                         className="text-xs bg-gray-50 text-gray-600 border-gray-200"
                                                     >
                                                         +{user.roles.length - 2}
@@ -391,7 +395,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                     {filteredUsers.map((user) => {
                         const statusConfig = getStatusConfig(user.status);
                         const actions = UserActions({ user });
-                        
+
                         return (
                             <div key={user.id} className="border-b border-gray-200 last:border-b-0">
                                 <div className="p-4 space-y-3">
@@ -410,7 +414,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                                                 </p>
                                             </div>
                                         </div>
-                                        
+
                                         {/* Estado */}
                                         <Badge className={`${statusConfig.className} flex-shrink-0`}>
                                             <statusConfig.icon className="w-3 h-3 mr-1" />
@@ -439,17 +443,17 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                                         </p>
                                         <div className="flex flex-wrap gap-1">
                                             {user.roles.slice(0, 3).map((role) => (
-                                                <Badge 
-                                                    key={role.id} 
-                                                    variant="outline" 
+                                                <Badge
+                                                    key={role.id}
+                                                    variant="outline"
                                                     className="text-xs bg-purple-50 text-purple-700 border-purple-200"
                                                 >
                                                     {role.name}
                                                 </Badge>
                                             ))}
                                             {user.roles.length > 3 && (
-                                                <Badge 
-                                                    variant="outline" 
+                                                <Badge
+                                                    variant="outline"
                                                     className="text-xs bg-gray-50 text-gray-600 border-gray-200"
                                                 >
                                                     +{user.roles.length - 3}
@@ -488,7 +492,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                                     {searchTerm ? 'No se encontraron resultados' : 'No hay usuarios en esta página'}
                                 </h3>
                                 <p className="text-gray-500 text-sm">
-                                    {searchTerm 
+                                    {searchTerm
                                         ? 'Intenta con otros términos de búsqueda'
                                         : 'Navega a otras páginas o crea un nuevo usuario'
                                     }
@@ -516,4 +520,4 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
             />
         </>
     );
-} 
+}

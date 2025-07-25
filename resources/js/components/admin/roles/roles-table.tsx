@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
-import { 
-    Users, 
-    Edit, 
-    Power, 
-    Settings, 
+import {
+    Users,
+    Edit,
+    Power,
+    Settings,
     Shield,
     CheckCircle2,
     XCircle,
@@ -62,21 +62,21 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
     // Filtrar roles basado en el término de búsqueda (solo en la página actual)
     const filteredRoles = useMemo(() => {
         if (!searchTerm) return roles.data;
-        
+
         const search = searchTerm.toLowerCase();
         return roles.data.filter(role => {
             // Buscar por nombre del rol
             const matchesName = role.name.toLowerCase().includes(search);
-            
+
             // Buscar por estado
             const status = (role.status === false || role.status === 0 || role.status === null) ? 'inactivo' : 'activo';
             const matchesStatus = status.includes(search);
-            
+
             // Buscar por nombres de permisos
-            const matchesPermissions = role.permissions.some(permission => 
+            const matchesPermissions = role.permissions.some(permission =>
                 permission.name.toLowerCase().includes(search)
             );
-            
+
             return matchesName || matchesStatus || matchesPermissions;
         });
     }, [roles.data, searchTerm]);
@@ -99,7 +99,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
     };
 
     const handlePageChange = (page: number) => {
-        router.get(route('admin.roles.index'), { 
+        router.get(route('admin.roles.index'), {
             page,
             per_page: roles.per_page
         }, {
@@ -117,7 +117,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
     };
 
     const handlePerPageChange = (perPage: number) => {
-        router.get(route('admin.roles.index'), { 
+        router.get(route('admin.roles.index'), {
             page: 1, // Reset to first page when changing per_page
             per_page: perPage
         }, {
@@ -160,13 +160,13 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
             actions.push(
                 <Button
                     key="edit"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => onEdit(role)}
-                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer sm:h-8 sm:w-8"
+                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
                     title="Editar rol"
                 >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 text-blue-600" />
                 </Button>
             );
         }
@@ -175,32 +175,36 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
             actions.push(
                 <Button
                     key="permissions"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => onAssignPermissions(role)}
-                    className="h-8 w-8 p-0 text-gray-500 hover:text-green-600 hover:bg-green-50 cursor-pointer sm:h-8 sm:w-8"
+                    className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200 cursor-pointer"
                     title="Gestionar permisos"
                 >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-4 h-4 text-green-600" />
                 </Button>
             );
         }
 
-        if (hasPermission('gestor-roles-cambiar-estado')) {
+                if (hasPermission('gestor-roles-cambiar-estado')) {
             actions.push(
                 <Button
                     key="toggle"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleToggleStatus(role)}
-                    className={`h-8 w-8 p-0 cursor-pointer sm:h-8 sm:w-8 ${
-                        (role.status === false || role.status === 0 || role.status === null) 
-                            ? "text-gray-500 hover:text-green-600 hover:bg-green-50" 
-                            : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"
+                    className={`h-8 w-8 p-0 cursor-pointer ${
+                        (role.status === false || role.status === 0 || role.status === null)
+                            ? "hover:bg-green-50 hover:border-green-200"
+                            : "hover:bg-red-50 hover:border-red-200"
                     }`}
                     title={(role.status === false || role.status === 0 || role.status === null) ? "Activar rol" : "Desactivar rol"}
                 >
-                    <Power className="w-4 h-4" />
+                    <Power className={`w-4 h-4 ${
+                        (role.status === false || role.status === 0 || role.status === null)
+                            ? "text-green-600"
+                            : "text-red-600"
+                    }`} />
                 </Button>
             );
         }
@@ -218,13 +222,13 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                             <Shield className="w-5 h-5 text-gray-600" />
                             <h3 className="text-base sm:text-lg font-medium text-gray-900">Roles del Sistema</h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
-                                {searchTerm 
+                                {searchTerm
                                     ? `${filteredRoles.length} de ${roles.data.length}`
                                     : `${roles.total} total`
                                 }
                             </Badge>
                         </div>
-                        
+
                         {/* Buscador - Responsive */}
                         <div className="flex items-center gap-4">
                             <div className="relative w-full sm:w-80">
@@ -279,7 +283,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredRoles.map((role) => {
                                 const statusConfig = getStatusConfig(role.status);
-                                
+
                                 return (
                                     <tr key={role.id} className="hover:bg-gray-50 transition-colors">
                                         {/* Nombre del rol */}
@@ -300,17 +304,17 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1 max-w-xs">
                                                 {role.permissions.slice(0, 2).map((permission) => (
-                                                    <Badge 
-                                                        key={permission.id} 
-                                                        variant="outline" 
+                                                    <Badge
+                                                        key={permission.id}
+                                                        variant="outline"
                                                         className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                                     >
                                                         {permission.name}
                                                     </Badge>
                                                 ))}
                                                 {role.permissions.length > 2 && (
-                                                    <Badge 
-                                                        variant="outline" 
+                                                    <Badge
+                                                        variant="outline"
                                                         className="text-xs bg-gray-50 text-gray-600 border-gray-200"
                                                     >
                                                         +{role.permissions.length - 2}
@@ -357,7 +361,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                     {filteredRoles.map((role) => {
                         const statusConfig = getStatusConfig(role.status);
                         const actions = RoleActions({ role });
-                        
+
                         return (
                             <div key={role.id} className="border-b border-gray-200 last:border-b-0">
                                 <div className="p-4 space-y-3">
@@ -376,7 +380,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                                                 </p>
                                             </div>
                                         </div>
-                                        
+
                                         {/* Estado */}
                                         <Badge className={`${statusConfig.className} flex-shrink-0`}>
                                             <statusConfig.icon className="w-3 h-3 mr-1" />
@@ -391,17 +395,17 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                                         </p>
                                         <div className="flex flex-wrap gap-1">
                                             {role.permissions.slice(0, 3).map((permission) => (
-                                                <Badge 
-                                                    key={permission.id} 
-                                                    variant="outline" 
+                                                <Badge
+                                                    key={permission.id}
+                                                    variant="outline"
                                                     className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                                 >
                                                     {permission.name}
                                                 </Badge>
                                             ))}
                                             {role.permissions.length > 3 && (
-                                                <Badge 
-                                                    variant="outline" 
+                                                <Badge
+                                                    variant="outline"
                                                     className="text-xs bg-gray-50 text-gray-600 border-gray-200"
                                                 >
                                                     +{role.permissions.length - 3}
@@ -434,7 +438,7 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                                     {searchTerm ? 'No se encontraron resultados' : 'No hay roles en esta página'}
                                 </h3>
                                 <p className="text-gray-500 text-sm">
-                                    {searchTerm 
+                                    {searchTerm
                                         ? 'Intenta con otros términos de búsqueda'
                                         : 'Navega a otras páginas o crea un nuevo rol'
                                     }
@@ -463,4 +467,3 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
         </>
     );
 }
- 

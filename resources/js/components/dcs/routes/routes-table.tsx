@@ -193,10 +193,10 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, isGlobalV
                     variant="outline"
                     size="sm"
                     onClick={() => onEdit(route)}
-                    className="h-8 w-8 p-0 bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
+                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
                     title="Editar ruta"
                 >
-                    <Edit className="w-3 h-3" />
+                    <Edit className="w-3 h-3 text-blue-600" />
                 </Button>
             );
         }
@@ -209,10 +209,16 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, isGlobalV
                     variant="outline"
                     size="sm"
                     onClick={() => handleToggleStatus(route)}
-                    className="h-8 w-8 p-0 bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
+                    className={`h-8 w-8 p-0 cursor-pointer ${
+                        route.status
+                            ? "hover:bg-red-50 hover:border-red-200"
+                            : "hover:bg-green-50 hover:border-green-200"
+                    }`}
                     title={route.status ? 'Desactivar ruta' : 'Activar ruta'}
                 >
-                    <Power className="w-3 h-3" />
+                    <Power className={`w-3 h-3 ${
+                        route.status ? "text-red-600" : "text-green-600"
+                    }`} />
                 </Button>
             );
         }

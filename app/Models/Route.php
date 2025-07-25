@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Route extends Model
 {
@@ -37,6 +38,22 @@ class Route extends Model
     public function circuit(): BelongsTo
     {
         return $this->belongsTo(Circuit::class);
+    }
+
+    /**
+     * Get the PDVs for the route.
+     */
+    public function pdvs(): HasMany
+    {
+        return $this->hasMany(Pdv::class);
+    }
+
+    /**
+     * Get the active PDVs for the route.
+     */
+    public function activePdvs(): HasMany
+    {
+        return $this->hasMany(Pdv::class)->where('status', 'vende');
     }
 
     /**
@@ -85,5 +102,16 @@ class Route extends Model
         return $query->whereHas('circuit', function ($circuitQuery) use ($zonalId) {
             $circuitQuery->where('zonal_id', $zonalId);
         });
+    }
+
+    /**
+     * Scope para incluir conteo de PDVs
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWithPdvsCount($query)
+    {
+        return $query->withCount(['pdvs', 'activePdvs']);
     }
 }

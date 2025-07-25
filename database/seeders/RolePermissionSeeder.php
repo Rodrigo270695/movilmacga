@@ -39,6 +39,14 @@ class RolePermissionSeeder extends Seeder
             'gestor-roles-cambiar-estado',
             'gestor-roles-asignar-permisos',
 
+            // Gestión de businesses (negocios)
+            'gestor-business-acceso',
+            'gestor-business-ver',
+            'gestor-business-crear',
+            'gestor-business-editar',
+            'gestor-business-eliminar',
+            'gestor-business-cambiar-estado',
+
             // Gestión de usuarios (futuro módulo)
             'gestor-usuarios-acceso',
             'gestor-usuarios-ver',
@@ -117,7 +125,11 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   🏠 Dashboard: menu-dashboard, ver-dashboard, ver-estadisticas');
         $this->command->info('   ⚙️  Admin: menu-admin');
         $this->command->info('   👥 Gestor Roles: gestor-roles-* (7 permisos)');
-        $this->command->info('   👤 Gestor Usuarios: gestor-usuarios-* (7 permisos)');
+        $this->command->info('   🏢 Gestor Negocios: gestor-business-* (6 permisos)');
+        $this->command->info('   👤 Gestor Usuarios: gestor-usuarios-* (6 permisos)');
+        $this->command->info('   📁 Gestor Zonales: gestor-zonal-* (6 permisos)');
+        $this->command->info('   🔌 Gestor Circuitos: gestor-circuito-* (6 permisos)');
+        $this->command->info('   🛤️ Gestor Rutas: gestor-ruta-* (6 permisos)');
         $this->command->info('   🔧 Configuración: configuracion-* (3 permisos)');
         $this->command->info('');
         $this->command->info('💡 Los menús se mostrarán automáticamente según los permisos del usuario');

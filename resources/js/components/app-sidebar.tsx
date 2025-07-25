@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2 } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 
@@ -26,6 +26,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/admin/roles',
                 icon: Users,
                 permission: 'gestor-roles-acceso',
+            },
+            {
+                title: 'Gestor de negocio',
+                href: '/admin/businesses',
+                icon: Building2,
+                permission: 'gestor-business-acceso',
             },
             {
                 title: 'Gestor de usuarios',

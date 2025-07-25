@@ -11,17 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('zonales', function (Blueprint $table) {
+        Schema::create('businesses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('business_id')->nullable()->constrained('businesses')->onDelete('set null')->comment('Business reference');
-            $table->string('name', 30)->unique()->comment('Nombre del zonal');
-            $table->boolean('status')->default(true)->comment('Estado activo/inactivo');
+            $table->string('name', 50)->unique()->comment('Business name');
+            $table->boolean('status')->default(true)->comment('Active/inactive status');
             $table->timestamps();
 
             // Indexes for query optimization
-            $table->index('business_id');
             $table->index('status');
-            $table->index(['business_id', 'status']);
         });
     }
 
@@ -30,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('zonales');
+        Schema::dropIfExists('businesses');
     }
 };

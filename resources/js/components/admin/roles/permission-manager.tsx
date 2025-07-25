@@ -18,7 +18,8 @@ import {
     Settings,
     Folder,
     CircuitBoard,
-    Route
+    Route,
+    Building2
 } from 'lucide-react';
 
 interface Permission {
@@ -71,6 +72,20 @@ const menuStructure = [
                     { id: 'gestor-roles-editar', label: 'Editar roles' },
                     { id: 'gestor-roles-cambiar-estado', label: 'Activar/Desactivar roles' },
                     { id: 'gestor-roles-asignar-permisos', label: 'Asignar permisos' }
+                ]
+            },
+            {
+                id: 'businesses',
+                label: 'Gestión de Negocios',
+                icon: Building2,
+                className: 'text-amber-600 bg-amber-100',
+                permission: 'gestor-business-acceso',
+                actions: [
+                    { id: 'gestor-business-ver', label: 'Ver negocios' },
+                    { id: 'gestor-business-crear', label: 'Crear negocios' },
+                    { id: 'gestor-business-editar', label: 'Editar negocios' },
+                    { id: 'gestor-business-cambiar-estado', label: 'Activar/Desactivar negocios' },
+                    { id: 'gestor-business-eliminar', label: 'Eliminar negocios' }
                 ]
             },
             {
@@ -158,6 +173,13 @@ const actionLabels: Record<string, string> = {
     'gestor-roles-eliminar': 'Eliminar roles',
     'gestor-roles-cambiar-estado': 'Activar/Desactivar roles',
     'gestor-roles-asignar-permisos': 'Asignar permisos a roles',
+
+    'gestor-business-ver': 'Ver negocios del sistema',
+    'gestor-business-crear': 'Crear nuevos negocios',
+    'gestor-business-editar': 'Editar negocios existentes',
+    'gestor-business-eliminar': 'Eliminar negocios',
+    'gestor-business-cambiar-estado': 'Activar/Desactivar negocios',
+
     'gestor-usuarios-ver': 'Ver usuarios',
     'gestor-usuarios-crear': 'Crear usuarios',
     'gestor-usuarios-editar': 'Editar usuarios',

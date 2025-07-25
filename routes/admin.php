@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,39 @@ Route::middleware(['auth', 'verified'])
             Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])
                 ->middleware('permission:gestor-roles-cambiar-estado')
                 ->name('roles.toggle-status');
+
+        });
+
+        // Grupo de rutas para businesses con middleware de permisos
+        Route::middleware(['permission:gestor-business-acceso'])->group(function () {
+
+            // Rutas específicas con permisos granulares
+            Route::get('businesses', [BusinessController::class, 'index'])
+                ->middleware('permission:gestor-business-ver')
+                ->name('businesses.index');
+
+            Route::post('businesses', [BusinessController::class, 'store'])
+                ->middleware('permission:gestor-business-crear')
+                ->name('businesses.store');
+
+            Route::patch('businesses/{business}', [BusinessController::class, 'update'])
+                ->middleware('permission:gestor-business-editar')
+                ->name('businesses.update');
+
+            // Ruta para cambiar estado del business
+            Route::patch('businesses/{business}/toggle-status', [BusinessController::class, 'toggleStatus'])
+                ->middleware('permission:gestor-business-cambiar-estado')
+                ->name('businesses.toggle-status');
+
+            // Ruta para eliminar business
+            Route::delete('businesses/{business}', [BusinessController::class, 'destroy'])
+                ->middleware('permission:gestor-business-eliminar')
+                ->name('businesses.destroy');
+
+            // Ruta para obtener detalles del business (para edición)
+            Route::get('businesses/{business}', [BusinessController::class, 'show'])
+                ->middleware('permission:gestor-business-ver')
+                ->name('businesses.show');
 
         });
 

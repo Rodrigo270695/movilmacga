@@ -158,13 +158,13 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
             actions.push(
                 <Button
                     key="edit"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => onEdit(zonal)}
-                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer sm:h-8 sm:w-8"
+                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
                     title="Editar zonal"
                 >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 text-blue-600" />
                 </Button>
             );
         }
@@ -173,17 +173,21 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
             actions.push(
                 <Button
                     key="toggle"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleToggleStatus(zonal)}
-                    className={`h-8 w-8 p-0 cursor-pointer sm:h-8 sm:w-8 ${
+                    className={`h-8 w-8 p-0 cursor-pointer ${
                         (zonal.status === false || zonal.status === 0 || zonal.status === null)
-                            ? "text-gray-500 hover:text-green-600 hover:bg-green-50"
-                            : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"
+                            ? "hover:bg-green-50 hover:border-green-200"
+                            : "hover:bg-red-50 hover:border-red-200"
                     }`}
                     title={(zonal.status === false || zonal.status === 0 || zonal.status === null) ? "Activar zonal" : "Desactivar zonal"}
                 >
-                    <Power className="w-4 h-4" />
+                    <Power className={`w-4 h-4 ${
+                        (zonal.status === false || zonal.status === 0 || zonal.status === null)
+                            ? "text-green-600"
+                            : "text-red-600"
+                    }`} />
                 </Button>
             );
         }
@@ -297,10 +301,10 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => router.visit(route('dcs.zonales.circuits.index', zonal.id))}
-                                                className="h-8 px-3 text-xs bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
+                                                className="h-8 px-3 text-xs hover:bg-purple-50 hover:border-purple-200 cursor-pointer"
                                                 title={`Ver circuitos de ${zonal.name}`}
                                             >
-                                                <CircuitBoard className="w-3 h-3 mr-1.5" />
+                                                <CircuitBoard className="w-3 h-3 mr-1.5 text-purple-600" />
                                                 {zonal.circuits_count || 0}
                                             </Button>
                                         </td>
@@ -370,10 +374,10 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                             variant="outline"
                                             size="sm"
                                             onClick={() => router.visit(route('dcs.zonales.circuits.index', zonal.id))}
-                                            className="h-7 px-2.5 text-xs bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 cursor-pointer"
+                                            className="h-7 px-2.5 text-xs hover:bg-purple-50 hover:border-purple-200 cursor-pointer"
                                             title={`Ver circuitos de ${zonal.name}`}
                                         >
-                                            <CircuitBoard className="w-3 h-3 mr-1" />
+                                            <CircuitBoard className="w-3 h-3 mr-1 text-purple-600" />
                                             {zonal.circuits_count || 0}
                                         </Button>
                                     </div>
