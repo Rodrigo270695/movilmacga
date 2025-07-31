@@ -5,6 +5,7 @@ use App\Http\Controllers\DCS\CircuitController;
 use App\Http\Controllers\DCS\GlobalCircuitController;
 use App\Http\Controllers\DCS\RouteController;
 use App\Http\Controllers\DCS\GlobalRouteController;
+use App\Http\Controllers\DCS\GlobalPdvController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -162,6 +163,55 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         });
 
+        // Grupo de rutas globales para PDVs con middleware de permisos
+        Route::middleware(['permission:gestor-pdv-acceso'])->group(function () {
+
+            // Rutas globales con permisos granulares
+            Route::get('pdvs', [GlobalPdvController::class, 'index'])
+                ->middleware('permission:gestor-pdv-ver')
+                ->name('pdvs.index');
+
+            Route::post('pdvs', [GlobalPdvController::class, 'store'])
+                ->middleware('permission:gestor-pdv-crear')
+                ->name('pdvs.store');
+
+            Route::patch('pdvs/{pdv}', [GlobalPdvController::class, 'update'])
+                ->middleware('permission:gestor-pdv-editar')
+                ->name('pdvs.update');
+
+            // Ruta para cambiar estado del PDV (global)
+            Route::patch('pdvs/{pdv}/toggle-status', [GlobalPdvController::class, 'toggleStatus'])
+                ->middleware('permission:gestor-pdv-cambiar-estado')
+                ->name('pdvs.toggle-status');
+
+            // Ruta para eliminar PDV (global)
+            Route::delete('pdvs/{pdv}', [GlobalPdvController::class, 'destroy'])
+                ->middleware('permission:gestor-pdv-eliminar')
+                ->name('pdvs.destroy');
+
+        });
+
+        // ========================================
+        // RUTAS AJAX PARA CARGA DINÁMICA (SIN MIDDLEWARE DE PERMISOS)
+        // ========================================
+
+        // Obtener provincias por departamento
+        Route::get('ajax/provincias', [GlobalPdvController::class, 'getProvinciasByDepartamento'])
+            ->name('dcs.ajax.provincias');
+
+        // Obtener distritos por provincia
+        Route::get('ajax/distritos', [GlobalPdvController::class, 'getDistritosByProvincia'])
+            ->name('dcs.ajax.distritos');
+
+        // Buscar localidades por distrito (con filtro de texto)
+        Route::get('ajax/localidades', [GlobalPdvController::class, 'searchLocalidades'])
+            ->name('dcs.ajax.localidades');
+
+        // Obtener rutas por circuito
+        Route::get('ajax/routes', [GlobalPdvController::class, 'getRoutesByCircuit'])
+            ->name('dcs.ajax.routes');
+
     });
 
 });
+

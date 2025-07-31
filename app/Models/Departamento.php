@@ -32,29 +32,9 @@ class Departamento extends Model
         return $this->hasMany(Provincia::class);
     }
 
-    public function activeProvincias(): HasMany
-    {
-        return $this->hasMany(Provincia::class)->where('status', true);
-    }
-
     // Scopes
     public function scopeActive($query)
     {
         return $query->where('status', true);
-    }
-
-    public function scopeInactive($query)
-    {
-        return $query->where('status', false);
-    }
-
-    public function scopeByPais($query, int $paisId)
-    {
-        return $query->where('pais_id', $paisId);
-    }
-
-    public function scopeWithProvinciasCount($query)
-    {
-        return $query->withCount(['provincias', 'activeProvincias']);
     }
 }

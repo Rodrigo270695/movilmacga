@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CustomSelect } from '@/components/ui/custom-select';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
 
 interface PaginationData {
@@ -52,7 +52,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
     return (
         <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                
+
                 {/* Información de resultados */}
                 <div className="flex items-center justify-center sm:justify-start">
                     <p className="text-xs sm:text-sm text-gray-700">
@@ -64,33 +64,33 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
 
                 {/* Controles de paginación */}
                 <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                    
+
                     {/* Selector de elementos por página */}
                     <div className="flex items-center space-x-2">
                         <span className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Por página:</span>
-                        <Select value={per_page.toString()} onValueChange={(value) => onPerPageChange(parseInt(value))}>
-                            <SelectTrigger className="w-16 h-8 cursor-pointer">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="5" className="cursor-pointer">5</SelectItem>
-                                <SelectItem value="10" className="cursor-pointer">10</SelectItem>
-                                <SelectItem value="25" className="cursor-pointer">25</SelectItem>
-                                <SelectItem value="50" className="cursor-pointer">50</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <CustomSelect
+                            value={per_page.toString()}
+                            onValueChange={(value) => onPerPageChange(parseInt(value))}
+                            options={[
+                                { value: "5", label: "5" },
+                                { value: "10", label: "10" },
+                                { value: "25", label: "25" },
+                                { value: "50", label: "50" }
+                            ]}
+                            className="w-20 h-8"
+                        />
                     </div>
 
                     {/* Navegación de páginas */}
                     <div className="flex items-center space-x-1">
-                        
+
                         {/* Primera página */}
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => onPageChange(1)}
                             disabled={current_page === 1}
-                            className="h-8 w-8 p-0 hidden sm:flex cursor-pointer"
+                            className="h-8 w-8 p-0 hidden sm:flex border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                             title="Primera página"
                         >
                             <ChevronsLeft className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                             size="sm"
                             onClick={() => onPageChange(current_page - 1)}
                             disabled={current_page === 1}
-                            className="h-8 w-8 p-0 cursor-pointer"
+                            className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                             title="Página anterior"
                         >
                             <ChevronLeft className="h-4 w-4" />
@@ -115,7 +115,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                                     variant="outline"
                                     size="sm"
                                     onClick={() => onPageChange(1)}
-                                    className="h-8 w-8 p-0 hidden sm:flex cursor-pointer"
+                                    className="h-8 w-8 p-0 hidden sm:flex border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                                 >
                                     1
                                 </Button>
@@ -135,9 +135,9 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                                 size="sm"
                                 onClick={() => onPageChange(page)}
                                 className={`h-8 w-8 p-0 cursor-pointer ${
-                                    page === current_page 
-                                        ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' 
-                                        : ''
+                                    page === current_page
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600'
+                                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                 }`}
                             >
                                 {page}
@@ -156,7 +156,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                                     variant="outline"
                                     size="sm"
                                     onClick={() => onPageChange(last_page)}
-                                    className="h-8 w-8 p-0 hidden sm:flex cursor-pointer"
+                                    className="h-8 w-8 p-0 hidden sm:flex border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                                 >
                                     {last_page}
                                 </Button>
@@ -169,7 +169,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                             size="sm"
                             onClick={() => onPageChange(current_page + 1)}
                             disabled={current_page === last_page}
-                            className="h-8 w-8 p-0 cursor-pointer"
+                            className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                             title="Página siguiente"
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -181,7 +181,7 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                             size="sm"
                             onClick={() => onPageChange(last_page)}
                             disabled={current_page === last_page}
-                            className="h-8 w-8 p-0 hidden sm:flex cursor-pointer"
+                            className="h-8 w-8 p-0 hidden sm:flex border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
                             title="Última página"
                         >
                             <ChevronsRight className="h-4 w-4" />

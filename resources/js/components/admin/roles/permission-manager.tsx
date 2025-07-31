@@ -19,7 +19,8 @@ import {
     Folder,
     CircuitBoard,
     Route,
-    Building2
+    Building2,
+    MapPin
 } from 'lucide-react';
 
 interface Permission {
@@ -148,6 +149,19 @@ const menuStructure = [
                     { id: 'gestor-ruta-editar', label: 'Editar rutas' },
                     { id: 'gestor-ruta-cambiar-estado', label: 'Activar/Desactivar rutas' }
                 ]
+            },
+            {
+                id: 'pdvs',
+                label: 'Gestión de PDVs',
+                icon: MapPin,
+                className: 'text-pink-600 bg-pink-100',
+                permission: 'gestor-pdv-acceso',
+                actions: [
+                    { id: 'gestor-pdv-ver', label: 'Ver PDVs' },
+                    { id: 'gestor-pdv-crear', label: 'Crear PDVs' },
+                    { id: 'gestor-pdv-editar', label: 'Editar PDVs' },
+                    { id: 'gestor-pdv-cambiar-estado', label: 'Activar/Desactivar PDVs' }
+                ]
             }
         ]
     },
@@ -202,6 +216,12 @@ const actionLabels: Record<string, string> = {
     'gestor-ruta-editar': 'Editar rutas existentes',
     'gestor-ruta-eliminar': 'Eliminar rutas',
     'gestor-ruta-cambiar-estado': 'Activar/Desactivar rutas',
+
+    'gestor-pdv-ver': 'Ver PDVs del sistema',
+    'gestor-pdv-crear': 'Crear nuevos PDVs',
+    'gestor-pdv-editar': 'Editar PDVs existentes',
+    'gestor-pdv-eliminar': 'Eliminar PDVs',
+    'gestor-pdv-cambiar-estado': 'Activar/Desactivar PDVs',
 
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'

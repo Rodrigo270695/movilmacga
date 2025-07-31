@@ -79,6 +79,14 @@ class RolePermissionSeeder extends Seeder
             'gestor-ruta-eliminar',
             'gestor-ruta-cambiar-estado',
 
+            // Gestión de PDVs (DCS)
+            'gestor-pdv-acceso',
+            'gestor-pdv-ver',
+            'gestor-pdv-crear',
+            'gestor-pdv-editar',
+            'gestor-pdv-eliminar',
+            'gestor-pdv-cambiar-estado',
+
             // Configuración del sistema (futuro)
             'configuracion-acceso',
             'configuracion-general',
@@ -130,6 +138,7 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   📁 Gestor Zonales: gestor-zonal-* (6 permisos)');
         $this->command->info('   🔌 Gestor Circuitos: gestor-circuito-* (6 permisos)');
         $this->command->info('   🛤️ Gestor Rutas: gestor-ruta-* (6 permisos)');
+        $this->command->info('   📍 Gestor PDVs: gestor-pdv-* (6 permisos)');
         $this->command->info('   🔧 Configuración: configuracion-* (3 permisos)');
         $this->command->info('');
         $this->command->info('💡 Los menús se mostrarán automáticamente según los permisos del usuario');

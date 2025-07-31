@@ -13,15 +13,9 @@ class DatabaseSeeder extends Seeder
     {
         // Ejecutar seeders en orden jerárquico
         $this->call([
-            // Seeders de roles y permisos (existentes)
+            // Seeders de roles y permisos
             RolePermissionSeeder::class,
-
-            // Nuevos seeders de división territorial (orden jerárquico)
-            PaisSeeder::class,
-            DepartamentoSeeder::class,
-            ProvinciaSeeder::class,
-            DistritoSeeder::class,
-            // LocalidadSeeder::class, // No incluido por solicitud del usuario
+            // Datos geográficos se ingresarán directamente en la base de datos
         ]);
     }
 }

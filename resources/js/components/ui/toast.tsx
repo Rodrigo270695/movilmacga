@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 interface Toast {
@@ -20,23 +20,33 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const addToast = (toast: Omit<Toast, 'id'>) => {
+    const removeToast = useCallback((id: string) => {
+        setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, []);
+
+    const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
         const id = Math.random().toString(36).substr(2, 9);
         const newToast = { ...toast, id };
         setToasts(prev => [...prev, newToast]);
 
         // Auto remove after duration
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
             removeToast(id);
         }, toast.duration || 5000);
-    };
 
-    const removeToast = (id: string) => {
-        setToasts(prev => prev.filter(toast => toast.id !== id));
-    };
+        // Return cleanup function
+        return () => clearTimeout(timeoutId);
+    }, [removeToast]);
+
+    // Memoizar el contexto value para evitar re-renders
+    const contextValue = useCallback(() => ({
+        toasts,
+        addToast,
+        removeToast
+    }), [toasts, addToast, removeToast]);
 
     return (
-        <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+        <ToastContext.Provider value={contextValue()}>
             {children}
             <ToastContainer />
         </ToastContext.Provider>
@@ -72,13 +82,17 @@ function ToastComponent({ toast, onClose }: { toast: Toast; onClose: () => void 
     const [isLeaving, setIsLeaving] = useState(false);
 
     useEffect(() => {
-        // Trigger entrance animation
-        setTimeout(() => setIsVisible(true), 10);
-    }, []);
+        // Trigger entrance animation solo una vez al montar
+        const timeoutId = setTimeout(() => {
+            setIsVisible(true);
+        }, 10);
+        return () => clearTimeout(timeoutId);
+    }, []); // Sin dependencias para ejecutar solo una vez
 
     const handleClose = () => {
         setIsLeaving(true);
-        setTimeout(onClose, 300); // Wait for exit animation
+        const timeoutId = setTimeout(onClose, 300); // Wait for exit animation
+        return () => clearTimeout(timeoutId);
     };
 
     const getToastConfig = (type: Toast['type']) => {

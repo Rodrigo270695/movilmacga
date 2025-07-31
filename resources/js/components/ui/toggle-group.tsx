@@ -22,7 +22,6 @@ function ToggleGroup({
   VariantProps<typeof toggleVariants>) {
   return (
     <ToggleGroupPrimitive.Root
-      data-slot="toggle-group"
       data-variant={variant}
       data-size={size}
       className={cn(
@@ -50,7 +49,6 @@ function ToggleGroupItem({
 
   return (
     <ToggleGroupPrimitive.Item
-      data-slot="toggle-group-item"
       data-variant={context.variant || variant}
       data-size={context.size || size}
       className={cn(

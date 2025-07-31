@@ -4,9 +4,10 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2 } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 
 // Definir estructura completa de navegación con permisos requeridos
 const allNavItems: (NavItem & { permission?: string })[] = [
@@ -64,6 +65,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 icon: Route,
                 permission: 'gestor-ruta-acceso',
             },
+            {
+                title: 'Gestor de PDVs',
+                href: '/dcs/pdvs',
+                icon: MapPin,
+                permission: 'gestor-pdv-acceso',
+            },
         ],
     },
 ];
@@ -91,25 +98,29 @@ export function AppSidebar() {
         return userPermissions.includes(permission);
     };
 
-    // Función para filtrar items del menú basándose en permisos
-    const filterNavItems = (items: (NavItem & { permission?: string })[]): NavItem[] => {
-        return items
-            .filter(item => hasPermission(item.permission))
-            .map(item => {
-                if (item.items) {
-                    const filteredSubItems = filterNavItems(item.items as (NavItem & { permission?: string })[]);
-                    // Solo mostrar el menú padre si tiene sub-items visibles
-                    if (filteredSubItems.length === 0) {
-                        return null;
+    // Memoizar la función para filtrar items del menú basándose en permisos
+    const filterNavItems = useMemo(() => {
+        const filter = (items: (NavItem & { permission?: string })[]): NavItem[] => {
+            return items
+                .filter(item => hasPermission(item.permission))
+                .map(item => {
+                    if (item.items) {
+                        const filteredSubItems = filter(item.items as (NavItem & { permission?: string })[]);
+                        // Solo mostrar el menú padre si tiene sub-items visibles
+                        if (filteredSubItems.length === 0) {
+                            return null;
+                        }
+                        return { ...item, items: filteredSubItems };
                     }
-                    return { ...item, items: filteredSubItems };
-                }
-                return item;
-            })
-            .filter(Boolean) as NavItem[];
-    };
+                    return item;
+                })
+                .filter(Boolean) as NavItem[];
+        };
+        return filter;
+    }, [userPermissions]);
 
-    const visibleNavItems = filterNavItems(allNavItems);
+    // Memoizar el resultado del filtrado para evitar re-renders innecesarios
+    const visibleNavItems = useMemo(() => filterNavItems(allNavItems), [filterNavItems]);
 
         return (
         <Sidebar collapsible="icon" variant="inset">
