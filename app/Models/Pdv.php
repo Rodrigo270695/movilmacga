@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pdv extends Model
 {
@@ -44,6 +45,11 @@ class Pdv extends Model
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Localidad::class);
+    }
+
+    public function pdvVisits(): HasMany
+    {
+        return $this->hasMany(PdvVisit::class);
     }
 
     // Scopes

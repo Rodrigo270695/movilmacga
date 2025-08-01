@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -11,33 +10,14 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/toast';
 import {
     Edit2,
-    MoreVertical,
     Power,
     Trash2,
     MapPin,
-    Phone,
-    Mail,
-    Building2,
     CreditCard
 } from 'lucide-react';
-// Usando componente DropdownMenu personalizado para evitar bucles infinitos de Radix UI
-// import {
-//     DropdownMenu,
-//     DropdownMenuContent,
-//     DropdownMenuItem,
-//     DropdownMenuSeparator,
-//     DropdownMenuTrigger,
-// } from '@/components/ui/dropdown-menu';
-import { CustomDropdownMenu } from '@/components/ui/custom-dropdown-menu';
 
 interface PdvModel {
     id: number;
@@ -46,11 +26,17 @@ interface PdvModel {
     document_type: 'DNI' | 'RUC';
     document_number: string;
     client_name: string;
+    phone: string;
     classification: string;
     status: string;
+    sells_recharge: boolean;
+    address: string;
+    latitude: number;
+    longitude: number;
     route_id: number;
     locality_id: number;
     created_at: string;
+    updated_at: string;
     route?: {
         id: number;
         name: string;
@@ -131,17 +117,6 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
         );
     };
 
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-        router.get(route('dcs.pdvs.index'), {
-            page,
-            ...router.page.props.filters
-        }, {
-            preserveState: true,
-            preserveScroll: true
-        });
-    };
-
     const handleDelete = (pdv: PdvModel) => {
         if (!hasPermission('gestor-pdv-eliminar')) {
             addToast({
@@ -156,76 +131,6 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
         if (onDelete) {
             onDelete(pdv);
         }
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    };
-
-    const renderPagination = () => {
-        if (pdvs.last_page <= 1) return null;
-
-        const pages = [];
-        const currentPage = pdvs.current_page;
-        const lastPage = pdvs.last_page;
-
-        // Lógica de paginación similar a rutas
-        const maxVisiblePages = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-        let endPage = Math.min(lastPage, startPage + maxVisiblePages - 1);
-
-        if (endPage - startPage + 1 < maxVisiblePages) {
-            startPage = Math.max(1, endPage - maxVisiblePages + 1);
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            pages.push(
-                <Button
-                    key={i}
-                    variant={i === currentPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handlePageChange(i)}
-                    className="h-8 w-8 p-0"
-                >
-                    {i}
-                </Button>
-            );
-        }
-
-        return (
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50/50">
-                <div className="text-sm text-gray-600">
-                    Mostrando {pdvs.from} a {pdvs.to} de {pdvs.total} PDVs
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="h-8"
-                    >
-                        Anterior
-                    </Button>
-                    <div className="flex gap-1">
-                        {pages}
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === lastPage}
-                        className="h-8"
-                    >
-                        Siguiente
-                    </Button>
-                </div>
-            </div>
-        );
     };
 
     if (pdvs.data.length === 0) {
@@ -256,7 +161,6 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
                             {isGlobalView && (
                                 <TableHead className="font-semibold text-gray-900">Ubicación</TableHead>
                             )}
-                            <TableHead className="font-semibold text-gray-900">Fecha</TableHead>
                             <TableHead className="font-semibold text-gray-900 text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -314,55 +218,42 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
                                         </div>
                                     </TableCell>
                                 )}
-                                <TableCell className="text-sm text-gray-600">
-                                    {formatDate(pdv.created_at)}
-                                </TableCell>
                                 <TableCell className="text-right">
-                                    <CustomDropdownMenu
-                                        align="end"
-                                        trigger={
+                                    <div className="flex items-center justify-end gap-2">
+                                        {hasPermission('gestor-pdv-editar') && (
                                             <Button
-                                                variant="ghost"
+                                                variant="outline"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
+                                                onClick={() => onEdit(pdv)}
+                                                className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
+                                                title="Editar PDV"
                                             >
-                                                <MoreVertical className="w-4 h-4" />
+                                                <Edit2 className="w-4 h-4 text-blue-600" />
                                             </Button>
-                                        }
-                                        items={[
-                                            ...(hasPermission('gestor-pdv-editar') ? [{
-                                                label: (
-                                                    <span className="flex items-center">
-                                                        <Edit2 className="w-4 h-4 mr-2" />
-                                                        Editar PDV
-                                                    </span>
-                                                ) as any,
-                                                onClick: () => onEdit(pdv)
-                                            }] : []),
-                                            ...(hasPermission('gestor-pdv-cambiar-estado') ? [{
-                                                label: (
-                                                    <span className="flex items-center">
-                                                        <Power className="w-4 h-4 mr-2" />
-                                                        Cambiar Estado
-                                                    </span>
-                                                ) as any,
-                                                onClick: () => onToggleStatus(pdv)
-                                            }] : []),
-                                            ...(hasPermission('gestor-pdv-eliminar') ? [
-                                                { type: 'separator' },
-                                                {
-                                                    label: (
-                                                        <span className="flex items-center">
-                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                            Eliminar PDV
-                                                        </span>
-                                                    ) as any,
-                                                    onClick: () => handleDelete(pdv),
-                                                    variant: 'destructive'
-                                                }
-                                            ] : [])
-                                        ].filter(Boolean)}
-                                    />
+                                        )}
+                                        {hasPermission('gestor-pdv-cambiar-estado') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => onToggleStatus(pdv)}
+                                                className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200 cursor-pointer"
+                                                title="Cambiar Estado"
+                                            >
+                                                <Power className="w-4 h-4 text-green-600" />
+                                            </Button>
+                                        )}
+                                        {hasPermission('gestor-pdv-eliminar') && onDelete && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleDelete(pdv)}
+                                                className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200 cursor-pointer"
+                                                title="Eliminar PDV"
+                                            >
+                                                <Trash2 className="w-4 h-4 text-red-600" />
+                                            </Button>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}

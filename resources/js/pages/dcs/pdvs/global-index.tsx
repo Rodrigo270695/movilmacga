@@ -1,12 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-// Usando componente Select personalizado para evitar bucles infinitos de Radix UI
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CustomSelect } from '@/components/ui/custom-select';
-import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { Pagination } from '@/components/ui/pagination';
 import { AdvancedFilters } from '@/components/ui/advanced-filters';
@@ -15,16 +9,7 @@ import { PdvsTable } from '@/components/dcs/pdvs/pdvs-table';
 import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
-import {
-    Search,
-    X,
-    Filter,
-    Plus,
-    ChevronDown,
-    ChevronUp,
-    Settings2,
-    Tag
-} from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface PdvModel {
     id: number;
@@ -89,24 +74,6 @@ interface Departamento {
     pais_id: number;
 }
 
-interface Provincia {
-    id: number;
-    name: string;
-    departamento_id: number;
-}
-
-interface Distrito {
-    id: number;
-    name: string;
-    provincia_id: number;
-}
-
-interface Locality {
-    id: number;
-    name: string;
-    distrito_id: number;
-}
-
 interface Props {
     pdvs: {
         data: PdvModel[];
@@ -125,6 +92,13 @@ interface Props {
         route_id?: string;
         status?: string;
         classification?: string;
+        document_type?: string;
+        sells_recharge?: string;
+        circuit_id?: string;
+        document_number?: string;
+        client_name?: string;
+        point_name?: string;
+        pos_id?: string;
     };
     flash?: {
         success?: string;
@@ -134,6 +108,7 @@ interface Props {
 
 export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos, filters, flash }: Props) {
     const { addToast } = useToast();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { auth } = usePage().props as any;
 
     const userPermissions = auth?.user?.permissions || [];
@@ -220,7 +195,7 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
                 duration: 5000
             });
         }
-    }, [flash?.success, flash?.error]); // Solo depender de los valores específicos
+    }, [flash?.success, flash?.error, addToast]);
 
     // Búsqueda automática con debounce - SOLO para searchQuery
     useEffect(() => {
@@ -249,6 +224,7 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         return () => {
             if (timeout) clearTimeout(timeout);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]); // Solo cuando cambie searchQuery
 
     // Limpieza del debounce al desmontar el componente
@@ -258,6 +234,7 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
                 clearTimeout(searchDebounce);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSearch = (query: string) => {
@@ -333,34 +310,7 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         setTimeout(() => applyFilters(), 0);
     };
 
-    // Handlers para filtros avanzados que aplican automáticamente
-    const handleAdvancedFilterChange = (filterType: string, value: string) => {
-        switch (filterType) {
-            case 'documentType':
-                setSelectedDocumentType(value);
-                break;
-            case 'sellsRecharge':
-                setSellsRecharge(value);
-                break;
-            case 'circuit':
-                setSelectedCircuit(value);
-                break;
-            case 'documentNumber':
-                setDocumentNumber(value);
-                break;
-            case 'clientName':
-                setClientName(value);
-                break;
-            case 'pointName':
-                setPointName(value);
-                break;
-            case 'posId':
-                setPosId(value);
-                break;
-        }
-        // Aplicar filtros después de un breve delay para permitir la actualización del estado
-        setTimeout(() => applyFilters(), 300);
-    };
+
 
     const clearFilters = () => {
         // Limpiar debounce activo
@@ -434,9 +384,9 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
     };
 
     // Verificar si hay filtros activos
-    const hasActiveFilters = searchQuery || selectedRoute || selectedStatus || selectedClassification ||
+    const hasActiveFilters = !!(searchQuery || selectedRoute || selectedStatus || selectedClassification ||
                             selectedDocumentType || sellsRecharge || selectedCircuit || documentNumber ||
-                            clientName || pointName || posId;
+                            clientName || pointName || posId);
 
     // Contar filtros activos
     const activeFilterCount = [

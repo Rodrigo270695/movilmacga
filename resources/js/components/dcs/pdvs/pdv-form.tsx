@@ -86,6 +86,7 @@ interface FormData {
     reference: string;
     latitude: string;
     longitude: string;
+    circuit_id: string;
     route_id: string;
     locality_id: string;
     departamento_id: string;
@@ -114,6 +115,7 @@ export function PdvForm({
         reference: '',
         latitude: '',
         longitude: '',
+        circuit_id: '',
         route_id: '',
         locality_id: '',
         departamento_id: '',
@@ -131,11 +133,16 @@ export function PdvForm({
     const [loadingLocalidades, setLoadingLocalidades] = useState(false);
     const [loadingRoutes, setLoadingRoutes] = useState(false);
 
+    // Estado para enfoque dinámico del mapa
+    const [mapFocusLocation, setMapFocusLocation] = useState<string>('');
+
     // Cargar rutas cuando cambia el circuito
-    const handleCircuitChange = async (circuitId: string) => {
+    const handleCircuitChange = async (circuitId: string, keepValues = false) => {
         if (!circuitId) {
             setAvailableRoutes([]);
-            setData('route_id', '');
+            if (!keepValues) {
+                setData('route_id', '');
+            }
             return;
         }
 
@@ -162,17 +169,30 @@ export function PdvForm({
         }
     };
 
-    // Cargar provincias cuando cambia el departamento
-    const handleDepartamentoChange = async (departamentoId: string) => {
+        // Cargar provincias cuando cambia el departamento
+    const handleDepartamentoChange = async (departamentoId: string, keepValues = false) => {
         setData('departamento_id', departamentoId);
-        setData('provincia_id', '');
-        setData('distrito_id', '');
-        setData('locality_id', '');
+
+        if (!keepValues) {
+            setData('provincia_id', '');
+            setData('distrito_id', '');
+            setData('locality_id', '');
+        }
+
         setProvincias([]);
         setDistritos([]);
         setLocalidades([]);
 
-        if (!departamentoId) return;
+        if (!departamentoId) {
+            setMapFocusLocation('');
+            return;
+        }
+
+        // Enfocar mapa en el departamento seleccionado
+        const selectedDepartamento = departamentos.find(d => d.id.toString() === departamentoId);
+        if (selectedDepartamento) {
+            setMapFocusLocation(`${selectedDepartamento.name} departamento`);
+        }
 
         setLoadingProvincias(true);
         try {
@@ -186,15 +206,25 @@ export function PdvForm({
         }
     };
 
-    // Cargar distritos cuando cambia la provincia
-    const handleProvinciaChange = async (provinciaId: string) => {
+        // Cargar distritos cuando cambia la provincia
+    const handleProvinciaChange = async (provinciaId: string, keepValues = false) => {
         setData('provincia_id', provinciaId);
-        setData('distrito_id', '');
-        setData('locality_id', '');
+
+        if (!keepValues) {
+            setData('distrito_id', '');
+            setData('locality_id', '');
+        }
+
         setDistritos([]);
         setLocalidades([]);
 
         if (!provinciaId) return;
+
+        // Enfocar mapa en la provincia seleccionada
+        const selectedProvincia = provincias.find(p => p.id.toString() === provinciaId);
+        if (selectedProvincia) {
+            setMapFocusLocation(`${selectedProvincia.name} provincia`);
+        }
 
         setLoadingDistritos(true);
         try {
@@ -208,13 +238,23 @@ export function PdvForm({
         }
     };
 
-    // Cargar localidades cuando cambia el distrito
-    const handleDistritoChange = async (distritoId: string) => {
+        // Cargar localidades cuando cambia el distrito
+    const handleDistritoChange = async (distritoId: string, keepValues = false) => {
         setData('distrito_id', distritoId);
-        setData('locality_id', '');
+
+        if (!keepValues) {
+            setData('locality_id', '');
+        }
+
         setLocalidades([]);
 
         if (!distritoId) return;
+
+        // Enfocar mapa en el distrito seleccionado
+        const selectedDistrito = distritos.find(d => d.id.toString() === distritoId);
+        if (selectedDistrito) {
+            setMapFocusLocation(`${selectedDistrito.name} distrito`);
+        }
 
         setLoadingLocalidades(true);
         try {
@@ -228,36 +268,94 @@ export function PdvForm({
         }
     };
 
-    // Efectos para cargar datos del PDV en edición (evitar bucles)
+    // Efectos para cargar datos del PDV en edición
     useEffect(() => {
         if (open && pdv) {
-            setData({
-                point_name: pdv.point_name || '',
-                document_type: pdv.document_type || 'DNI',
-                document_number: pdv.document_number || '',
-                client_name: pdv.client_name || '',
-                phone: pdv.phone || '',
-                classification: pdv.classification || 'bodega',
-                status: pdv.status || 'vende',
-                sells_recharge: pdv.sells_recharge ?? false,
-                address: pdv.address || '',
-                reference: pdv.reference || '',
-                latitude: pdv.latitude?.toString() || '',
-                longitude: pdv.longitude?.toString() || '',
-                route_id: pdv.route_id?.toString() || '',
-                locality_id: pdv.locality_id?.toString() || '',
-                departamento_id: '',
-                provincia_id: '',
-                distrito_id: '',
-            });
+            // Cargar datos dependientes para edición (incluye setData)
+            loadEditingData();
         } else if (open && !pdv) {
             reset();
             setAvailableRoutes([]);
             setProvincias([]);
             setDistritos([]);
             setLocalidades([]);
+            setMapFocusLocation(''); // Limpiar enfoque del mapa para nuevo PDV
         }
     }, [open, pdv?.id]); // Solo depender del ID del PDV para evitar bucles
+
+        // Función para cargar datos cuando se está editando
+    const loadEditingData = async () => {
+        if (!pdv) return;
+
+        try {
+            // Cargar la información completa del PDV para obtener los IDs geográficos
+            const response = await fetch(`/dcs/ajax/pdv-details/${pdv.id}`);
+            if (response.ok) {
+                const pdvDetails = await response.json();
+
+                // Actualizar todos los datos del formulario con la información completa
+                setData(prev => ({
+                    ...prev,
+                    // Datos básicos
+                    point_name: pdvDetails.point_name || '',
+                    document_type: pdvDetails.document_type || 'DNI',
+                    document_number: pdvDetails.document_number || '',
+                    client_name: pdvDetails.client_name || '',
+                    phone: pdvDetails.phone || '',
+                    classification: pdvDetails.classification || 'bodega',
+                    status: pdvDetails.status || 'vende',
+                    sells_recharge: pdvDetails.sells_recharge ?? false,
+                    address: pdvDetails.address || '',
+                    reference: pdvDetails.reference || '',
+                    latitude: pdvDetails.latitude?.toString() || '',
+                    longitude: pdvDetails.longitude?.toString() || '',
+                    route_id: pdvDetails.route_id?.toString() || '',
+                    locality_id: pdvDetails.locality_id?.toString() || '',
+                    // IDs geográficos
+                    circuit_id: pdvDetails.circuit_id?.toString() || '',
+                    departamento_id: pdvDetails.departamento_id?.toString() || '',
+                    provincia_id: pdvDetails.provincia_id?.toString() || '',
+                    distrito_id: pdvDetails.distrito_id?.toString() || '',
+                }));
+
+                // Cargar listas dependientes en secuencia usando promesas
+                const loadSequentially = async () => {
+                    // Cargar circuito y rutas
+                    if (pdvDetails.circuit_id) {
+                        await handleCircuitChange(pdvDetails.circuit_id.toString(), true);
+                    }
+
+                    // Cargar ubicación geográfica paso a paso
+                    if (pdvDetails.departamento_id) {
+                        await handleDepartamentoChange(pdvDetails.departamento_id.toString(), true);
+
+                        // Esperar a que se actualicen las provincias
+                        await new Promise(resolve => setTimeout(resolve, 300));
+
+                        if (pdvDetails.provincia_id) {
+                            await handleProvinciaChange(pdvDetails.provincia_id.toString(), true);
+
+                            // Esperar a que se actualicen los distritos
+                            await new Promise(resolve => setTimeout(resolve, 300));
+
+                            if (pdvDetails.distrito_id) {
+                                await handleDistritoChange(pdvDetails.distrito_id.toString(), true);
+
+                                // Esperar a que se actualicen las localidades
+                                await new Promise(resolve => setTimeout(resolve, 300));
+
+                                // Finalmente setear la localidad (ya está seteada en setData arriba)
+                            }
+                        }
+                    }
+                };
+
+                await loadSequentially();
+            }
+        } catch (error) {
+            console.error('Error cargando datos para edición:', error);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -282,6 +380,7 @@ export function PdvForm({
     const handleClose = () => {
         onClose();
         reset();
+        setMapFocusLocation(''); // Limpiar enfoque del mapa
     };
 
     const isEditing = !!pdv;
@@ -313,7 +412,7 @@ export function PdvForm({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                                                <div>
+                                <div>
                                     <Label htmlFor="point_name">
                                         Nombre del Punto <span className="text-red-500">*</span>
                                     </Label>
@@ -327,6 +426,8 @@ export function PdvForm({
                                         <p className="text-sm text-red-500">{errors.point_name}</p>
                                     )}
                                 </div>
+
+
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -461,7 +562,10 @@ export function PdvForm({
                                     </Label>
                                     <CustomSelect
                                         value={data.circuit_id}
-                                        onValueChange={handleCircuitChange}
+                                        onValueChange={(value) => {
+                                            setData('circuit_id', value);
+                                            handleCircuitChange(value, false);
+                                        }}
                                         options={circuits.map(circuit => ({
                                             value: circuit.id.toString(),
                                             label: `${circuit.name} (${circuit.code})`
@@ -505,7 +609,7 @@ export function PdvForm({
                                     </Label>
                                     <CustomSelect
                                         value={data.departamento_id}
-                                        onValueChange={handleDepartamentoChange}
+                                        onValueChange={(value) => handleDepartamentoChange(value, false)}
                                         options={departamentos.map(dept => ({
                                             value: dept.id.toString(),
                                             label: dept.name
@@ -520,7 +624,7 @@ export function PdvForm({
                                     </Label>
                                     <CustomSelect
                                         value={data.provincia_id}
-                                        onValueChange={handleProvinciaChange}
+                                        onValueChange={(value) => handleProvinciaChange(value, false)}
                                         disabled={provincias.length === 0}
                                         options={provincias.map(prov => ({
                                             value: prov.id.toString(),
@@ -536,7 +640,7 @@ export function PdvForm({
                                     </Label>
                                     <CustomSelect
                                         value={data.distrito_id}
-                                        onValueChange={handleDistritoChange}
+                                        onValueChange={(value) => handleDistritoChange(value, false)}
                                         disabled={distritos.length === 0}
                                         options={distritos.map(dist => ({
                                             value: dist.id.toString(),
@@ -552,7 +656,15 @@ export function PdvForm({
                                     </Label>
                                     <CustomSelect
                                         value={data.locality_id}
-                                        onValueChange={(value) => setData('locality_id', value)}
+                                        onValueChange={(value) => {
+                                            setData('locality_id', value);
+
+                                            // Enfocar mapa en la localidad seleccionada
+                                            const selectedLocalidad = localidades.find(l => l.id.toString() === value);
+                                            if (selectedLocalidad) {
+                                                setMapFocusLocation(`${selectedLocalidad.name} localidad`);
+                                            }
+                                        }}
                                         disabled={localidades.length === 0}
                                         options={localidades.map(loc => ({
                                             value: loc.id.toString(),
@@ -629,6 +741,7 @@ export function PdvForm({
                                 latitude={data.latitude ? parseFloat(data.latitude) : undefined}
                                 longitude={data.longitude ? parseFloat(data.longitude) : undefined}
                                 address={data.address}
+                                focusLocation={mapFocusLocation}
                                 onLocationChange={(lat, lng, addr) => {
                                     // Solo actualizar si hay cambios reales
                                     const newLat = lat.toString();

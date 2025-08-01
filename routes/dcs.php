@@ -268,6 +268,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('ajax/routes', [GlobalPdvController::class, 'getRoutesByCircuit'])
             ->name('dcs.ajax.routes');
 
+        // Obtener detalles completos del PDV para edición
+        Route::get('ajax/pdv-details/{pdv}', [GlobalPdvController::class, 'getPdvDetails'])
+            ->name('dcs.ajax.pdv-details');
+
     });
 
 });

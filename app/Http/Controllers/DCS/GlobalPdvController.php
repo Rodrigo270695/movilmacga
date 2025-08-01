@@ -257,6 +257,42 @@ class GlobalPdvController extends Controller
     }
 
     /**
+     * Obtener detalles completos del PDV para edición (AJAX)
+     */
+    public function getPdvDetails(Pdv $pdv)
+    {
+        // Cargar PDV con todas las relaciones necesarias
+        $pdv->load([
+            'route.circuit',
+            'locality.distrito.provincia.departamento'
+        ]);
+
+        return response()->json([
+            'id' => $pdv->id,
+            'point_name' => $pdv->point_name,
+            'pos_id' => $pdv->pos_id,
+            'document_type' => $pdv->document_type,
+            'document_number' => $pdv->document_number,
+            'client_name' => $pdv->client_name,
+            'phone' => $pdv->phone,
+            'classification' => $pdv->classification,
+            'status' => $pdv->status,
+            'sells_recharge' => $pdv->sells_recharge,
+            'address' => $pdv->address,
+            'reference' => $pdv->reference,
+            'latitude' => $pdv->latitude,
+            'longitude' => $pdv->longitude,
+            'route_id' => $pdv->route_id,
+            'locality_id' => $pdv->locality_id,
+            // IDs para cargar las listas dependientes
+            'circuit_id' => $pdv->route?->circuit_id,
+            'departamento_id' => $pdv->locality?->distrito?->provincia?->departamento_id,
+            'provincia_id' => $pdv->locality?->distrito?->provincia_id,
+            'distrito_id' => $pdv->locality?->distrito_id,
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage (global).
      */
     public function store(PdvRequest $request)
@@ -302,8 +338,8 @@ class GlobalPdvController extends Controller
             abort(403, 'No tienes permisos para editar PDVs.');
         }
 
-        // Mantener el pos_id existente durante la edición
-        $posId = $pdv->pos_id;
+        // Mantener el pos_id existente o generar uno si no existe
+        $posId = $pdv->pos_id ?: $this->generateUniquePosId();
 
         $pdv->update([
             'point_name' => $request->point_name,

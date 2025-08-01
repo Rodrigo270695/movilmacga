@@ -18,13 +18,15 @@ interface MapSelectorProps {
     longitude?: number;
     address?: string;
     onLocationChange: (lat: number, lng: number, address?: string) => void;
+    focusLocation?: string; // Nueva prop para enfocar en una ubicación específica
 }
 
 export function MapSelector({
     latitude,
     longitude,
     address,
-    onLocationChange
+    onLocationChange,
+    focusLocation
 }: MapSelectorProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
@@ -128,12 +130,65 @@ export function MapSelector({
         };
     }, []);
 
-        // Actualizar marcador de forma simple
+        // Actualizar marcador y vista cuando cambien las coordenadas
     useEffect(() => {
         if (mapInstanceRef.current && markerRef.current && latitude && longitude) {
-            markerRef.current.setLatLng([latitude, longitude]);
+            const newLatLng = L.latLng(latitude, longitude);
+            markerRef.current.setLatLng(newLatLng);
+            mapInstanceRef.current.setView(newLatLng, 15); // Centrar y hacer zoom
         }
     }, [latitude, longitude]);
+
+    // Actualizar dirección cuando cambie desde el formulario
+    useEffect(() => {
+        if (address && address !== currentAddress) {
+            setCurrentAddress(address);
+        }
+    }, [address]);
+
+    // Función para enfocar en una ubicación específica sin mover el marcador
+    const focusOnLocationOnly = async (locationName: string) => {
+        if (!locationName || !mapInstanceRef.current) return;
+
+        try {
+            // Construir búsqueda específica para Perú
+            const searchQuery = `${locationName}, Peru`;
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&countrycodes=pe`
+            );
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+
+                // Determinar nivel de zoom según el tipo de ubicación
+                let zoomLevel = 8; // Por defecto para departamentos (vista amplia)
+
+                if (locationName.includes('departamento')) {
+                    zoomLevel = 8; // Vista de departamento
+                } else if (locationName.includes('provincia')) {
+                    zoomLevel = 10; // Vista de provincia
+                } else if (locationName.includes('distrito')) {
+                    zoomLevel = 12; // Vista de distrito
+                } else if (locationName.includes('localidad')) {
+                    zoomLevel = 14; // Vista de localidad (más detallada)
+                }
+
+                // Solo enfocar el mapa, NO mover el marcador
+                mapInstanceRef.current.setView([lat, lng], zoomLevel);
+            }
+        } catch (error) {
+            console.warn('Error enfocando en ubicación:', error);
+        }
+    };
+
+    // Escuchar cambios en focusLocation para enfocar dinámicamente
+    useEffect(() => {
+        if (focusLocation) {
+            focusOnLocationOnly(focusLocation);
+        }
+    }, [focusLocation]);
 
     // Geocodificación: convertir dirección a coordenadas
     const geocodeAddress = async (address: string) => {
