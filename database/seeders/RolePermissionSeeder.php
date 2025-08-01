@@ -87,6 +87,31 @@ class RolePermissionSeeder extends Seeder
             'gestor-pdv-eliminar',
             'gestor-pdv-cambiar-estado',
 
+            // Gestión de Supervisor-Zonal (DCS)
+            'gestor-zonal-supervisor-acceso',
+            'gestor-zonal-supervisor-ver',
+            'gestor-zonal-supervisor-asignar',
+            'gestor-zonal-supervisor-desasignar',
+
+            // Gestión de Vendedor-Circuito (para Supervisores)
+            'gestor-vendedor-circuito-acceso',
+            'gestor-vendedor-circuito-ver',
+            'gestor-vendedor-circuito-asignar',
+            'gestor-vendedor-circuito-desasignar',
+
+            // Mapas y Tracking GPS
+            'menu-mapas',
+            'mapa-rastreo-vendedores-acceso',
+            'mapa-rastreo-vendedores-ver',
+            'mapa-rastreo-vendedores-tiempo-real',
+            'mapa-rastreo-vendedores-historial',
+
+            // Aplicación Móvil (Supervisores/Vendedores)
+            'app-movil-acceso',
+            'app-movil-gps-tracking',
+            'app-movil-pdv-visitas',
+            'app-movil-reportes',
+
             // Configuración del sistema (futuro)
             'configuracion-acceso',
             'configuracion-general',
@@ -100,8 +125,57 @@ class RolePermissionSeeder extends Seeder
         // Crear rol administrador inicial
         $adminRole = Role::firstOrCreate(['name' => 'Administrador']);
 
+        // Crear rol supervisor (acceso web + app móvil)
+        $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor']);
+
+        // Crear rol vendedor (solo app móvil)
+        $vendedorRole = Role::firstOrCreate(['name' => 'Vendedor']);
+
         // Asignar todos los permisos al administrador (sincronizar para asegurar que tenga todos)
         $adminRole->syncPermissions(Permission::all());
+
+        // Asignar permisos al supervisor (acceso web + app móvil)
+        $supervisorPermissions = [
+            // Acceso básico a la web
+            'menu-dashboard',
+            'ver-dashboard',
+            'ver-estadisticas',
+            'menu-dcs',
+
+                        // Módulos específicos para supervisores
+            'gestor-zonal-supervisor-acceso',
+            'gestor-zonal-supervisor-ver',
+            'gestor-zonal-supervisor-asignar',
+            'gestor-zonal-supervisor-desasignar',
+
+            // Gestión de vendedores en sus circuitos
+            'gestor-vendedor-circuito-acceso',
+            'gestor-vendedor-circuito-ver',
+            'gestor-vendedor-circuito-asignar',
+            'gestor-vendedor-circuito-desasignar',
+
+            // Mapas y tracking
+            'mapa-rastreo-vendedores-acceso',
+            'mapa-rastreo-vendedores-ver',
+            'mapa-rastreo-vendedores-tiempo-real',
+            'mapa-rastreo-vendedores-historial',
+
+            // App móvil
+            'app-movil-acceso',
+            'app-movil-gps-tracking',
+            'app-movil-pdv-visitas',
+            'app-movil-reportes',
+        ];
+        $supervisorRole->syncPermissions($supervisorPermissions);
+
+        // Asignar permisos al vendedor (solo app móvil)
+        $vendedorPermissions = [
+            'app-movil-acceso',
+            'app-movil-gps-tracking',
+            'app-movil-pdv-visitas',
+            'app-movil-reportes',
+        ];
+        $vendedorRole->syncPermissions($vendedorPermissions);
 
         // Crear usuario administrador por defecto
         $adminUser = User::firstOrCreate(
@@ -126,7 +200,10 @@ class RolePermissionSeeder extends Seeder
 
         $this->command->info('🎉 ¡Sistema de permisos configurado exitosamente!');
         $this->command->info('📋 Permisos totales creados: ' . Permission::count());
-        $this->command->info('👑 Rol creado: Administrador (con acceso completo)');
+        $this->command->info('👑 Roles creados:');
+        $this->command->info('   - Administrador (acceso completo al sistema)');
+        $this->command->info('   - Supervisor (acceso web + app móvil)');
+        $this->command->info('   - Vendedor (solo app móvil - visita PDVs)');
         $this->command->info('👤 Usuario admin: admin@movilmacga.com / password123');
         $this->command->info('');
         $this->command->info('📁 Estructura de permisos por módulos:');
@@ -139,8 +216,18 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   🔌 Gestor Circuitos: gestor-circuito-* (6 permisos)');
         $this->command->info('   🛤️ Gestor Rutas: gestor-ruta-* (6 permisos)');
         $this->command->info('   📍 Gestor PDVs: gestor-pdv-* (6 permisos)');
+        $this->command->info('   👨‍💼 Supervisor-Zonal: gestor-zonal-supervisor-* (4 permisos)');
+        $this->command->info('   🔄 Vendedor-Circuito: gestor-vendedor-circuito-* (4 permisos)');
+        $this->command->info('   🗺️ Mapas: mapa-rastreo-vendedores-* (4 permisos)');
+        $this->command->info('   📱 App Móvil: app-movil-* (4 permisos)');
         $this->command->info('   🔧 Configuración: configuracion-* (3 permisos)');
         $this->command->info('');
         $this->command->info('💡 Los menús se mostrarán automáticamente según los permisos del usuario');
+        $this->command->info('🔒 Roles protegidos: Administrador, Supervisor y Vendedor no se pueden eliminar');
+
+        // Ejecutar seeders de empresas y zonales
+        //$this->call([
+        //    BusinessZonalSeeder::class,
+        //]);
     }
 }

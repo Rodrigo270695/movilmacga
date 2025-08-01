@@ -5,10 +5,12 @@ namespace App\Http\Controllers\DCS;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DCS\CircuitRequest;
 use App\Models\Circuit;
+use App\Models\CircuitFrequency;
 use App\Models\Zonal;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 
 class CircuitController extends Controller
 {
@@ -134,5 +136,40 @@ class CircuitController extends Controller
 
         return redirect()->route('dcs.zonales.circuits.index', $zonal)
             ->with('success', "Circuito '{$circuitName}' eliminado exitosamente.");
+    }
+
+    /**
+     * Update the frequencies for a circuit.
+     */
+    public function updateFrequencies(Request $request, Circuit $circuit): RedirectResponse
+    {
+        // Verificar permisos
+        if (!auth()->user()->can('gestor-circuito-ver')) {
+            abort(403, 'No tienes permisos para gestionar frecuencias de circuitos.');
+        }
+
+        $request->validate([
+            'frequencies' => 'array',
+            'frequencies.*' => 'string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+        ]);
+
+        try {
+            // Eliminar todas las frecuencias existentes del circuito
+            $circuit->frequencies()->delete();
+
+            // Crear las nuevas frecuencias
+            $frequencies = $request->input('frequencies', []);
+            foreach ($frequencies as $dayOfWeek) {
+                CircuitFrequency::create([
+                    'circuit_id' => $circuit->id,
+                    'day_of_week' => $dayOfWeek,
+                ]);
+            }
+
+            return back()->with('success', 'Frecuencia de visitas actualizada exitosamente.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al actualizar la frecuencia: ' . $e->getMessage());
+        }
     }
 }

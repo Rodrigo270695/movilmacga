@@ -1,13 +1,12 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 // Definir estructura completa de navegación con permisos requeridos
 const allNavItems: (NavItem & { permission?: string })[] = [
@@ -71,32 +70,49 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 icon: MapPin,
                 permission: 'gestor-pdv-acceso',
             },
+            {
+                title: 'Supervisor-Zonal',
+                href: '/dcs/zonal-supervisors',
+                icon: UserCheck,
+                permission: 'gestor-zonal-supervisor-acceso',
+            },
+            {
+                title: 'Vendedor-Circuito',
+                href: '/dcs/vendor-circuits',
+                icon: Users,
+                permission: 'gestor-vendedor-circuito-acceso',
+            },
+        ],
+    },
+    {
+        title: 'Mapas',
+        icon: Map,
+        permission: 'menu-mapas',
+        items: [
+            {
+                title: 'Rastreo de vendedores',
+                href: '/mapas/tracking',
+                icon: Navigation,
+                permission: 'mapa-rastreo-vendedores-acceso',
+                openInNewTab: true,
+            },
         ],
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
 
 export function AppSidebar() {
-    const { auth } = usePage().props as any;
-    const userPermissions = auth?.user?.permissions || [];
+    const { auth } = usePage().props as { auth?: { user?: { permissions?: string[] } } };
+
+    const userPermissions = useMemo(() => {
+        return auth?.user?.permissions || [];
+    }, [auth?.user?.permissions]);
 
     // Función para verificar si el usuario tiene un permiso
-    const hasPermission = (permission?: string): boolean => {
+    const hasPermission = useCallback((permission?: string): boolean => {
         if (!permission) return true; // Si no requiere permiso, mostrar
         return userPermissions.includes(permission);
-    };
+    }, [userPermissions]);
 
     // Memoizar la función para filtrar items del menú basándose en permisos
     const filterNavItems = useMemo(() => {
@@ -117,7 +133,7 @@ export function AppSidebar() {
                 .filter(Boolean) as NavItem[];
         };
         return filter;
-    }, [userPermissions]);
+    }, [hasPermission]);
 
     // Memoizar el resultado del filtrado para evitar re-renders innecesarios
     const visibleNavItems = useMemo(() => filterNavItems(allNavItems), [filterNavItems]);
@@ -141,7 +157,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

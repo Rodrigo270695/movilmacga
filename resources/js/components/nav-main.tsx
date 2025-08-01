@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
-    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['Admin', 'DCS']));
+    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['Admin', 'DCS', 'Mapas']));
 
     const handleToggle = (itemTitle: string) => {
         setExpandedItems(prev => {
@@ -53,10 +53,22 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                         asChild
                                                         isActive={subItem.href ? page.url.startsWith(subItem.href) : false}
                                                     >
-                                                        <Link href={subItem.href || '#'}>
-                                                            {subItem.icon && <subItem.icon />}
-                                                            <span>{subItem.title}</span>
-                                                        </Link>
+                                                        {subItem.openInNewTab ? (
+                                                            <a
+                                                                href={subItem.href || '#'}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2"
+                                                            >
+                                                                {subItem.icon && <subItem.icon />}
+                                                                <span>{subItem.title}</span>
+                                                            </a>
+                                                        ) : (
+                                                            <Link href={subItem.href || '#'}>
+                                                                {subItem.icon && <subItem.icon />}
+                                                                <span>{subItem.title}</span>
+                                                            </Link>
+                                                        )}
                                                     </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                             ))}
@@ -73,10 +85,22 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     asChild
                                     isActive={item.href ? page.url.startsWith(item.href) : false}
                                 >
-                                    <Link href={item.href || '#'}>
-                                        {item.icon && <item.icon />}
-                                        <span>{item.title}</span>
-                                    </Link>
+                                    {item.openInNewTab ? (
+                                        <a
+                                            href={item.href || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2"
+                                        >
+                                            {item.icon && <item.icon />}
+                                            <span>{item.title}</span>
+                                        </a>
+                                    ) : (
+                                        <Link href={item.href || '#'}>
+                                            {item.icon && <item.icon />}
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    )}
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         );

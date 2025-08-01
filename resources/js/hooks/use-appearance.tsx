@@ -20,8 +20,11 @@ const setCookie = (name: string, value: string, days = 365) => {
 };
 
 const applyTheme = (appearance: Appearance) => {
-    const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
+    // Forzar siempre tema claro - eliminar cualquier clase 'dark'
+    document.documentElement.classList.remove('dark');
 
+    // Asegurar que no se aplique tema oscuro nunca
+    const isDark = false; // Siempre false para tema claro
     document.documentElement.classList.toggle('dark', isDark);
 };
 
@@ -39,34 +42,42 @@ const handleSystemThemeChange = () => {
 };
 
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
+    // Forzar siempre tema claro
+    const forcedAppearance = 'light';
 
-    applyTheme(savedAppearance);
+    applyTheme(forcedAppearance);
 
-    // Add the event listener for system theme changes...
-    mediaQuery()?.addEventListener('change', handleSystemThemeChange);
+    // Guardar en localStorage para consistencia
+    localStorage.setItem('appearance', forcedAppearance);
+
+    // No necesitamos escuchar cambios del sistema ya que siempre usamos light
+    // mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
 export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('system');
+    // Forzar siempre tema claro
+    const [appearance, setAppearance] = useState<Appearance>('light');
 
     const updateAppearance = useCallback((mode: Appearance) => {
-        setAppearance(mode);
+        // Ignorar cualquier intento de cambio y mantener siempre 'light'
+        const forcedMode = 'light';
+        setAppearance(forcedMode);
 
         // Store in localStorage for client-side persistence...
-        localStorage.setItem('appearance', mode);
+        localStorage.setItem('appearance', forcedMode);
 
         // Store in cookie for SSR...
-        setCookie('appearance', mode);
+        setCookie('appearance', forcedMode);
 
-        applyTheme(mode);
+        applyTheme(forcedMode);
     }, []);
 
     useEffect(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-        updateAppearance(savedAppearance || 'system');
+        // Siempre forzar tema claro, ignorar lo guardado anteriormente
+        updateAppearance('light');
 
-        return () => mediaQuery()?.removeEventListener('change', handleSystemThemeChange);
+        // No necesitamos cleanup ya que no escuchamos cambios del sistema
+        return () => {};
     }, [updateAppearance]);
 
     return { appearance, updateAppearance } as const;

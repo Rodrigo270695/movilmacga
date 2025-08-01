@@ -6,6 +6,8 @@ use App\Http\Controllers\DCS\GlobalCircuitController;
 use App\Http\Controllers\DCS\RouteController;
 use App\Http\Controllers\DCS\GlobalRouteController;
 use App\Http\Controllers\DCS\GlobalPdvController;
+use App\Http\Controllers\DCS\ZonalSupervisorController;
+use App\Http\Controllers\DCS\VendorCircuitController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -133,6 +135,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-circuito-eliminar')
                 ->name('circuits.destroy');
 
+            // Ruta para actualizar frecuencias de circuito
+            Route::post('circuits/{circuit}/frequencies', [CircuitController::class, 'updateFrequencies'])
+                ->middleware('permission:gestor-circuito-ver')
+                ->name('circuits.frequencies.update');
+
         });
 
         // Grupo de rutas globales para rutas con middleware de permisos
@@ -188,6 +195,56 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('pdvs/{pdv}', [GlobalPdvController::class, 'destroy'])
                 ->middleware('permission:gestor-pdv-eliminar')
                 ->name('pdvs.destroy');
+
+        });
+
+        // Grupo de rutas para asignación de supervisores a zonales
+        Route::middleware(['permission:gestor-zonal-supervisor-acceso'])->group(function () {
+
+            // Vista principal de asignaciones supervisor-zonal
+            Route::get('zonal-supervisors', [ZonalSupervisorController::class, 'index'])
+                ->middleware('permission:gestor-zonal-supervisor-ver')
+                ->name('zonal-supervisors.index');
+
+            // Asignar supervisor a zonal
+            Route::post('zonal-supervisors', [ZonalSupervisorController::class, 'store'])
+                ->middleware('permission:gestor-zonal-supervisor-asignar')
+                ->name('zonal-supervisors.store');
+
+            // Actualizar asignación de supervisor
+            Route::put('zonal-supervisors/{zonalSupervisor}', [ZonalSupervisorController::class, 'update'])
+                ->middleware('permission:gestor-zonal-supervisor-asignar')
+                ->name('zonal-supervisors.update');
+
+            // Desasignar supervisor de zonal
+            Route::delete('zonal-supervisors/{zonalSupervisor}', [ZonalSupervisorController::class, 'destroy'])
+                ->middleware('permission:gestor-zonal-supervisor-desasignar')
+                ->name('zonal-supervisors.destroy');
+
+        });
+
+        // Grupo de rutas para asignación de vendedores a circuitos (por supervisores)
+        Route::middleware(['permission:gestor-vendedor-circuito-acceso'])->group(function () {
+
+            // Vista principal de asignaciones vendedor-circuito
+            Route::get('vendor-circuits', [VendorCircuitController::class, 'index'])
+                ->middleware('permission:gestor-vendedor-circuito-ver')
+                ->name('vendor-circuits.index');
+
+            // Asignar vendedor a circuito
+            Route::post('vendor-circuits', [VendorCircuitController::class, 'store'])
+                ->middleware('permission:gestor-vendedor-circuito-asignar')
+                ->name('vendor-circuits.store');
+
+            // Reasignar vendedor a circuito
+            Route::put('vendor-circuits/{userCircuit}', [VendorCircuitController::class, 'update'])
+                ->middleware('permission:gestor-vendedor-circuito-asignar')
+                ->name('vendor-circuits.update');
+
+            // Desasignar vendedor de circuito
+            Route::delete('vendor-circuits/{userCircuit}', [VendorCircuitController::class, 'destroy'])
+                ->middleware('permission:gestor-vendedor-circuito-desasignar')
+                ->name('vendor-circuits.destroy');
 
         });
 

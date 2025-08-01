@@ -91,6 +91,19 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
             });
             return;
         }
+
+        // Verificar si es un rol protegido
+        const protectedRoles = ['Administrador', 'Supervisor', 'Vendedor'];
+        if (protectedRoles.includes(role.name)) {
+            addToast({
+                type: 'error',
+                title: 'Rol protegido',
+                message: `El rol "${role.name}" es un rol del sistema y no se puede desactivar.`,
+                duration: 4000
+            });
+            return;
+        }
+
         setConfirmToggleRole(role);
     };
 
@@ -156,6 +169,10 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
     const RoleActions = ({ role }: { role: Role }) => {
         const actions = [];
 
+        // Roles protegidos que no se pueden eliminar ni desactivar
+        const protectedRoles = ['Administrador', 'Supervisor', 'Vendedor'];
+        const isProtectedRole = protectedRoles.includes(role.name);
+
         if (hasPermission('gestor-roles-editar')) {
             actions.push(
                 <Button
@@ -186,7 +203,8 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
             );
         }
 
-                if (hasPermission('gestor-roles-cambiar-estado')) {
+        // Solo mostrar botón de cambiar estado si NO es un rol protegido
+        if (hasPermission('gestor-roles-cambiar-estado') && !isProtectedRole) {
             actions.push(
                 <Button
                     key="toggle"
@@ -206,6 +224,19 @@ export function RolesTable({ roles, onEdit, onAssignPermissions, userPermissions
                             : "text-red-600"
                     }`} />
                 </Button>
+            );
+        }
+
+        // Si es un rol protegido y no tiene acciones, mostrar un ícono de protección
+        if (isProtectedRole && actions.length === 0) {
+            actions.push(
+                <div
+                    key="protected"
+                    className="h-8 w-8 flex items-center justify-center"
+                    title="Rol protegido del sistema"
+                >
+                    <Shield className="w-4 h-4 text-amber-600" />
+                </div>
             );
         }
 

@@ -28,6 +28,7 @@ interface Circuit {
     zonal_id: number;
     created_at: string;
     routes_count?: number;
+    frequency_days?: string[];
     zonal?: {
         id: number;
         name: string;
@@ -55,10 +56,11 @@ interface CircuitsTableProps {
     onEdit: (circuit: Circuit) => void;
     userPermissions?: string[];
     onToggleStatus?: (circuit: Circuit) => void;
+    onFrequency?: (circuit: Circuit) => void;
     isGlobalView?: boolean;
 }
 
-export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, isGlobalView = false }: CircuitsTableProps) {
+export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, onFrequency, isGlobalView = false }: CircuitsTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [confirmToggleCircuit, setConfirmToggleCircuit] = useState<Circuit | null>(null);
@@ -197,6 +199,22 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
             );
         }
 
+        // Botón de frecuencia - disponible para todos los usuarios que puedan ver circuitos
+        if (onFrequency && hasPermission('gestor-circuito-ver')) {
+            actions.push(
+                <Button
+                    key="frequency"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onFrequency(circuit)}
+                    className="h-8 w-8 p-0 hover:bg-purple-50 hover:border-purple-200 cursor-pointer"
+                    title="Gestionar frecuencia de visitas"
+                >
+                    <Calendar className="w-4 h-4 text-purple-600" />
+                </Button>
+            );
+        }
+
         if (hasPermission('gestor-circuito-cambiar-estado')) {
             actions.push(
                 <Button
@@ -277,16 +295,14 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Circuito
                                 </th>
-                                {isGlobalView && (
-                                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Zonal
-                                    </th>
-                                )}
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Código
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estado
+                                </th>
+                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Frecuencia
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Fecha de Creación
@@ -318,18 +334,14 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {circuit.name}
                                                     </div>
+                                                    {isGlobalView && circuit.zonal && (
+                                                        <div className="text-xs text-gray-500">
+                                                            Zonal: {circuit.zonal.name}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
-
-                                        {/* Zonal (solo en vista global) */}
-                                        {isGlobalView && (
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="text-sm text-gray-900">
-                                                    {circuit.zonal?.name || 'N/A'}
-                                                </div>
-                                            </td>
-                                        )}
 
                                         {/* Código */}
                                         <td className="px-6 py-4 text-center">
@@ -349,6 +361,37 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                             </Badge>
                                         </td>
 
+                                        {/* Frecuencia */}
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="text-sm text-gray-900">
+                                                {circuit.frequency_days && circuit.frequency_days.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1 justify-center">
+                                                        {circuit.frequency_days.map(day => {
+                                                            const dayLabels: { [key: string]: string } = {
+                                                                'monday': 'Lun',
+                                                                'tuesday': 'Mar',
+                                                                'wednesday': 'Mié',
+                                                                'thursday': 'Jue',
+                                                                'friday': 'Vie',
+                                                                'saturday': 'Sáb',
+                                                                'sunday': 'Dom',
+                                                            };
+                                                            return (
+                                                                <span
+                                                                    key={day}
+                                                                    className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium"
+                                                                >
+                                                                    {dayLabels[day]}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">Sin frecuencia</span>
+                                                )}
+                                            </div>
+                                        </td>
+
                                         {/* Fecha de creación */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-1 text-sm text-gray-900">
@@ -362,7 +405,15 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]))}
+                                                onClick={() => {
+                                                    if (isGlobalView) {
+                                                        // Vista global: usar ruta global con filtro de circuit_id
+                                                        router.visit(route('dcs.routes.index', { circuit_id: circuit.id }));
+                                                    } else {
+                                                        // Vista jerárquica: usar ruta específica del zonal
+                                                        router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]));
+                                                    }
+                                                }}
                                                 className="h-8 px-3 text-xs hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer"
                                                 title={`Ver rutas de ${circuit.name}`}
                                             >
@@ -436,7 +487,15 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]))}
+                                            onClick={() => {
+                                                if (isGlobalView) {
+                                                    // Vista global: usar ruta global con filtro de circuit_id
+                                                    router.visit(route('dcs.routes.index', { circuit_id: circuit.id }));
+                                                } else {
+                                                    // Vista jerárquica: usar ruta específica del zonal
+                                                    router.visit(route('dcs.zonales.circuits.routes.index', [zonal?.id, circuit.id]));
+                                                }
+                                            }}
                                             className="h-7 px-2.5 text-xs hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer"
                                             title={`Ver rutas de ${circuit.name}`}
                                         >
@@ -497,7 +556,7 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                     isOpen={!!confirmToggleCircuit}
                     onClose={closeConfirmToggle}
                     circuit={confirmToggleCircuit}
-                    zonal={zonal}
+                                            zonal={zonal!}
                 />
             )}
         </>

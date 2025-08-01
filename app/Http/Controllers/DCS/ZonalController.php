@@ -22,13 +22,40 @@ class ZonalController extends Controller
 
         $perPage = $request->get('per_page', 10);
         $page = $request->get('page', 1);
+        $search = $request->get('search');
+        $businessFilter = $request->get('business_filter');
 
-        $zonales = Zonal::withCount('circuits')
-            ->orderBy('name')
-            ->paginate($perPage);
+        $query = Zonal::with('business')->withCount('circuits');
+
+        // Filtrar por búsqueda
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhereHas('business', function ($businessQuery) use ($search) {
+                      $businessQuery->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Filtrar por empresa
+        if ($businessFilter && $businessFilter !== 'all') {
+            if ($businessFilter === 'sin asignar') {
+                $query->whereNull('business_id');
+            } else {
+                $query->whereHas('business', function ($businessQuery) use ($businessFilter) {
+                    $businessQuery->where('name', $businessFilter);
+                });
+            }
+        }
+
+        $zonales = $query->orderBy('name')->paginate($perPage);
 
         return Inertia::render('dcs/zonales/index', [
             'zonales' => $zonales,
+            'filters' => [
+                'search' => $search,
+                'business_filter' => $businessFilter,
+            ],
         ]);
     }
 

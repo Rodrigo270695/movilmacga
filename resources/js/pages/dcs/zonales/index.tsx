@@ -8,11 +8,19 @@ import { ZonalesTable } from '@/components/dcs/zonales/zonales-table';
 import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
 
+interface Business {
+    id: number;
+    name: string;
+    status: boolean;
+}
+
 interface Zonal {
     id: number;
     name: string;
     status?: boolean | number;
     created_at: string;
+    business?: Business;
+    business_id?: number;
 }
 
 interface PaginatedZonales {
@@ -27,6 +35,10 @@ interface PaginatedZonales {
 
 interface Props {
     zonales: PaginatedZonales;
+    filters?: {
+        search?: string;
+        business_filter?: string;
+    };
     flash?: {
         success?: string;
         error?: string;
@@ -48,7 +60,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ZonalesIndex({ zonales, flash }: Props) {
+export default function ZonalesIndex({ zonales, filters, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
@@ -174,6 +186,7 @@ export default function ZonalesIndex({ zonales, flash }: Props) {
                         zonales={zonales}
                         onEdit={openEditZonalDialog}
                         userPermissions={userPermissions}
+                        filters={filters}
                     />
 
                     {/* Modales */}

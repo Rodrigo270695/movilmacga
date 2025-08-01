@@ -57,6 +57,30 @@ class Route extends Model
     }
 
     /**
+     * Get all user assignments for this route.
+     */
+    public function userRoutes(): HasMany
+    {
+        return $this->hasMany(UserRoute::class);
+    }
+
+    /**
+     * Get active user assignments for this route.
+     */
+    public function activeUserRoutes(): HasMany
+    {
+        return $this->hasMany(UserRoute::class)->where('is_active', true);
+    }
+
+    /**
+     * Get the currently assigned user (seller) for this route.
+     */
+    public function currentSeller(): HasMany
+    {
+        return $this->hasMany(UserRoute::class)->where('is_active', true)->with('user');
+    }
+
+    /**
      * Scope para obtener solo rutas activas
      *
      * @param \Illuminate\Database\Eloquent\Builder $query

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Zonal extends Model
 {
@@ -44,6 +45,35 @@ class Zonal extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Get all supervisor assignments for this zonal.
+     */
+    public function zonalSupervisors(): HasMany
+    {
+        return $this->hasMany(ZonalSupervisor::class);
+    }
+
+    /**
+     * Get active supervisor assignment for this zonal.
+     */
+    public function activeZonalSupervisor(): HasOne
+    {
+        return $this->hasOne(ZonalSupervisor::class)->where('is_active', true);
+    }
+
+    /**
+     * Get the current supervisor for this zonal.
+     */
+    public function currentSupervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id')
+            ->join('zonal_supervisors', function ($join) {
+                $join->on('users.id', '=', 'zonal_supervisors.user_id')
+                     ->where('zonal_supervisors.zonal_id', $this->id)
+                     ->where('zonal_supervisors.is_active', true);
+            });
     }
 
     /**

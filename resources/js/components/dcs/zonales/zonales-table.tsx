@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
 import {
     Folder,
@@ -15,10 +16,18 @@ import {
     X,
     Calendar,
     MapPin,
-    CircuitBoard
+    CircuitBoard,
+    Filter,
+    Building2
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+
+interface Business {
+    id: number;
+    name: string;
+    status: boolean;
+}
 
 interface Zonal {
     id: number;
@@ -26,6 +35,8 @@ interface Zonal {
     status?: boolean | number;
     created_at: string;
     circuits_count?: number;
+    business?: Business;
+    business_id?: number;
 }
 
 interface PaginatedZonales {
@@ -42,34 +53,77 @@ interface ZonalesTableProps {
     zonales: PaginatedZonales;
     onEdit: (zonal: Zonal) => void;
     userPermissions: string[];
+    filters?: {
+        search?: string;
+        business_filter?: string;
+    };
 }
 
-export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableProps) {
+export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: ZonalesTableProps) {
     const { addToast } = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+    const [businessFilter, setBusinessFilter] = useState<string>(filters?.business_filter || 'all');
     const [confirmToggleZonal, setConfirmToggleZonal] = useState<Zonal | null>(null);
+
+    // Para debounce de búsqueda
+    const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
         return userPermissions.includes(permission);
     };
 
-    // Filtrar zonales basado en el término de búsqueda (solo en la página actual)
-    const filteredZonales = useMemo(() => {
-        if (!searchTerm) return zonales.data;
+    // Búsqueda automática con debounce
+    useEffect(() => {
+        if (searchDebounce) {
+            clearTimeout(searchDebounce);
+        }
 
-        const search = searchTerm.toLowerCase();
-        return zonales.data.filter(zonal => {
-            // Buscar por nombre
-            const matchesName = zonal.name.toLowerCase().includes(search);
+        const timeout = setTimeout(() => {
+            router.get(route('dcs.zonales.index'), {
+                search: searchTerm || undefined,
+                business_filter: businessFilter !== 'all' ? businessFilter : undefined,
+                page: 1 // Reset a página 1 cuando cambie la búsqueda
+            }, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true
+            });
+        }, 500); // 500ms de delay
 
-            // Buscar por estado
-            const status = (zonal.status === false || zonal.status === 0 || zonal.status === null) ? 'inactivo' : 'activo';
-            const matchesStatus = status.includes(search);
+        setSearchDebounce(timeout);
 
-            return matchesName || matchesStatus;
+        return () => {
+            if (timeout) clearTimeout(timeout);
+        };
+    }, [searchTerm]); // Solo cuando cambie searchTerm
+
+    // Manejar cambio de filtro de empresa
+    const handleBusinessFilter = (value: string) => {
+        const newBusinessFilter = value === "all" ? "all" : value;
+        setBusinessFilter(newBusinessFilter);
+        router.get(route('dcs.zonales.index'), {
+            search: searchTerm || undefined,
+            business_filter: newBusinessFilter !== 'all' ? newBusinessFilter : undefined,
+            page: 1 // Reset a página 1 cuando cambie el filtro
+        }, {
+            preserveState: true,
+            preserveScroll: true
         });
-    }, [zonales.data, searchTerm]);
+    };
+
+    // Limpiar filtros
+    const clearFilters = () => {
+        setSearchTerm('');
+        setBusinessFilter('all');
+        router.get(route('dcs.zonales.index'), {}, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
+
+    // Ya no necesitamos filtrado frontend, el backend ya lo hace
+    const filteredZonales = zonales.data;
 
     const handleToggleStatus = (zonal: Zonal) => {
         if (!hasPermission('gestor-zonal-cambiar-estado')) {
@@ -207,20 +261,45 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                             <Folder className="w-5 h-5 text-gray-600" />
                             <h3 className="text-base sm:text-lg font-medium text-gray-900">Zonales del Sistema</h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
-                                {searchTerm
-                                    ? `${filteredZonales.length} de ${zonales.data.length}`
+                                {(searchTerm || (businessFilter && businessFilter !== 'all'))
+                                    ? `${zonales.total} filtrados`
                                     : `${zonales.total} total`
                                 }
                             </Badge>
+                            {businessFilter && businessFilter !== 'all' && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                                    📍 {businessFilter === 'sin asignar' ? 'Sin asignar' : businessFilter}
+                                </Badge>
+                            )}
                         </div>
 
-                        {/* Buscador - Responsive */}
-                        <div className="flex items-center gap-4">
+                        {/* Filtros - Responsive */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            {/* Filtro por empresa */}
+                            <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-gray-500" />
+                                <Select
+                                    value={businessFilter || "all"}
+                                    onValueChange={handleBusinessFilter}
+                                >
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Todas las empresas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las empresas</SelectItem>
+                                        <SelectItem value="MACGA">MACGA</SelectItem>
+                                        <SelectItem value="LOTO">LOTO</SelectItem>
+                                        <SelectItem value="sin asignar">Sin asignar</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Buscador */}
                             <div className="relative w-full sm:w-80">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Buscar..."
+                                    placeholder="Buscar por nombre, empresa o estado..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 pr-10 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
@@ -236,6 +315,20 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                     </button>
                                 )}
                             </div>
+
+                            {/* Botón para limpiar filtros */}
+                            {((businessFilter && businessFilter !== 'all') || searchTerm) && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={clearFilters}
+                                    className="text-xs hover:bg-gray-50 cursor-pointer flex-shrink-0"
+                                    title="Limpiar todos los filtros"
+                                >
+                                    <Filter className="w-3 h-3 mr-1" />
+                                    Limpiar
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -248,6 +341,9 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                             <tr>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Zonal
+                                </th>
+                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Empresa
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estado
@@ -282,9 +378,28 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {zonal.name}
                                                     </div>
-
                                                 </div>
                                             </div>
+                                        </td>
+
+                                        {/* Empresa */}
+                                        <td className="px-6 py-4 text-center">
+                                            {zonal.business ? (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`${
+                                                        zonal.business.name === 'MACGA'
+                                                            ? 'text-blue-700 bg-blue-50 border-blue-200'
+                                                            : 'text-purple-700 bg-purple-50 border-purple-200'
+                                                    }`}
+                                                >
+                                                    {zonal.business.name}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="text-gray-600 bg-gray-50 border-gray-200">
+                                                    Sin asignar
+                                                </Badge>
+                                            )}
                                         </td>
 
                                         {/* Estado */}
@@ -350,7 +465,7 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                                     {zonal.name}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-
+                                                    {zonal.business ? zonal.business.name : 'Sin empresa asignada'}
                                                 </p>
                                             </div>
                                         </div>
@@ -382,6 +497,25 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                                         </Button>
                                     </div>
 
+                                    {/* Empresa (móvil) */}
+                                    {zonal.business && (
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                                                <span className="font-medium">Empresa:</span>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`text-xs ${
+                                                        zonal.business.name === 'MACGA'
+                                                            ? 'text-blue-700 bg-blue-50 border-blue-200'
+                                                            : 'text-purple-700 bg-purple-50 border-purple-200'
+                                                    }`}
+                                                >
+                                                    {zonal.business.name}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Acciones */}
                                     {actions.length > 0 && (
                                         <div className="flex items-center justify-end gap-1 pt-2 border-t border-gray-100">
@@ -403,11 +537,11 @@ export function ZonalesTable({ zonales, onEdit, userPermissions }: ZonalesTableP
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                                    {searchTerm ? 'No se encontraron resultados' : 'No hay zonales en esta página'}
+                                    {(searchTerm || (businessFilter && businessFilter !== 'all')) ? 'No se encontraron resultados' : 'No hay zonales en esta página'}
                                 </h3>
                                 <p className="text-gray-500 text-sm">
-                                    {searchTerm
-                                        ? 'Intenta con otros términos de búsqueda'
+                                    {(searchTerm || (businessFilter && businessFilter !== 'all'))
+                                        ? 'Intenta con otros términos de búsqueda o cambia los filtros'
                                         : 'Navega a otras páginas o crea un nuevo zonal'
                                     }
                                 </p>

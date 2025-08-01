@@ -22,6 +22,7 @@ export interface NavItem {
     isActive?: boolean;
     items?: NavItem[];
     permission?: string;
+    openInNewTab?: boolean;
 }
 
 export interface SharedData {

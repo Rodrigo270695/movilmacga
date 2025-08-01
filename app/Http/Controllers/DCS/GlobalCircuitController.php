@@ -25,7 +25,7 @@ class GlobalCircuitController extends Controller
         $zonalFilter = $request->get('zonal_id');
         $search = $request->get('search');
 
-        $query = Circuit::with(['zonal'])
+        $query = Circuit::with(['zonal', 'frequencies'])
             ->withCount('routes');
 
         // Aplicar filtros
@@ -44,6 +44,12 @@ class GlobalCircuitController extends Controller
         }
 
         $circuits = $query->orderBy('name')->paginate($perPage);
+
+        // Transformar los datos para incluir frequency_days
+        $circuits->through(function ($circuit) {
+            $circuit->frequency_days = $circuit->frequencies->pluck('day_of_week')->toArray();
+            return $circuit;
+        });
 
         // Cargar datos para los filtros
         $zonales = Zonal::active()->orderBy('name')->get(['id', 'name']);

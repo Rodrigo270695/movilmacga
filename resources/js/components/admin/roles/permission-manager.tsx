@@ -20,7 +20,10 @@ import {
     CircuitBoard,
     Route,
     Building2,
-    MapPin
+    MapPin,
+    UserCheck,
+    Map,
+    Navigation
 } from 'lucide-react';
 
 interface Permission {
@@ -162,6 +165,51 @@ const menuStructure = [
                     { id: 'gestor-pdv-editar', label: 'Editar PDVs' },
                     { id: 'gestor-pdv-cambiar-estado', label: 'Activar/Desactivar PDVs' }
                 ]
+            },
+            {
+                id: 'supervisor-zonal',
+                label: 'Supervisor-Zonal',
+                icon: UserCheck,
+                className: 'text-violet-600 bg-violet-100',
+                permission: 'gestor-zonal-supervisor-acceso',
+                actions: [
+                    { id: 'gestor-zonal-supervisor-ver', label: 'Ver asignaciones' },
+                    { id: 'gestor-zonal-supervisor-asignar', label: 'Asignar supervisores' },
+                    { id: 'gestor-zonal-supervisor-desasignar', label: 'Desasignar supervisores' }
+                ]
+            },
+            {
+                id: 'vendedor-circuito',
+                label: 'Vendedor-Circuito',
+                icon: Users,
+                className: 'text-indigo-600 bg-indigo-100',
+                permission: 'gestor-vendedor-circuito-acceso',
+                actions: [
+                    { id: 'gestor-vendedor-circuito-ver', label: 'Ver asignaciones' },
+                    { id: 'gestor-vendedor-circuito-asignar', label: 'Asignar vendedores' },
+                    { id: 'gestor-vendedor-circuito-desasignar', label: 'Desasignar vendedores' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'mapas',
+        label: 'Mapas',
+        icon: Map,
+        className: 'text-blue-600 bg-blue-100',
+        permission: 'menu-mapas',
+        items: [
+            {
+                id: 'rastreo-vendedores',
+                label: 'Rastreo de Vendedores',
+                icon: Navigation,
+                className: 'text-sky-600 bg-sky-100',
+                permission: 'mapa-rastreo-vendedores-acceso',
+                actions: [
+                    { id: 'mapa-rastreo-vendedores-ver', label: 'Ver mapa de tracking' },
+                    { id: 'mapa-rastreo-vendedores-tiempo-real', label: 'Tracking en tiempo real' },
+                    { id: 'mapa-rastreo-vendedores-historial', label: 'Ver historial de ubicaciones' }
+                ]
             }
         ]
     },
@@ -222,6 +270,18 @@ const actionLabels: Record<string, string> = {
     'gestor-pdv-editar': 'Editar PDVs existentes',
     'gestor-pdv-eliminar': 'Eliminar PDVs',
     'gestor-pdv-cambiar-estado': 'Activar/Desactivar PDVs',
+
+    'gestor-zonal-supervisor-ver': 'Ver asignaciones de supervisores a zonales',
+    'gestor-zonal-supervisor-asignar': 'Asignar supervisores a zonales',
+    'gestor-zonal-supervisor-desasignar': 'Desasignar supervisores de zonales',
+
+    'gestor-vendedor-circuito-ver': 'Ver asignaciones de vendedores a circuitos',
+    'gestor-vendedor-circuito-asignar': 'Asignar vendedores a circuitos',
+    'gestor-vendedor-circuito-desasignar': 'Desasignar vendedores de circuitos',
+
+    'mapa-rastreo-vendedores-ver': 'Ver mapa de tracking de vendedores',
+    'mapa-rastreo-vendedores-tiempo-real': 'Monitoreo en tiempo real de vendedores',
+    'mapa-rastreo-vendedores-historial': 'Ver historial de ubicaciones de vendedores',
 
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'

@@ -10,6 +10,7 @@ import AppLayout from '@/layouts/app-layout';
 import { CircuitsTable } from '@/components/dcs/circuits/circuits-table';
 import { CircuitForm } from '@/components/dcs/circuits/circuit-form';
 import { ConfirmToggleModal } from '@/components/dcs/circuits/confirm-toggle-modal';
+import { FrequencyModal } from '@/components/dcs/circuits/frequency-modal';
 import {
     Search,
     X,
@@ -25,6 +26,7 @@ interface Circuit {
     zonal_id: number;
     created_at: string;
     routes_count?: number;
+    frequency_days?: string[];
     zonal?: {
         id: number;
         name: string;
@@ -77,6 +79,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Prop
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingCircuit, setEditingCircuit] = useState<Circuit | null>(null);
     const [toggleModalData, setToggleModalData] = useState<{ circuit: Circuit } | null>(null);
+    const [frequencyModalData, setFrequencyModalData] = useState<{ circuit: Circuit } | null>(null);
 
     const breadcrumbItems = [
         { title: 'DCS', href: '/dcs' },
@@ -162,6 +165,14 @@ export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Prop
 
     const closeToggleModal = () => {
         setToggleModalData(null);
+    };
+
+    const openFrequencyModal = (circuit: Circuit) => {
+        setFrequencyModalData({ circuit });
+    };
+
+    const closeFrequencyModal = () => {
+        setFrequencyModalData(null);
     };
 
     const hasActiveFilters = selectedZonal || searchQuery;
@@ -313,6 +324,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Prop
                         circuits={circuits}
                         onEdit={openEditModal}
                         onToggleStatus={openToggleModal}
+                        onFrequency={openFrequencyModal}
                         userPermissions={userPermissions}
                         isGlobalView={true}
                     />
@@ -334,6 +346,15 @@ export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Prop
                             circuit={toggleModalData.circuit}
                             zonal={zonales.find(z => z.id === toggleModalData.circuit.zonal_id) || zonales[0]}
                             isGlobalView={true}
+                        />
+                    )}
+
+                    {/* Modal de Frecuencia */}
+                    {frequencyModalData && (
+                        <FrequencyModal
+                            isOpen={true}
+                            onClose={closeFrequencyModal}
+                            circuit={frequencyModalData.circuit}
                         />
                     )}
 
