@@ -73,6 +73,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('check-out', [PdvVisitController::class, 'checkOut'])->name('api.pdv-visits.check-out');
         Route::post('upload-photo', [PdvVisitController::class, 'uploadPhoto'])->name('api.pdv-visits.upload-photo');
         Route::get('my-visits-today', [PdvVisitController::class, 'getTodayVisits'])->name('api.pdv-visits.today');
+        Route::get('my-visits', [PdvVisitController::class, 'getMyVisits'])->name('api.pdv-visits.history');
         Route::get('visit/{visit}', [PdvVisitController::class, 'getVisitDetails'])->name('api.pdv-visits.details');
         Route::patch('visit/{visit}/update-data', [PdvVisitController::class, 'updateVisitData'])->name('api.pdv-visits.update-data');
     });

@@ -29,7 +29,7 @@ class PdvVisitController extends Controller
 
         // Verificar que el usuario tenga una jornada activa
         $hasActiveSession = $user->activeWorkingSessions()->exists();
-        
+
         if (!$hasActiveSession) {
             return response()->json([
                 'success' => false,
@@ -107,8 +107,8 @@ class PdvVisitController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $isWithinGeofence ? 
-                    'Check-in realizado exitosamente' : 
+                'message' => $isWithinGeofence ?
+                    'Check-in realizado exitosamente' :
                     'Check-in realizado pero estás fuera del área permitida',
                 'data' => [
                     'visit_id' => $visit->id,
@@ -122,7 +122,7 @@ class PdvVisitController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al hacer check-in',
@@ -182,7 +182,7 @@ class PdvVisitController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al hacer check-out',
@@ -210,11 +210,11 @@ class PdvVisitController extends Controller
         try {
             // Crear directorio organizado por fecha
             $directory = 'pdv-visits/' . now()->format('Y/m/d');
-            
+
             // Generar nombre único para la foto
-            $photoName = 'visit_' . $visit->id . '_' . time() . '_' . uniqid() . '.' . 
+            $photoName = 'visit_' . $visit->id . '_' . time() . '_' . uniqid() . '.' .
                         $request->file('photo')->getClientOriginalExtension();
-            
+
             // Guardar la foto
             $photoPath = $request->file('photo')->storeAs($directory, $photoName, 'public');
 
@@ -291,6 +291,102 @@ class PdvVisitController extends Controller
                 'completed_visits' => $visits->where('visit_status', 'completed')->count(),
                 'in_progress_visits' => $visits->where('visit_status', 'in_progress')->count(),
                 'visits' => $visits
+            ]
+        ]);
+    }
+
+    /**
+     * Obtener todas mis visitas (historial completo)
+     */
+    public function getMyVisits(Request $request)
+    {
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'status' => 'nullable|in:completed,in_progress,cancelled',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
+        $user = $request->user();
+        $perPage = $request->input('per_page', 20);
+
+        $query = PdvVisit::with([
+            'pdv:id,point_name,address,classification,status',
+            'pdv.route:id,name',
+            'pdv.route.circuit:id,name'
+        ])
+        ->where('user_id', $user->id);
+
+        // Filtros opcionales
+        if ($request->has('status')) {
+            $query->where('visit_status', $request->status);
+        }
+
+        if ($request->has('date_from')) {
+            $query->whereDate('check_in_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to')) {
+            $query->whereDate('check_in_at', '<=', $request->date_to);
+        }
+
+        $visits = $query->orderBy('check_in_at', 'desc')
+            ->paginate($perPage);
+
+        $mappedVisits = $visits->getCollection()->map(function ($visit) {
+            return [
+                'visit_id' => $visit->id,
+                'pdv' => [
+                    'id' => $visit->pdv->id,
+                    'name' => $visit->pdv->point_name,
+                    'address' => $visit->pdv->address,
+                    'classification' => $visit->pdv->classification,
+                    'status' => $visit->pdv->status,
+                ],
+                'route' => [
+                    'id' => $visit->pdv->route->id ?? null,
+                    'name' => $visit->pdv->route->name ?? 'Sin ruta',
+                ],
+                'circuit' => [
+                    'id' => $visit->pdv->route->circuit->id ?? null,
+                    'name' => $visit->pdv->route->circuit->name ?? 'Sin circuito',
+                ],
+                'check_in_at' => $visit->check_in_at,
+                'check_out_at' => $visit->check_out_at,
+                'duration_minutes' => $visit->duration_minutes,
+                'distance_to_pdv_meters' => $visit->distance_to_pdv,
+                'visit_status' => $visit->visit_status,
+                'is_valid' => $visit->is_valid,
+                'has_photo' => !is_null($visit->visit_photo),
+                'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
+                'notes' => $visit->notes,
+                'date' => $visit->check_in_at->format('Y-m-d'),
+                'time' => $visit->check_in_at->format('H:i'),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'visits' => $mappedVisits,
+                'pagination' => [
+                    'current_page' => $visits->currentPage(),
+                    'last_page' => $visits->lastPage(),
+                    'per_page' => $visits->perPage(),
+                    'total' => $visits->total(),
+                    'from' => $visits->firstItem(),
+                    'to' => $visits->lastItem(),
+                ],
+                'summary' => [
+                    'total_visits' => $visits->total(),
+                    'completed_visits' => PdvVisit::where('user_id', $user->id)
+                        ->where('visit_status', 'completed')->count(),
+                    'in_progress_visits' => PdvVisit::where('user_id', $user->id)
+                        ->where('visit_status', 'in_progress')->count(),
+                    'cancelled_visits' => PdvVisit::where('user_id', $user->id)
+                        ->where('visit_status', 'cancelled')->count(),
+                ]
             ]
         ]);
     }
@@ -379,12 +475,12 @@ class PdvVisitController extends Controller
         $dLat = deg2rad($lat2 - $lat1);
         $dLon = deg2rad($lon2 - $lon1);
 
-        $a = sin($dLat/2) * sin($dLat/2) + 
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * 
+        $a = sin($dLat/2) * sin($dLat/2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
              sin($dLon/2) * sin($dLon/2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1-$a));
-        
+
         return $earthRadius * $c; // Distancia en kilómetros
     }
 }
