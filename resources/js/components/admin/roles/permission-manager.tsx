@@ -23,7 +23,8 @@ import {
     MapPin,
     UserCheck,
     Map,
-    Navigation
+    Navigation,
+    BarChart3
 } from 'lucide-react';
 
 interface Permission {
@@ -90,6 +91,18 @@ const menuStructure = [
                     { id: 'gestor-business-editar', label: 'Editar negocios' },
                     { id: 'gestor-business-cambiar-estado', label: 'Activar/Desactivar negocios' },
                     { id: 'gestor-business-eliminar', label: 'Eliminar negocios' }
+                ]
+            },
+            {
+                id: 'business-users',
+                label: 'Gestión Usuario-Negocio',
+                icon: Users,
+                className: 'text-blue-600 bg-blue-100',
+                permission: 'gestor-business-user-acceso',
+                actions: [
+                    { id: 'gestor-business-user-ver', label: 'Ver asignaciones' },
+                    { id: 'gestor-business-user-asignar', label: 'Asignar usuarios' },
+                    { id: 'gestor-business-user-desasignar', label: 'Desasignar usuarios' }
                 ]
             },
             {
@@ -214,6 +227,26 @@ const menuStructure = [
         ]
     },
     {
+        id: 'reportes',
+        label: 'Reportes',
+        icon: BarChart3,
+        className: 'text-emerald-600 bg-emerald-100',
+        permission: 'menu-reportes',
+        items: [
+            {
+                id: 'pdvs-visitados',
+                label: 'PDVs Visitados',
+                icon: MapPin,
+                className: 'text-green-600 bg-green-100',
+                permission: 'reporte-pdvs-visitados-acceso',
+                actions: [
+                    { id: 'reporte-pdvs-visitados-ver', label: 'Ver reporte de PDVs visitados' },
+                    { id: 'reporte-pdvs-visitados-exportar', label: 'Exportar reporte a Excel/PDF' }
+                ]
+            }
+        ]
+    },
+    {
         id: 'configuracion',
         label: 'Configuración',
         icon: Cog,
@@ -241,6 +274,10 @@ const actionLabels: Record<string, string> = {
     'gestor-business-editar': 'Editar negocios existentes',
     'gestor-business-eliminar': 'Eliminar negocios',
     'gestor-business-cambiar-estado': 'Activar/Desactivar negocios',
+
+    'gestor-business-user-ver': 'Ver asignaciones de usuarios a negocios',
+    'gestor-business-user-asignar': 'Asignar usuarios a negocios',
+    'gestor-business-user-desasignar': 'Desasignar usuarios de negocios',
 
     'gestor-usuarios-ver': 'Ver usuarios',
     'gestor-usuarios-crear': 'Crear usuarios',
@@ -283,11 +320,35 @@ const actionLabels: Record<string, string> = {
     'mapa-rastreo-vendedores-tiempo-real': 'Monitoreo en tiempo real de vendedores',
     'mapa-rastreo-vendedores-historial': 'Ver historial de ubicaciones de vendedores',
 
+    'reporte-pdvs-visitados-ver': 'Ver reporte de PDVs visitados',
+    'reporte-pdvs-visitados-exportar': 'Exportar reporte de PDVs visitados',
+
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'
 };
 
 export function PermissionManager({ isOpen, onClose, role, permissions }: PermissionManagerProps) {
+    // Estilos CSS para scrollbar personalizado
+    const scrollbarStyles = `
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f3f4f6;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    `;
     const { addToast } = useToast();
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -451,12 +512,14 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
     if (!role) return null;
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent
-                className="max-w-[95vw] sm:max-w-6xl w-full mx-auto max-h-[85vh] overflow-hidden flex flex-col"
-                style={{ width: '90vw', maxWidth: '1200px' }}
-                onPointerDownOutside={(e) => e.preventDefault()}
-            >
+        <>
+            <style dangerouslySetInnerHTML={{ __html: scrollbarStyles }} />
+            <Dialog open={isOpen} onOpenChange={handleClose}>
+                <DialogContent
+                    className="max-w-[95vw] sm:max-w-6xl w-full mx-auto h-[85vh] overflow-hidden flex flex-col"
+                    style={{ width: '90vw', maxWidth: '1200px' }}
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                >
                 <DialogHeader className="flex-shrink-0 pb-4">
                     <DialogTitle className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
                         <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
@@ -484,11 +547,11 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                             </TabsTrigger>
                         </TabsList>
 
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-1 overflow-hidden min-h-0" style={{ maxHeight: 'calc(85vh - 200px)' }}>
                             <TabsContent value="access" className="h-full m-0">
-                                <div className="h-full flex flex-col lg:flex-row gap-4 lg:gap-6 overflow-hidden">
+                                <div className="h-full flex flex-col lg:flex-row gap-4 lg:gap-6 overflow-hidden" style={{ maxHeight: 'calc(85vh - 250px)' }}>
                                     {/* Estructura de menú jerárquica */}
-                                    <div className="flex-1 max-h-96 lg:max-h-full overflow-y-auto pr-2">
+                                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: 'calc(85vh - 250px)' }}>
                                         <h3 className="text-sm font-medium text-gray-900 mb-4">
                                             Estructura del menú de navegación:
                                         </h3>
@@ -572,7 +635,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                                     </div>
 
                                     {/* Preview en tiempo real */}
-                                    <div className="w-full lg:w-80 bg-gray-50 rounded-lg p-4 border border-gray-200 flex-shrink-0 max-h-96 lg:max-h-full overflow-y-auto">
+                                    <div className="w-full lg:w-80 bg-gray-50 rounded-lg p-4 border border-gray-200 flex-shrink-0 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(85vh - 250px)' }}>
                                         <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
                                             <Eye className="w-4 h-4" />
                                             Vista previa en tiempo real
@@ -625,7 +688,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                             </TabsContent>
 
                             <TabsContent value="actions" className="h-full m-0">
-                                <div className="h-full overflow-y-auto max-h-96 pr-2">
+                                <div className="overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: 'calc(85vh - 250px)' }}>
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between mb-4">
                                             <h3 className="text-sm font-medium text-gray-900">
@@ -642,7 +705,7 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                                                 <p className="text-sm">Primero selecciona módulos en la pestaña "Acceso a Módulos"</p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-2">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                                 {modulesWithAccess.map((module, moduleIndex) => (
                                                     <div key={module.id} className="border border-gray-200 rounded-lg bg-white transition-all duration-200 ease-out hover:shadow-sm animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${moduleIndex * 100}ms` }}>
                                                         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 transition-colors duration-200 ease-out hover:bg-gray-100">
@@ -720,5 +783,6 @@ export function PermissionManager({ isOpen, onClose, role, permissions }: Permis
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        </>
     );
 }

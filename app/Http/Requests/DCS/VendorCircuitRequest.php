@@ -27,10 +27,21 @@ class VendorCircuitRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:circuits,id',
-                // Validar que el circuito no tenga ya un vendedor activo (solo en creación)
-                Rule::unique('user_circuits', 'circuit_id')
-                    ->where('is_active', true)
-                    ->ignore($this->route('userCircuit')?->id),
+                // Validar que la combinación usuario-circuito no exista ya activa
+                function ($attribute, $value, $fail) {
+                    $userId = $this->input('user_id');
+                    $existingAssignment = \App\Models\UserCircuit::where('circuit_id', $value)
+                        ->where('user_id', $userId)
+                        ->where('is_active', true)
+                        ->when($this->route('userCircuit'), function ($query) {
+                            $query->where('id', '!=', $this->route('userCircuit')->id);
+                        })
+                        ->exists();
+
+                    if ($existingAssignment) {
+                        $fail('Este vendedor ya está asignado a este circuito.');
+                    }
+                },
             ],
             'user_id' => [
                 'required',
@@ -72,7 +83,7 @@ class VendorCircuitRequest extends FormRequest
         return [
             'circuit_id.required' => 'Debe seleccionar un circuito.',
             'circuit_id.exists' => 'El circuito seleccionado no existe.',
-            'circuit_id.unique' => 'Este circuito ya tiene un vendedor asignado.',
+            'circuit_id.unique' => 'Este vendedor ya está asignado a este circuito.',
             'user_id.required' => 'Debe seleccionar un vendedor.',
             'user_id.exists' => 'El vendedor seleccionado no existe.',
             'priority.min' => 'La prioridad debe ser al menos 1.',

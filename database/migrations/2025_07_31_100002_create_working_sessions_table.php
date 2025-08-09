@@ -47,10 +47,6 @@ return new class extends Migration
             $table->index(['user_id', 'started_at']);
             $table->index(['started_at', 'status']);
             $table->index(['user_id', 'status']);
-
-            // Constraint: Solo una sesión activa por usuario
-            $table->unique(['user_id', 'status'], 'unique_active_session')
-                ->where('status', 'active');
         });
     }
 

@@ -7,11 +7,13 @@ use App\Http\Requests\DCS\RouteRequest;
 use App\Models\Route;
 use App\Models\Circuit;
 use App\Models\Zonal;
+use App\Traits\HasBusinessScope;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
 class GlobalRouteController extends Controller
 {
+    use HasBusinessScope;
     /**
      * Display a global listing of routes with filters.
      */
@@ -26,10 +28,13 @@ class GlobalRouteController extends Controller
         $zonalFilter = $request->get('zonal_id');
         $circuitFilter = $request->get('circuit_id');
 
-        $query = Route::with(['circuit.zonal'])
+        $query = Route::with(['circuit.zonal.business'])
             ->select('id', 'circuit_id', 'name', 'code', 'status', 'created_at');
 
-        // Aplicar filtros
+        // Aplicar filtros de scope automáticos (negocio y zonal)
+        $query = $this->applyFullScope($query, 'circuit.zonal.business', 'circuit.zonal');
+
+        // Aplicar filtros adicionales
         if ($zonalFilter) {
             $query->byZonal($zonalFilter);
         }
@@ -40,14 +45,19 @@ class GlobalRouteController extends Controller
 
         $routes = $query->orderBy('name')->paginate($perPage);
 
-        // Cargar datos para los filtros
-        $zonales = Zonal::active()->orderBy('name')->get(['id', 'name']);
-        $circuits = Circuit::active()->with('zonal')->orderBy('name')->get(['id', 'name', 'code', 'zonal_id']);
+        // Cargar datos para los filtros (aplicando scope)
+        $zonales = $this->getAvailableZonals();
+
+        // Filtrar circuitos también aplicando scope
+        $circuitsQuery = Circuit::active()->with('zonal.business')->orderBy('name');
+        $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
+        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
 
         return Inertia::render('dcs/routes/global-index', [
             'routes' => $routes,
             'zonales' => $zonales,
             'circuits' => $circuits,
+            'businessScope' => $this->getBusinessScope(),
             'filters' => [
                 'zonal_id' => $zonalFilter,
                 'circuit_id' => $circuitFilter,

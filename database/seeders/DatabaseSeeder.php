@@ -11,11 +11,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ejecutar seeders en orden jerárquico
         $this->call([
-            // Seeders de roles y permisos
+            // Configuración inicial
             RolePermissionSeeder::class,
-            // Datos geográficos se ingresarán directamente en la base de datos
+
+            // Datos de prueba para Perú
+            PeruTrackingDataSeeder::class,
+
+            // Asignación de usuarios a negocios
+            BusinessUserSeeder::class,
+
+            // Otros seeders de tracking
+            GpsTrackingSeeder::class,
         ]);
     }
 }

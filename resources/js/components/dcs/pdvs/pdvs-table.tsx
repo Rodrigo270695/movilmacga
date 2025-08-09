@@ -34,7 +34,8 @@ interface PdvModel {
     latitude: number;
     longitude: number;
     route_id: number;
-    locality_id: number;
+    district_id: number;
+    locality: string;
     created_at: string;
     updated_at: string;
     route?: {
@@ -50,9 +51,13 @@ interface PdvModel {
             };
         };
     };
-    locality?: {
+    district?: {
         id: number;
         name: string;
+        provincia?: {
+            id: number;
+            name: string;
+        };
     };
 }
 
@@ -186,7 +191,7 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
                                             {pdv.client_name}
                                         </div>
                                         <div className="text-xs text-gray-500">
-                                            {pdv.locality?.name}
+                                            {pdv.locality}
                                         </div>
                                     </div>
                                 </TableCell>

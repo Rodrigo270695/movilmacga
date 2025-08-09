@@ -52,6 +52,14 @@ interface Props {
     zonals: PaginatedZonals;
     supervisors: User[];
     businesses: Business[];
+    businessScope: {
+        is_admin: boolean;
+        business_id?: number;
+        business_ids: number[];
+        zonal_ids: number[];
+        has_business_restriction: boolean;
+        has_zonal_restriction: boolean;
+    };
     filters: {
         search?: string;
         business?: string;
@@ -79,7 +87,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses, filters, flash }: Props) {
+export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses, businessScope, filters, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
@@ -191,6 +199,16 @@ export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses,
                                 </h1>
                                 <p className="text-xs sm:text-sm text-gray-600 mt-1">
                                     Administra las asignaciones de supervisores a zonales del sistema
+                                    {businessScope.has_business_restriction && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                            {businessScope.business_id ? 'Negocio específico' : `${businessScope.business_ids.length} negocios`}
+                                        </span>
+                                    )}
+                                    {businessScope.has_zonal_restriction && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                            Supervisor: {businessScope.zonal_ids.length} zonales
+                                        </span>
+                                    )}
                                 </p>
 
                                 {/* Estadísticas mejoradas */}

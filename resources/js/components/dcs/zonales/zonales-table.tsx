@@ -51,6 +51,7 @@ interface PaginatedZonales {
 
 interface ZonalesTableProps {
     zonales: PaginatedZonales;
+    businesses: Business[];
     onEdit: (zonal: Zonal) => void;
     userPermissions: string[];
     filters?: {
@@ -59,7 +60,7 @@ interface ZonalesTableProps {
     };
 }
 
-export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: ZonalesTableProps) {
+export function ZonalesTable({ zonales, businesses, onEdit, userPermissions, filters }: ZonalesTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [businessFilter, setBusinessFilter] = useState<string>(filters?.business_filter || 'all');
@@ -287,8 +288,11 @@ export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: Zona
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todas las empresas</SelectItem>
-                                        <SelectItem value="MACGA">MACGA</SelectItem>
-                                        <SelectItem value="LOTO">LOTO</SelectItem>
+                                        {businesses.map((business) => (
+                                            <SelectItem key={business.id} value={business.name}>
+                                                {business.name}
+                                            </SelectItem>
+                                        ))}
                                         <SelectItem value="sin asignar">Sin asignar</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -299,7 +303,7 @@ export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: Zona
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Buscar por nombre, empresa o estado..."
+                                    placeholder="Buscar por nombre de zonal o empresa..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 pr-10 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
@@ -388,12 +392,12 @@ export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: Zona
                                                 <Badge
                                                     variant="secondary"
                                                     className={`${
-                                                        zonal.business.name === 'MACGA'
+                                                        zonal.business?.name === 'MACGA'
                                                             ? 'text-blue-700 bg-blue-50 border-blue-200'
                                                             : 'text-purple-700 bg-purple-50 border-purple-200'
                                                     }`}
                                                 >
-                                                    {zonal.business.name}
+                                                    {zonal.business?.name || 'Sin negocio'}
                                                 </Badge>
                                             ) : (
                                                 <Badge variant="secondary" className="text-gray-600 bg-gray-50 border-gray-200">
@@ -505,12 +509,12 @@ export function ZonalesTable({ zonales, onEdit, userPermissions, filters }: Zona
                                                 <Badge
                                                     variant="secondary"
                                                     className={`text-xs ${
-                                                        zonal.business.name === 'MACGA'
+                                                        zonal.business?.name === 'MACGA'
                                                             ? 'text-blue-700 bg-blue-50 border-blue-200'
                                                             : 'text-purple-700 bg-purple-50 border-purple-200'
                                                     }`}
                                                 >
-                                                    {zonal.business.name}
+                                                    {zonal.business?.name || 'Sin negocio'}
                                                 </Badge>
                                             </div>
                                         </div>

@@ -72,9 +72,12 @@ export default function TrackingHeader({
                     </Button>
 
                     {lastUpdate && (
-                        <span className="text-xs text-gray-500">
-                            Última actualización: {lastUpdate.toLocaleTimeString()}
-                        </span>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${isAutoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                            <span>
+                                Última actualización: {lastUpdate.toLocaleTimeString('es-ES')}
+                            </span>
+                        </div>
                     )}
                 </div>
             </div>

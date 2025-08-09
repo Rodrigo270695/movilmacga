@@ -301,6 +301,13 @@ button[data-dialog-close] {
     --status-info-bg: oklch(0.20 0.08 265);
 }
 
+.leaflet-container {
+  width: 100% !important;
+  height: 70vh !important;
+  min-height: 400px !important;
+  z-index: 0;
+}
+
 @layer base {
     * {
         @apply border-border;

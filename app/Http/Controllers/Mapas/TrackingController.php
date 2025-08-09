@@ -10,6 +10,7 @@ use App\Models\Circuit;
 use App\Models\Pdv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Carbon\Carbon;
@@ -22,21 +23,22 @@ class TrackingController extends Controller
     public function index(Request $request): Response
     {
         // Verificar permisos
-        if (!auth()->user()->can('mapa-rastreo-vendedores-acceso')) {
+        if (!Auth::check() || !Auth::user()->can('mapa-rastreo-vendedores-acceso')) {
             abort(403, 'No tienes permisos para acceder al rastreo de vendedores.');
         }
 
         // Obtener filtros avanzados
-        $filters = $request->only(['search', 'status', 'circuit', 'zonal', 'date_from', 'date_to', 'vendor']);
+        $filters = $request->only(['search', 'status', 'circuit', 'zonal', 'business', 'date_from', 'date_to', 'vendor']);
         $search = $filters['search'] ?? '';
         $statusFilter = $filters['status'] ?? 'all';
         $circuitFilter = $filters['circuit'] ?? 'all';
         $zonalFilter = $filters['zonal'] ?? 'all';
+        $businessFilter = $filters['business'] ?? 'all';
         $dateFrom = $filters['date_from'] ?? now()->toDateString();
         $dateTo = $filters['date_to'] ?? now()->toDateString();
         $vendorFilter = $filters['vendor'] ?? 'all';
 
-        $user = auth()->user();
+        $user = Auth::user();
 
         // Query para usuarios con rol de vendedor/supervisor que tienen sesiones activas
         $query = User::whereHas('roles', function ($q) {
@@ -47,9 +49,32 @@ class TrackingController extends Controller
             'activeWorkingSessions.gpsTracking' => function ($q) {
                 $q->latest('recorded_at')->limit(1);
             },
-            'activeUserCircuits.circuit.zonal',
+            'activeUserCircuits.circuit.zonal.business',
             'roles'
         ]);
+
+        // FILTROS JERÁRQUICOS INTEGRADOS
+
+                // Filtro por empresa (si se seleccionó)
+        if ($businessFilter !== 'all') {
+            $query->whereHas('activeUserCircuits.circuit.zonal.business', function ($q) use ($businessFilter) {
+                $q->where('name', $businessFilter);
+            });
+        }
+
+        // Filtro por zonal (si se seleccionó)
+        if ($zonalFilter !== 'all') {
+            $query->whereHas('activeUserCircuits.circuit.zonal', function ($q) use ($zonalFilter) {
+                $q->where('id', $zonalFilter);
+            });
+        }
+
+        // Filtro por circuito (si se seleccionó)
+        if ($circuitFilter !== 'all') {
+            $query->whereHas('activeUserCircuits.circuit', function ($q) use ($circuitFilter) {
+                $q->where('id', $circuitFilter);
+            });
+        }
 
         // Si el usuario es Supervisor, solo ver vendedores de SU zonal
         if ($user->hasRole('Supervisor')) {
@@ -74,6 +99,11 @@ class TrackingController extends Controller
             });
         }
 
+        // Filtrar por búsqueda de vendedor específico
+        if ($vendorFilter !== 'all') {
+            $query->where('id', $vendorFilter);
+        }
+
         // Filtrar por estado de conexión
         if ($statusFilter !== 'all') {
             if ($statusFilter === 'online') {
@@ -83,26 +113,30 @@ class TrackingController extends Controller
             }
         }
 
-        // Filtrar por circuito
-        if ($circuitFilter !== 'all') {
-            $query->whereHas('activeUserCircuits', function ($q) use ($circuitFilter) {
-                $q->where('circuit_id', $circuitFilter);
-            });
-        }
-
-        // Filtrar por zonal
-        if ($zonalFilter !== 'all') {
-            $query->whereHas('activeUserCircuits.circuit.zonal', function ($q) use ($zonalFilter) {
-                $q->where('id', $zonalFilter);
-            });
-        }
-
-        // Filtrar por vendedor específico
-        if ($vendorFilter !== 'all') {
-            $query->where('id', $vendorFilter);
-        }
-
         $users = $query->orderBy('first_name')->paginate(20);
+
+        // Log de depuración para filtros
+        \Log::info('TrackingController index - Resultados', [
+            'total_users_found' => $users->total(),
+            'filters_applied' => [
+                'business' => $businessFilter,
+                'zonal' => $zonalFilter,
+                'circuit' => $circuitFilter,
+                'status' => $statusFilter
+            ],
+            'users_with_business' => $users->map(function($user) {
+                return [
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'circuits' => $user->activeUserCircuits->map(function($uc) {
+                        return [
+                            'circuit' => $uc->circuit->name,
+                            'zonal' => $uc->circuit->zonal->name,
+                            'business' => $uc->circuit->zonal->business ? $uc->circuit->zonal->business->name : 'SIN EMPRESA'
+                        ];
+                    })
+                ];
+            })
+        ]);
 
         // Obtener circuitos y zonales para filtros (limitados por rol)
         $circuitsQuery = Circuit::with('zonal')->orderBy('name');
@@ -170,31 +204,119 @@ class TrackingController extends Controller
     /**
      * Obtener ubicaciones en tiempo real (AJAX)
      */
-    public function getRealTimeLocations(Request $request)
+        public function getRealTimeLocations(Request $request)
     {
         // Verificar permisos
-        if (!auth()->user()->can('mapa-rastreo-vendedores-tiempo-real')) {
+        if (!Auth::check() || !Auth::user()->can('mapa-rastreo-vendedores-tiempo-real')) {
             return response()->json(['error' => 'Sin permisos'], 403);
         }
 
-        // Obtener ubicaciones de los últimos 5 minutos
-        $locations = GpsTracking::with([
+        // Obtener filtros
+        $filters = $request->only(['search', 'status', 'circuit', 'zonal', 'business', 'date_from', 'vendor']);
+        $dateFilter = $filters['date_from'] ?? Carbon::today()->toDateString();
+        $businessFilter = $filters['business'] ?? 'all';
+        $zonalFilter = $filters['zonal'] ?? 'all';
+        $circuitFilter = $filters['circuit'] ?? 'all';
+        $vendorFilter = $filters['vendor'] ?? 'all';
+        $statusFilter = $filters['status'] ?? 'all';
+
+        $startOfDay = Carbon::parse($dateFilter)->startOfDay();
+        $endOfDay = Carbon::parse($dateFilter)->endOfDay();
+
+        // Log temporal para debugging
+        \Log::info('TrackingController getRealTimeLocations', [
+            'filters' => $filters,
+            'date_filter' => $dateFilter,
+            'start_of_day' => $startOfDay,
+            'end_of_day' => $endOfDay
+        ]);
+
+        $user = Auth::user();
+
+        // Query base para ubicaciones GPS con filtros aplicados
+        $query = GpsTracking::with([
             'user:id,first_name,last_name,email',
             'user.activeWorkingSessions:id,user_id,started_at',
-            'user.activeUserCircuits.circuit:id,name,code'
+            'user.activeUserCircuits.circuit.zonal.business'
         ])
-        ->where('recorded_at', '>=', Carbon::now()->subMinutes(5))
-        ->whereHas('user.activeWorkingSessions')
-        ->latest('recorded_at')
-        ->get()
-        ->groupBy('user_id')
-        ->map(function ($userLocations) {
-            return $userLocations->first(); // Solo la ubicación más reciente por usuario
-        })
-        ->values();
+        ->select([
+            'id', 'user_id', 'latitude', 'longitude', 'accuracy', 'speed',
+            'heading', 'battery_level', 'is_mock_location', 'recorded_at'
+        ])
+        ->validLocation() // Filtrar ubicaciones con coordenadas válidas
+        ->whereBetween('recorded_at', [$startOfDay, $endOfDay]);
+
+        // APLICAR FILTROS JERÁRQUICOS A LAS UBICACIONES
+
+        // Filtro por empresa
+        if ($businessFilter !== 'all') {
+            $query->whereHas('user.activeUserCircuits.circuit.zonal.business', function ($q) use ($businessFilter) {
+                $q->where('name', $businessFilter);
+            });
+        }
+
+        // Filtro por zonal
+        if ($zonalFilter !== 'all') {
+            $query->whereHas('user.activeUserCircuits.circuit.zonal', function ($q) use ($zonalFilter) {
+                $q->where('id', $zonalFilter);
+            });
+        }
+
+        // Filtro por circuito
+        if ($circuitFilter !== 'all') {
+            $query->whereHas('user.activeUserCircuits.circuit', function ($q) use ($circuitFilter) {
+                $q->where('id', $circuitFilter);
+            });
+        }
+
+        // Filtro por vendedor específico
+        if ($vendorFilter !== 'all') {
+            $query->where('user_id', $vendorFilter);
+        }
+
+        // Filtro por estado (online/offline)
+        if ($statusFilter !== 'all') {
+            if ($statusFilter === 'online') {
+                $query->whereHas('user.activeWorkingSessions');
+            } elseif ($statusFilter === 'offline') {
+                $query->whereDoesntHave('user.activeWorkingSessions');
+            }
+        }
+
+        // Si el usuario es Supervisor, limitar a su zonal
+        if ($user->hasRole('Supervisor')) {
+            $supervisorZonals = $user->activeZonalSupervisorAssignments()->with('zonal')->get()->pluck('zonal.id');
+
+            if ($supervisorZonals->isNotEmpty()) {
+                $query->whereHas('user.activeUserCircuits.circuit.zonal', function ($q) use ($supervisorZonals) {
+                    $q->whereIn('id', $supervisorZonals);
+                });
+            } else {
+                // Si el supervisor no tiene zonales asignados, no ve ubicaciones
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        // Obtener solo la ubicación más reciente por usuario
+        $locations = $query->whereRaw('recorded_at = (
+            SELECT MAX(recorded_at)
+            FROM gps_tracking g2
+            WHERE g2.user_id = gps_tracking.user_id
+            AND g2.latitude IS NOT NULL
+            AND g2.longitude IS NOT NULL
+            AND g2.recorded_at BETWEEN ? AND ?
+        )', [$startOfDay, $endOfDay])
+        ->get();
+
+        // Log del resultado
+        \Log::info('TrackingController getRealTimeLocations - Result', [
+            'locations_count' => $locations->count(),
+            'locations_data' => $locations->toArray()
+        ]);
 
         return response()->json([
             'locations' => $locations,
+            'date_filter' => $dateFilter,
             'timestamp' => now()->toISOString()
         ]);
     }
@@ -205,7 +327,7 @@ class TrackingController extends Controller
     public function getUserLocationHistory(Request $request, User $user)
     {
         // Verificar permisos
-        if (!auth()->user()->can('mapa-rastreo-vendedores-historial')) {
+        if (!Auth::check() || !Auth::user()->can('mapa-rastreo-vendedores-historial')) {
             return response()->json(['error' => 'Sin permisos'], 403);
         }
 
@@ -213,6 +335,7 @@ class TrackingController extends Controller
         $endDate = $request->get('end_date', Carbon::today()->toDateString());
 
         $locations = GpsTracking::where('user_id', $user->id)
+            ->validLocation() // Filtrar ubicaciones con coordenadas válidas
             ->whereBetween('recorded_at', [
                 Carbon::parse($startDate)->startOfDay(),
                 Carbon::parse($endDate)->endOfDay()
@@ -227,6 +350,231 @@ class TrackingController extends Controller
                 'start' => $startDate,
                 'end' => $endDate
             ]
+        ]);
+    }
+
+    /**
+     * Obtener PDVs filtrados para mostrar en el mapa
+     */
+    public function getFilteredPdvs(Request $request)
+    {
+        // Verificar permisos
+        if (!Auth::check() || !Auth::user()->can('mapa-rastreo-vendedores-ver')) {
+            return response()->json(['error' => 'Sin permisos'], 403);
+        }
+
+        // Obtener filtros
+        $filters = $request->only(['search', 'circuit', 'zonal', 'business', 'status', 'classification']);
+        $search = $filters['search'] ?? '';
+        $circuitFilter = $filters['circuit'] ?? 'all';
+        $zonalFilter = $filters['zonal'] ?? 'all';
+        $businessFilter = $filters['business'] ?? 'all';
+        $statusFilter = $filters['status'] ?? 'all';
+        $classificationFilter = $filters['classification'] ?? 'all';
+
+        $user = Auth::user();
+
+        // Query base para PDVs con coordenadas válidas
+        $query = Pdv::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->where('latitude', '!=', 0)
+            ->where('longitude', '!=', 0)
+            ->with([
+                'route.circuit.zonal.business',
+                'locality.distrito.provincia.departamento'
+            ]);
+
+        // Si el usuario es Supervisor, solo ver PDVs de SU zonal
+        if ($user->hasRole('Supervisor')) {
+            $supervisorZonals = $user->activeZonalSupervisorAssignments()->with('zonal')->get()->pluck('zonal.id');
+
+            if ($supervisorZonals->isNotEmpty()) {
+                $query->whereHas('route.circuit.zonal', function ($q) use ($supervisorZonals) {
+                    $q->whereIn('id', $supervisorZonals);
+                });
+            } else {
+                // Si el supervisor no tiene zonales asignados, no ve ningún PDV
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        // Filtrar por búsqueda
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('point_name', 'like', "%{$search}%")
+                  ->orWhere('client_name', 'like', "%{$search}%")
+                  ->orWhere('pos_id', 'like', "%{$search}%")
+                  ->orWhere('document_number', 'like', "%{$search}%");
+            });
+        }
+
+                // Filtrar por negocio
+        if ($businessFilter !== 'all') {
+            $query->whereHas('route.circuit.zonal.business', function ($q) use ($businessFilter) {
+                $q->where('name', $businessFilter); // Filtrar por nombre, no por ID
+            });
+        }
+
+        // Filtrar por zonal
+        if ($zonalFilter !== 'all') {
+            $query->whereHas('route.circuit.zonal', function ($q) use ($zonalFilter) {
+                $q->where('id', $zonalFilter);
+            });
+        }
+
+        // Filtrar por circuito
+        if ($circuitFilter !== 'all') {
+            $query->whereHas('route.circuit', function ($q) use ($circuitFilter) {
+                $q->where('id', $circuitFilter);
+            });
+        }
+
+        // Filtrar por estado del PDV
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+
+        // Filtrar por clasificación
+        if ($classificationFilter !== 'all') {
+            $query->where('classification', $classificationFilter);
+        }
+
+        $pdvs = $query->orderBy('point_name')->get();
+
+        // Asegurar que las coordenadas sean números
+        $pdvs = $pdvs->map(function ($pdv) {
+            $pdv->latitude = (float) $pdv->latitude;
+            $pdv->longitude = (float) $pdv->longitude;
+            return $pdv;
+        });
+
+        return response()->json([
+            'pdvs' => $pdvs,
+            'filters' => $filters,
+            'count' => $pdvs->count(),
+            'timestamp' => now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Obtener visitas de PDV de un usuario específico con filtros
+     */
+    public function getUserPdvVisits(Request $request, User $user)
+    {
+        // Verificar permisos
+        if (!Auth::check() || !Auth::user()->can('mapa-rastreo-vendedores-ver')) {
+            return response()->json(['error' => 'Sin permisos'], 403);
+        }
+
+        // Obtener filtros
+        $dateFrom = $request->get('date_from', now()->toDateString());
+        $dateTo = $request->get('date_to', now()->toDateString());
+
+        $authUser = Auth::user();
+
+        // Si es supervisor, verificar que pueda ver este usuario
+        if ($authUser->hasRole('Supervisor')) {
+            $supervisorZonals = $authUser->activeZonalSupervisorAssignments()->with('zonal')->get()->pluck('zonal.id');
+
+            // Verificar que el usuario esté en un zonal que supervisa
+            $userInSupervisedZonal = $user->activeUserCircuits()
+                ->whereHas('circuit.zonal', function ($q) use ($supervisorZonals) {
+                    $q->whereIn('id', $supervisorZonals);
+                })->exists();
+
+            if (!$userInSupervisedZonal) {
+                return response()->json(['error' => 'Sin permisos para ver este usuario'], 403);
+            }
+        }
+
+        // Obtener visitas de PDV con relaciones
+        $pdvVisits = $user->pdvVisits()
+            ->with([
+                'pdv' => function ($query) {
+                    $query->select('id', 'point_name', 'client_name', 'pos_id', 'address', 'latitude', 'longitude', 'classification', 'status');
+                },
+                'pdv.route.circuit.zonal.business'
+            ])
+            ->whereBetween('check_in_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59'])
+            ->orderBy('check_in_at', 'desc')
+            ->get();
+
+        // Formatear los datos
+        $formattedVisits = $pdvVisits->map(function ($visit) {
+            return [
+                'id' => $visit->id,
+                'check_in_at' => $visit->check_in_at?->format('Y-m-d H:i:s'),
+                'check_out_at' => $visit->check_out_at?->format('Y-m-d H:i:s'),
+                'duration_minutes' => $visit->duration_minutes,
+                'duration_formatted' => $visit->duration_formatted,
+                'visit_status' => $visit->visit_status,
+                'visit_status_label' => $visit->visit_status_label,
+                'is_valid' => $visit->is_valid,
+                'distance_to_pdv' => $visit->distance_to_pdv,
+                'visit_photo' => $visit->visit_photo,
+                'notes' => $visit->notes,
+                'visit_data' => $visit->visit_data,
+                'coordinates' => $visit->coordinates,
+                'pdv' => [
+                    'id' => $visit->pdv->id,
+                    'point_name' => $visit->pdv->point_name,
+                    'client_name' => $visit->pdv->client_name,
+                    'pos_id' => $visit->pdv->pos_id,
+                    'address' => $visit->pdv->address,
+                    'latitude' => $visit->pdv->latitude,
+                    'longitude' => $visit->pdv->longitude,
+                    'classification' => $visit->pdv->classification,
+                    'status' => $visit->pdv->status,
+                    'route' => $visit->pdv->route ? [
+                        'id' => $visit->pdv->route->id,
+                        'name' => $visit->pdv->route->name,
+                        'code' => $visit->pdv->route->code,
+                        'circuit' => $visit->pdv->route->circuit ? [
+                            'id' => $visit->pdv->route->circuit->id,
+                            'name' => $visit->pdv->route->circuit->name,
+                            'code' => $visit->pdv->route->circuit->code,
+                            'zonal' => $visit->pdv->route->circuit->zonal ? [
+                                'id' => $visit->pdv->route->circuit->zonal->id,
+                                'name' => $visit->pdv->route->circuit->zonal->name,
+                                'business' => $visit->pdv->route->circuit->zonal->business ? [
+                                    'id' => $visit->pdv->route->circuit->zonal->business->id,
+                                    'name' => $visit->pdv->route->circuit->zonal->business->name,
+                                ] : null
+                            ] : null
+                        ] : null
+                    ] : null
+                ]
+            ];
+        });
+
+        // Calcular estadísticas con logs de debug
+        $totalVisits = $formattedVisits->count();
+        $completedVisits = $formattedVisits->where('visit_status', 'completed')->count();
+        $inProgressVisits = $formattedVisits->where('visit_status', 'in_progress')->count();
+
+        // Log de debug para ver los estados reales
+        \Log::info('PDV Visits Debug Stats', [
+            'user_id' => $user->id,
+            'date_range' => [$dateFrom, $dateTo],
+            'total_visits' => $totalVisits,
+            'completed_visits' => $completedVisits,
+            'in_progress_visits' => $inProgressVisits,
+            'raw_visits_statuses' => $formattedVisits->pluck('visit_status')->toArray(),
+            'raw_pdv_visits_count' => $pdvVisits->count(),
+            'raw_pdv_visits_statuses' => $pdvVisits->pluck('visit_status')->toArray()
+        ]);
+
+        return response()->json([
+            'pdv_visits' => $formattedVisits,
+            'user_id' => $user->id,
+            'date_range' => [
+                'from' => $dateFrom,
+                'to' => $dateTo
+            ],
+            'total_visits' => $totalVisits,
+            'completed_visits' => $completedVisits,
+            'in_progress_visits' => $inProgressVisits,
+            'timestamp' => now()->toISOString()
         ]);
     }
 
@@ -258,7 +606,7 @@ class TrackingController extends Controller
             ", [$latitude, $longitude, $latitude])
             ->having('distance', '<', $radius)
             ->orderBy('distance')
-            ->with(['route', 'circuit.zonal'])
+            ->with(['route.circuit.zonal'])
             ->get();
 
         return response()->json([
@@ -409,8 +757,19 @@ class TrackingController extends Controller
             }
         }
 
-        // Obtener PDVs programados (simulado - en producción sería desde una tabla de asignaciones)
-        $programmedPdvs = 12; // Este valor debería venir de una tabla de asignaciones
+        // Obtener PDVs programados reales basados en los circuitos asignados al vendedor
+        $programmedPdvs = 0;
+        $vendorCircuits = $user->activeUserCircuits()->with('circuit')->get();
+
+        if ($vendorCircuits->isNotEmpty()) {
+            // Obtener todos los IDs de circuitos del vendedor
+            $circuitIds = $vendorCircuits->pluck('circuit_id')->toArray();
+
+            // Contar PDVs en todas las rutas de estos circuitos
+            $programmedPdvs = Pdv::whereHas('route', function ($query) use ($circuitIds) {
+                $query->whereIn('circuit_id', $circuitIds);
+            })->count();
+        }
 
         return [
             'total_sessions' => $totalSessions,
@@ -442,6 +801,7 @@ class TrackingController extends Controller
         $endOfDay = Carbon::parse($date)->endOfDay();
 
         $locations = GpsTracking::where('user_id', $user->id)
+            ->validLocation() // Filtrar ubicaciones con coordenadas válidas
             ->whereBetween('recorded_at', [$startOfDay, $endOfDay])
             ->orderBy('recorded_at')
             ->get();

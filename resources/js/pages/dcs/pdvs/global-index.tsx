@@ -26,7 +26,8 @@ interface PdvModel {
     latitude: number;
     longitude: number;
     route_id: number;
-    locality_id: number;
+    district_id: number;
+    locality: string;
     created_at: string;
     updated_at: string;
     route?: {
@@ -42,9 +43,13 @@ interface PdvModel {
             };
         };
     };
-    locality?: {
+    district?: {
         id: number;
         name: string;
+        provincia?: {
+            id: number;
+            name: string;
+        };
     };
 }
 
@@ -74,6 +79,16 @@ interface Departamento {
     pais_id: number;
 }
 
+interface Zonal {
+    id: number;
+    name: string;
+    business_id: number;
+    business?: {
+        id: number;
+        name: string;
+    };
+}
+
 interface Props {
     pdvs: {
         data: PdvModel[];
@@ -84,6 +99,7 @@ interface Props {
         from: number;
         to: number;
     };
+    zonales: Zonal[]; // NUEVO
     circuits: Circuit[];
     routes: Route[];
     departamentos: Departamento[];
@@ -95,6 +111,9 @@ interface Props {
         document_type?: string;
         sells_recharge?: string;
         circuit_id?: string;
+        zonal_id?: string;
+        district_id?: string;
+        locality?: string;
         document_number?: string;
         client_name?: string;
         point_name?: string;
@@ -106,7 +125,7 @@ interface Props {
     };
 }
 
-export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos, filters, flash }: Props) {
+export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, departamentos, filters, flash }: Props) {
     const { addToast } = useToast();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { auth } = usePage().props as any;
@@ -122,7 +141,10 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [selectedDocumentType, setSelectedDocumentType] = useState(filters.document_type || '');
     const [sellsRecharge, setSellsRecharge] = useState(filters.sells_recharge || '');
+    const [selectedZonal, setSelectedZonal] = useState(filters.zonal_id || '');
     const [selectedCircuit, setSelectedCircuit] = useState(filters.circuit_id || '');
+    const [selectedDistrict, setSelectedDistrict] = useState(filters.district_id || '');
+    const [localityText, setLocalityText] = useState(filters.locality || '');
     const [documentNumber, setDocumentNumber] = useState(filters.document_number || '');
     const [clientName, setClientName] = useState(filters.client_name || '');
     const [pointName, setPointName] = useState(filters.point_name || '');
@@ -170,6 +192,18 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         { value: 'desconocida', label: 'Desconocida' },
         { value: 'pusher', label: 'Pusher' }
     ], []);
+
+    // NUEVO: Filtrar circuitos según el zonal seleccionado
+    const filteredCircuits = useMemo(() => {
+        if (!selectedZonal) return circuits;
+        return circuits.filter(circuit => circuit.zonal_id.toString() === selectedZonal);
+    }, [circuits, selectedZonal]);
+
+    // NUEVO: Filtrar rutas según el circuito seleccionado
+    const filteredRoutes = useMemo(() => {
+        if (!selectedCircuit) return routes;
+        return routes.filter(route => route.circuit_id.toString() === selectedCircuit);
+    }, [routes, selectedCircuit]);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
@@ -266,7 +300,10 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         // Filtros avanzados
         if (selectedDocumentType?.trim()) params.document_type = selectedDocumentType;
         if (sellsRecharge?.trim()) params.sells_recharge = sellsRecharge;
+        if (selectedZonal?.trim()) params.zonal_id = selectedZonal;
         if (selectedCircuit?.trim()) params.circuit_id = selectedCircuit;
+        if (selectedDistrict?.trim()) params.district_id = selectedDistrict;
+        if (localityText?.trim()) params.locality = localityText;
         if (documentNumber?.trim()) params.document_number = documentNumber;
         if (clientName?.trim()) params.client_name = clientName;
         if (pointName?.trim()) params.point_name = pointName;
@@ -310,6 +347,33 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         setTimeout(() => applyFilters(), 0);
     };
 
+    // NUEVO: Manejar cambio de zonal (filtros jerárquicos)
+    const handleZonalFilter = (zonalId: string) => {
+        const newZonalId = zonalId === "all" ? "" : zonalId;
+        setSelectedZonal(newZonalId);
+
+        // Si se cambia el zonal, limpiar circuito y ruta
+        if (newZonalId !== selectedZonal) {
+            setSelectedCircuit('');
+            setSelectedRoute('');
+        }
+
+        setTimeout(() => applyFilters(), 0);
+    };
+
+    // NUEVO: Manejar cambio de circuito (filtros jerárquicos)
+    const handleCircuitFilter = (circuitId: string) => {
+        const newCircuitId = circuitId === "all" ? "" : circuitId;
+        setSelectedCircuit(newCircuitId);
+
+        // Si se cambia el circuito, limpiar ruta
+        if (newCircuitId !== selectedCircuit) {
+            setSelectedRoute('');
+        }
+
+        setTimeout(() => applyFilters(), 0);
+    };
+
 
 
     const clearFilters = () => {
@@ -328,7 +392,10 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
         // Resetear estados avanzados
         setSelectedDocumentType('');
         setSellsRecharge('');
+        setSelectedZonal('');
         setSelectedCircuit('');
+        setSelectedDistrict('');
+        setLocalityText('');
         setDocumentNumber('');
         setClientName('');
         setPointName('');
@@ -385,14 +452,14 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
 
     // Verificar si hay filtros activos
     const hasActiveFilters = !!(searchQuery || selectedRoute || selectedStatus || selectedClassification ||
-                            selectedDocumentType || sellsRecharge || selectedCircuit || documentNumber ||
-                            clientName || pointName || posId);
+                            selectedDocumentType || sellsRecharge || selectedZonal || selectedCircuit || selectedDistrict ||
+                            localityText || documentNumber || clientName || pointName || posId);
 
     // Contar filtros activos
     const activeFilterCount = [
         searchQuery, selectedRoute, selectedStatus, selectedClassification,
-        selectedDocumentType, sellsRecharge, selectedCircuit, documentNumber,
-        clientName, pointName, posId
+        selectedDocumentType, sellsRecharge, selectedZonal, selectedCircuit, selectedDistrict,
+        localityText, documentNumber, clientName, pointName, posId
     ].filter(Boolean).length;
 
     return (
@@ -464,15 +531,17 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
                         showAdvancedFilters={showAdvancedFilters}
                         selectedDocumentType={selectedDocumentType}
                         sellsRecharge={sellsRecharge}
+                        selectedZonal={selectedZonal} // NUEVO
                         selectedCircuit={selectedCircuit}
                         documentNumber={documentNumber}
                         clientName={clientName}
                         pointName={pointName}
                         posId={posId}
-                        routes={routes}
+                        routes={filteredRoutes} // CAMBIO: usar rutas filtradas
                         statusOptions={statusOptions}
                         classificationOptions={classificationOptions}
-                        circuits={circuits}
+                        zonales={zonales} // NUEVO
+                        circuits={filteredCircuits} // CAMBIO: usar circuitos filtrados
                         handleSearch={handleSearch}
                         handleRouteFilter={handleRouteFilter}
                         handleStatusFilter={handleStatusFilter}
@@ -480,7 +549,8 @@ export default function GlobalPdvsIndex({ pdvs, circuits, routes, departamentos,
                         setShowAdvancedFilters={setShowAdvancedFilters}
                         setSelectedDocumentType={setSelectedDocumentType}
                         setSellsRecharge={setSellsRecharge}
-                        setSelectedCircuit={setSelectedCircuit}
+                        handleZonalFilter={handleZonalFilter} // NUEVO
+                        handleCircuitFilter={handleCircuitFilter} // NUEVO (cambio de setter a handler)
                         setDocumentNumber={setDocumentNumber}
                         setClientName={setClientName}
                         setPointName={setPointName}

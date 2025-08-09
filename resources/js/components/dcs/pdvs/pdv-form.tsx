@@ -37,9 +37,10 @@ interface PdvModel {
     latitude: number;
     longitude: number;
     route_id: number;
-    locality_id: number;
+    district_id: number;
+    locality: string;
     route?: { name: string; circuit?: { name: string } };
-    locality?: { name: string };
+    district?: { name: string; provincia?: { name: string } };
 }
 
 interface Circuit {
@@ -88,10 +89,10 @@ interface FormData {
     longitude: string;
     circuit_id: string;
     route_id: string;
-    locality_id: string;
+    district_id: string;
+    locality: string;
     departamento_id: string;
     provincia_id: string;
-    distrito_id: string;
     [key: string]: string | boolean;
 }
 
@@ -117,20 +118,18 @@ export function PdvForm({
         longitude: '',
         circuit_id: '',
         route_id: '',
-        locality_id: '',
+        district_id: '',
+        locality: '',
         departamento_id: '',
         provincia_id: '',
-        distrito_id: '',
     });
 
     // Estados para carga dinámica
     const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]);
     const [provincias, setProvincias] = useState<GeographicItem[]>([]);
     const [distritos, setDistritos] = useState<GeographicItem[]>([]);
-    const [localidades, setLocalidades] = useState<GeographicItem[]>([]);
     const [loadingProvincias, setLoadingProvincias] = useState(false);
     const [loadingDistritos, setLoadingDistritos] = useState(false);
-    const [loadingLocalidades, setLoadingLocalidades] = useState(false);
     const [loadingRoutes, setLoadingRoutes] = useState(false);
 
     // Estado para enfoque dinámico del mapa
@@ -175,13 +174,12 @@ export function PdvForm({
 
         if (!keepValues) {
             setData('provincia_id', '');
-            setData('distrito_id', '');
-            setData('locality_id', '');
+            setData('district_id', '');
+            setData('locality', '');
         }
 
         setProvincias([]);
         setDistritos([]);
-        setLocalidades([]);
 
         if (!departamentoId) {
             setMapFocusLocation('');
@@ -211,12 +209,11 @@ export function PdvForm({
         setData('provincia_id', provinciaId);
 
         if (!keepValues) {
-            setData('distrito_id', '');
-            setData('locality_id', '');
+            setData('district_id', '');
+            setData('locality', '');
         }
 
         setDistritos([]);
-        setLocalidades([]);
 
         if (!provinciaId) return;
 
@@ -238,33 +235,14 @@ export function PdvForm({
         }
     };
 
-        // Cargar localidades cuando cambia el distrito
-    const handleDistritoChange = async (distritoId: string, keepValues = false) => {
-        setData('distrito_id', distritoId);
-
-        if (!keepValues) {
-            setData('locality_id', '');
-        }
-
-        setLocalidades([]);
-
-        if (!distritoId) return;
+        // Actualizar distrito directamente (ya no necesitamos cargar localidades)
+    const handleDistritoChange = (distritoId: string) => {
+        setData('district_id', distritoId);
 
         // Enfocar mapa en el distrito seleccionado
         const selectedDistrito = distritos.find(d => d.id.toString() === distritoId);
         if (selectedDistrito) {
             setMapFocusLocation(`${selectedDistrito.name} distrito`);
-        }
-
-        setLoadingLocalidades(true);
-        try {
-            const response = await fetch(`/dcs/ajax/localidades?distrito_id=${distritoId}`);
-            const localidades = await response.json();
-            setLocalidades(localidades);
-        } catch (error) {
-            console.error('Error cargando localidades:', error);
-        } finally {
-            setLoadingLocalidades(false);
         }
     };
 
@@ -278,7 +256,6 @@ export function PdvForm({
             setAvailableRoutes([]);
             setProvincias([]);
             setDistritos([]);
-            setLocalidades([]);
             setMapFocusLocation(''); // Limpiar enfoque del mapa para nuevo PDV
         }
     }, [open, pdv?.id]); // Solo depender del ID del PDV para evitar bucles
@@ -310,12 +287,12 @@ export function PdvForm({
                     latitude: pdvDetails.latitude?.toString() || '',
                     longitude: pdvDetails.longitude?.toString() || '',
                     route_id: pdvDetails.route_id?.toString() || '',
-                    locality_id: pdvDetails.locality_id?.toString() || '',
+                    district_id: pdvDetails.district_id?.toString() || '',
+                    locality: pdvDetails.locality || '',
                     // IDs geográficos
                     circuit_id: pdvDetails.circuit_id?.toString() || '',
                     departamento_id: pdvDetails.departamento_id?.toString() || '',
                     provincia_id: pdvDetails.provincia_id?.toString() || '',
-                    distrito_id: pdvDetails.distrito_id?.toString() || '',
                 }));
 
                 // Cargar listas dependientes en secuencia usando promesas
@@ -338,13 +315,8 @@ export function PdvForm({
                             // Esperar a que se actualicen los distritos
                             await new Promise(resolve => setTimeout(resolve, 300));
 
-                            if (pdvDetails.distrito_id) {
-                                await handleDistritoChange(pdvDetails.distrito_id.toString(), true);
-
-                                // Esperar a que se actualicen las localidades
-                                await new Promise(resolve => setTimeout(resolve, 300));
-
-                                // Finalmente setear la localidad (ya está seteada en setData arriba)
+                            if (pdvDetails.provincia_id) {
+                                handleDistritoChange(pdvDetails.district_id?.toString() || '');
                             }
                         }
                     }
@@ -639,8 +611,8 @@ export function PdvForm({
                                         Distrito <span className="text-red-500">*</span>
                                     </Label>
                                     <CustomSelect
-                                        value={data.distrito_id}
-                                        onValueChange={(value) => handleDistritoChange(value, false)}
+                                        value={data.district_id}
+                                        onValueChange={(value) => handleDistritoChange(value)}
                                         disabled={distritos.length === 0}
                                         options={distritos.map(dist => ({
                                             value: dist.id.toString(),
@@ -648,32 +620,23 @@ export function PdvForm({
                                         }))}
                                         placeholder={loadingDistritos ? "Cargando..." : "Seleccionar distrito"}
                                     />
+                                    {errors.district_id && (
+                                        <p className="text-sm text-red-500">{errors.district_id}</p>
+                                    )}
                                 </div>
 
                                 <div>
                                     <Label htmlFor="locality">
                                         Localidad <span className="text-red-500">*</span>
                                     </Label>
-                                    <CustomSelect
-                                        value={data.locality_id}
-                                        onValueChange={(value) => {
-                                            setData('locality_id', value);
-
-                                            // Enfocar mapa en la localidad seleccionada
-                                            const selectedLocalidad = localidades.find(l => l.id.toString() === value);
-                                            if (selectedLocalidad) {
-                                                setMapFocusLocation(`${selectedLocalidad.name} localidad`);
-                                            }
-                                        }}
-                                        disabled={localidades.length === 0}
-                                        options={localidades.map(loc => ({
-                                            value: loc.id.toString(),
-                                            label: loc.name
-                                        }))}
-                                        placeholder={loadingLocalidades ? "Cargando..." : "Seleccionar localidad"}
+                                    <Input
+                                        id="locality"
+                                        value={data.locality}
+                                        onChange={(e) => setData('locality', e.target.value)}
+                                        placeholder="Nombre de la localidad"
                                     />
-                                    {errors.locality_id && (
-                                        <p className="text-sm text-red-500">{errors.locality_id}</p>
+                                    {errors.locality && (
+                                        <p className="text-sm text-red-500">{errors.locality}</p>
                                     )}
                                 </div>
 

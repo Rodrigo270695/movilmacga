@@ -71,7 +71,7 @@ class WorkingSessionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al iniciar jornada',
@@ -93,9 +93,22 @@ class WorkingSessionController extends Controller
 
         $user = $request->user();
 
+        // 🔍 LOGGING DEBUG - Inicio
+        \Log::info('🏁 END WORKING SESSION - Inicio', [
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'timestamp' => now()->toISOString()
+        ]);
+
         $activeSession = WorkingSession::where('user_id', $user->id)
             ->where('status', 'active')
             ->first();
+
+        // 🔍 LOGGING DEBUG - Session encontrada
+        \Log::info('🔍 Session encontrada', [
+            'session_id' => $activeSession ? $activeSession->id : null,
+            'status' => $activeSession ? $activeSession->status : null
+        ]);
 
         if (!$activeSession) {
             return response()->json([
@@ -104,58 +117,65 @@ class WorkingSessionController extends Controller
             ], 400);
         }
 
-        try {
-            DB::beginTransaction();
+                try {
+            // 🧪 PRUEBA ULTRA-SIMPLE: SIN TRANSACCIÓN, SOLO UPDATE BÁSICO
+            \Log::info('🧪 === PRUEBA ULTRA-SIMPLE ===');
+            \Log::info('📊 Session a actualizar:', [
+                'id' => $activeSession->id,
+                'user_id' => $user->id,
+                'status_actual' => $activeSession->status
+            ]);
 
-            // Calcular métricas de la jornada
-            $durationMinutes = now()->diffInMinutes($activeSession->started_at);
-            $totalPdvsVisited = $activeSession->user->pdvVisits()
-                ->whereDate('check_in_at', today())
-                ->where('is_valid', true)
-                ->count();
+            // ⭐ UPDATE MÁS SIMPLE POSIBLE
+            $updateResult = DB::update('
+                UPDATE working_sessions
+                SET status = ?, ended_at = ?, updated_at = ?
+                WHERE id = ? AND user_id = ?
+            ', [
+                'completed',
+                now(),
+                now(),
+                $activeSession->id,
+                $user->id
+            ]);
 
-            // Calcular distancia total (simplificado - en producción usar cálculo real GPS)
-            $totalDistance = $this->calculateTotalDistance($user->id, $activeSession->started_at);
+            \Log::info('✅ UPDATE SIMPLE resultado:', ['rows_affected' => $updateResult]);
 
-            $activeSession->update([
-                'ended_at' => now(),
-                'end_latitude' => $request->latitude,
-                'end_longitude' => $request->longitude,
-                'status' => 'completed',
-                'total_duration_minutes' => $durationMinutes,
-                'total_pdvs_visited' => $totalPdvsVisited,
-                'total_distance_km' => $totalDistance,
-                'notes' => $activeSession->notes . ($request->notes ? "\n\nFin: " . $request->notes : ''),
-                'session_data' => array_merge($activeSession->session_data ?? [], [
-                    'end_device_info' => [
-                        'user_agent' => $request->userAgent(),
-                        'ip' => $request->ip(),
+            // 🔍 VERIFICACIÓN INMEDIATA
+            $verification = DB::select('SELECT id, status, ended_at FROM working_sessions WHERE id = ?', [
+                $activeSession->id
+            ]);
+            \Log::info('🔍 VERIFICACIÓN POST-UPDATE:', ['db_result' => $verification]);
+
+            if ($updateResult > 0) {
+                \Log::info('✅ UPDATE EXITOSO - Devolviendo success');
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Jornada finalizada exitosamente',
+                    'data' => [
+                        'session_id' => $activeSession->id,
+                        'status' => 'completed',
                     ]
-                ])
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Jornada finalizada exitosamente',
-                'data' => [
-                    'session_id' => $activeSession->id,
-                    'started_at' => $activeSession->started_at,
-                    'ended_at' => $activeSession->ended_at,
-                    'duration_minutes' => $durationMinutes,
-                    'pdvs_visited' => $totalPdvsVisited,
-                    'distance_km' => round($totalDistance, 2),
-                    'status' => $activeSession->status,
-                ]
-            ]);
+                ]);
+            } else {
+                \Log::error('❌ UPDATE FALLÓ - 0 rows affected');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo actualizar la jornada - 0 rows affected',
+                ], 500);
+            }
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            
+            \Log::error('❌ EXCEPCIÓN en end():', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al finalizar jornada',
+                'message' => 'Error al finalizar jornada: ' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -228,11 +248,32 @@ class WorkingSessionController extends Controller
     {
         $user = $request->user();
 
+        // 🔍 LOGGING DEBUG - Inicio getCurrent
+        \Log::info('📊 GET CURRENT SESSION - Inicio', [
+            'user_id' => $user->id,
+            'timestamp' => now()->toISOString()
+        ]);
+
+        // 🔍 DEBUGGING DIRECTO EN BD
+        $rawSessions = DB::select('SELECT id, status, started_at, ended_at FROM working_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 3', [
+            $user->id
+        ]);
+        \Log::info('🔍 SESIONES RAW EN BD (últimas 3):', ['raw_sessions' => $rawSessions]);
+
         $currentSession = WorkingSession::where('user_id', $user->id)
             ->whereIn('status', ['active', 'paused'])
             ->first();
 
+        // 🔍 LOGGING DEBUG - Resultado de la búsqueda
+        \Log::info('🔍 Búsqueda de session actual', [
+            'user_id' => $user->id,
+            'session_encontrada' => !!$currentSession,
+            'session_id' => $currentSession ? $currentSession->id : null,
+            'status' => $currentSession ? $currentSession->status : null
+        ]);
+
         if (!$currentSession) {
+            \Log::info('✅ No hay jornada activa - devolviendo null');
             return response()->json([
                 'success' => true,
                 'message' => 'No hay jornada activa',
@@ -246,6 +287,13 @@ class WorkingSessionController extends Controller
             ->whereDate('check_in_at', today())
             ->where('is_valid', true)
             ->count();
+
+        // 🔍 LOGGING DEBUG - Devolviendo session activa
+        \Log::info('📤 Devolviendo session activa', [
+            'session_id' => $currentSession->id,
+            'status' => $currentSession->status,
+            'duration_minutes' => $currentDuration
+        ]);
 
         return response()->json([
             'success' => true,
@@ -328,23 +376,23 @@ class WorkingSessionController extends Controller
         }
 
         $totalDistance = 0;
-        
+
         for ($i = 1; $i < $locations->count(); $i++) {
             $prev = $locations[$i - 1];
             $current = $locations[$i];
-            
+
             // Fórmula de Haversine simplificada
             $earthRadius = 6371; // km
             $dLat = deg2rad($current->latitude - $prev->latitude);
             $dLon = deg2rad($current->longitude - $prev->longitude);
-            
-            $a = sin($dLat/2) * sin($dLat/2) + 
-                 cos(deg2rad($prev->latitude)) * cos(deg2rad($current->latitude)) * 
+
+            $a = sin($dLat/2) * sin($dLat/2) +
+                 cos(deg2rad($prev->latitude)) * cos(deg2rad($current->latitude)) *
                  sin($dLon/2) * sin($dLon/2);
-            
+
             $c = 2 * atan2(sqrt($a), sqrt(1-$a));
             $distance = $earthRadius * $c;
-            
+
             $totalDistance += $distance;
         }
 

@@ -394,7 +394,7 @@ export function ZonalSupervisorsTable({
                                                         {zonal.name}
                                                     </div>
                                                     <div className="text-xs text-gray-500">
-                                                        {zonal.business.name}
+                                                        {zonal.business?.name || 'Sin negocio'}
                                                     </div>
                                                     </div>
                                                 </div>
@@ -483,7 +483,7 @@ export function ZonalSupervisorsTable({
                                                     {zonal.name}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    {zonal.business.name}
+                                                    {zonal.business?.name || 'Sin negocio'}
                                                 </p>
                                             </div>
                                         </div>

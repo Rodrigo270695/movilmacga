@@ -79,28 +79,10 @@ export function VendorAssignmentModal({
     );
     const [isLoading, setIsLoading] = useState(false);
 
-    // Combinar vendedores disponibles con el vendedor actual (en modo reasignación)
+    // Todos los vendedores disponibles (pueden tener múltiples circuitos)
     const availableVendors = React.useMemo(() => {
-        let vendorsList = [...vendors];
-
-        // Si estamos en modo reasignación, agregar el vendedor actual si no está en la lista
-        if (mode === 'reassign' && circuit.active_user_circuits?.[0]) {
-            const currentVendor = circuit.active_user_circuits[0].user;
-            const isCurrentInList = vendorsList.some(v => v.id === currentVendor.id);
-
-            if (!isCurrentInList) {
-                vendorsList.unshift({
-                    id: currentVendor.id,
-                    first_name: currentVendor.first_name,
-                    last_name: currentVendor.last_name,
-                    email: currentVendor.email,
-                    status: currentVendor.status
-                });
-            }
-        }
-
-        return vendorsList;
-    }, [vendors, mode, circuit.active_user_circuits]);
+        return [...vendors];
+    }, [vendors]);
 
     // Obtener vendedor seleccionado
     const selectedVendor = availableVendors.find(v => v.id.toString() === selectedVendorId);
@@ -179,8 +161,8 @@ export function VendorAssignmentModal({
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'assign'
-                            ? 'Asigna un vendedor para gestionar este circuito.'
-                            : 'Cambia el vendedor asignado a este circuito.'
+                            ? 'Asigna un vendedor adicional para gestionar este circuito. Los vendedores pueden tener múltiples circuitos asignados.'
+                            : 'Modifica la asignación de este vendedor al circuito.'
                         }
                     </DialogDescription>
                 </DialogHeader>
@@ -197,7 +179,7 @@ export function VendorAssignmentModal({
                         <div className="flex items-center gap-2 mt-1">
                             <Building2 className="w-4 h-4 text-gray-500" />
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                {circuit.zonal.business.name}
+                                {circuit.zonal.business?.name || 'Sin negocio'}
                             </Badge>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
@@ -235,7 +217,7 @@ export function VendorAssignmentModal({
                     {/* Seleccionar vendedor */}
                     <div className="space-y-2">
                         <Label htmlFor="vendor" className="text-sm font-medium">
-                            {mode === 'assign' ? 'Seleccionar Vendedor' : 'Nuevo Vendedor'}
+                            {mode === 'assign' ? 'Seleccionar Vendedor' : 'Cambiar Vendedor'}
                         </Label>
                         <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
                             <SelectTrigger>

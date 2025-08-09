@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Business extends Model
 {
@@ -28,6 +29,27 @@ class Business extends Model
     protected $casts = [
         'status' => 'boolean',
     ];
+
+    /**
+     * Get all users that belong to this business.
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'business_user')
+                    ->withPivot(['is_active', 'assigned_at', 'unassigned_at', 'notes', 'assignment_data'])
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get active users that belong to this business.
+     */
+    public function activeUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'business_user')
+                    ->wherePivot('is_active', true)
+                    ->withPivot(['is_active', 'assigned_at', 'unassigned_at', 'notes', 'assignment_data'])
+                    ->withTimestamps();
+    }
 
     /**
      * Get the zonales for the business.

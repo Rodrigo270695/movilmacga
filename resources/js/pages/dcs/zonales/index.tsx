@@ -35,6 +35,7 @@ interface PaginatedZonales {
 
 interface Props {
     zonales: PaginatedZonales;
+    businesses: Business[];
     filters?: {
         search?: string;
         business_filter?: string;
@@ -60,7 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ZonalesIndex({ zonales, filters, flash }: Props) {
+export default function ZonalesIndex({ zonales, businesses, filters, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
@@ -184,6 +185,7 @@ export default function ZonalesIndex({ zonales, filters, flash }: Props) {
                     {/* Tabla de zonales - Responsive */}
                     <ZonalesTable
                         zonales={zonales}
+                        businesses={businesses}
                         onEdit={openEditZonalDialog}
                         userPermissions={userPermissions}
                         filters={filters}

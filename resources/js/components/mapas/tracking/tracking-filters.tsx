@@ -37,23 +37,25 @@ export default function TrackingFilters({
     onSearch,
     onClearFilters
 }: TrackingFiltersProps) {
-    // Obtener negocios únicos
+    // Obtener negocios únicos (solo los que tienen business asociado)
     const uniqueBusinesses = Array.from(
-        new Set(zonales.map(zonal => zonal.business.name))
+        new Set(zonales.filter(zonal => zonal.business).map(zonal => zonal.business.name))
     ).map(businessName => {
-        const business = zonales.find(z => z.business.name === businessName)?.business;
+        const business = zonales.find(z => z.business && z.business.name === businessName)?.business;
         return business;
     }).filter(Boolean);
 
     // Filtrar zonales por negocio seleccionado
     const filteredZonales = businessFilter === 'all'
         ? zonales
-        : zonales.filter(zonal => zonal.business.name === businessFilter);
+        : zonales.filter(zonal => zonal.business && zonal.business.name === businessFilter);
 
-    // Filtrar circuitos por zonal seleccionado (esto requeriría datos del backend)
+    // Filtrar circuitos por zonal seleccionado
     const filteredCircuits = zonalFilter === 'all'
         ? circuits
-        : circuits; // Aquí necesitarías filtrar por zonal
+        : circuits.filter(circuit =>
+            circuit.zonal && circuit.zonal.id.toString() === zonalFilter
+        );
 
     return (
         <div className="bg-gray-50 border-b border-gray-200 p-6">

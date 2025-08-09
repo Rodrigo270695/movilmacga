@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\BusinessUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -63,6 +64,39 @@ Route::middleware(['auth', 'verified'])
             Route::get('businesses/{business}', [BusinessController::class, 'show'])
                 ->middleware('permission:gestor-business-ver')
                 ->name('businesses.show');
+
+        });
+
+        // Grupo de rutas para business-users con middleware de permisos
+        Route::middleware(['permission:gestor-business-user-acceso'])->group(function () {
+
+            // Rutas específicas con permisos granulares
+            Route::get('business-users', [BusinessUserController::class, 'index'])
+                ->middleware('permission:gestor-business-user-ver')
+                ->name('business-users.index');
+
+            Route::post('business-users', [BusinessUserController::class, 'store'])
+                ->middleware('permission:gestor-business-user-asignar')
+                ->name('business-users.store');
+
+            Route::patch('business-users/{id}', [BusinessUserController::class, 'update'])
+                ->middleware('permission:gestor-business-user-asignar')
+                ->name('business-users.update');
+
+            // Ruta para desasignar usuario
+            Route::delete('business-users/{id}', [BusinessUserController::class, 'destroy'])
+                ->middleware('permission:gestor-business-user-desasignar')
+                ->name('business-users.destroy');
+
+            // Ruta para ver todos los usuarios de un negocio
+            Route::get('business-users/{business}/users', [BusinessUserController::class, 'showUsers'])
+                ->middleware('permission:gestor-business-user-ver')
+                ->name('business-users.users');
+
+            // Ruta para desasignar un usuario específico de un negocio
+            Route::delete('business-users/{business}/users/{user}', [BusinessUserController::class, 'unassignUser'])
+                ->middleware('permission:gestor-business-user-desasignar')
+                ->name('business-users.unassign-user');
 
         });
 

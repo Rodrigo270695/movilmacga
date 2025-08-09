@@ -28,6 +28,8 @@ class Pdv extends Model
         'longitude',
         'route_id',
         'locality_id',
+        'district_id',
+        'locality',
     ];
 
     protected $casts = [
@@ -45,6 +47,11 @@ class Pdv extends Model
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Localidad::class);
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(Distrito::class);
     }
 
     public function pdvVisits(): HasMany
@@ -81,6 +88,16 @@ class Pdv extends Model
     public function scopeByLocality($query, int $localityId)
     {
         return $query->where('locality_id', $localityId);
+    }
+
+    public function scopeByDistrict($query, int $districtId)
+    {
+        return $query->where('district_id', $districtId);
+    }
+
+    public function scopeByLocalityText($query, string $locality)
+    {
+        return $query->where('locality', 'like', "%{$locality}%");
     }
 
     public function scopeWithCoordinates($query)

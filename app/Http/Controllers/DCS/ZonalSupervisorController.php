@@ -7,6 +7,7 @@ use App\Http\Requests\DCS\ZonalSupervisorRequest;
 use App\Models\ZonalSupervisor;
 use App\Models\Zonal;
 use App\Models\User;
+use App\Traits\HasBusinessScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -14,6 +15,7 @@ use Inertia\Response;
 
 class ZonalSupervisorController extends Controller
 {
+    use HasBusinessScope;
 
     /**
      * Display a listing of the resource.
@@ -40,6 +42,9 @@ class ZonalSupervisorController extends Controller
                 $query->select('id', 'first_name', 'last_name', 'email', 'status');
             }
         ]);
+
+        // Aplicar filtros de scope (negocio + zonal)
+        $zonalsQuery = $this->applyZonalBusinessScope($zonalsQuery);
 
         // Aplicar filtros a zonales
         if ($search) {
@@ -74,13 +79,14 @@ class ZonalSupervisorController extends Controller
             ->whereDoesntHave('activeZonalSupervisorAssignments')
             ->get(['id', 'first_name', 'last_name', 'email', 'status']);
 
-        // Obtener todos los negocios para el filtro
-        $businesses = \App\Models\Business::where('status', true)->get(['id', 'name']);
+        // Obtener negocios disponibles para el filtro (según scope del usuario)
+        $businesses = $this->getAvailableBusinesses();
 
         return Inertia::render('dcs/zonal-supervisors/index', [
             'zonals' => $zonals,
             'supervisors' => $supervisors,
             'businesses' => $businesses,
+            'businessScope' => $this->getBusinessScope(),
             'filters' => [
                 'search' => $search,
                 'business' => $business,

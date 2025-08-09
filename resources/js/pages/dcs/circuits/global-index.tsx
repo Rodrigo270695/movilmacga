@@ -49,6 +49,14 @@ interface Props {
         to: number;
     };
     zonales: Zonal[];
+    businessScope: {
+        is_admin: boolean;
+        business_id?: number;
+        business_ids: number[];
+        zonal_ids: number[];
+        has_business_restriction: boolean;
+        has_zonal_restriction: boolean;
+    };
     filters: {
         search?: string;
         zonal_id?: string;
@@ -64,7 +72,7 @@ interface PageProps {
     };
 }
 
-export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Props) {
+export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, filters }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage<PageProps>().props;
     const userPermissions = auth?.user?.permissions || [];
@@ -195,9 +203,19 @@ export default function GlobalCircuitsIndex({ circuits, zonales, filters }: Prop
                                         <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">
                                             Gestor de Circuitos
                                         </h1>
-                                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                                            Vista global de todos los circuitos del sistema
-                                        </p>
+                                                                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                                    Vista global de todos los circuitos del sistema
+                                    {businessScope.has_business_restriction && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                            {businessScope.business_id ? 'Negocio específico' : `${businessScope.business_ids.length} negocios`}
+                                        </span>
+                                    )}
+                                    {businessScope.has_zonal_restriction && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                            Supervisor: {businessScope.zonal_ids.length} zonales
+                                        </span>
+                                    )}
+                                </p>
 
                                         {/* Stats - Responsive */}
                                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3">

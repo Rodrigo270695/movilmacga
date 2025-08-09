@@ -38,6 +38,16 @@ Route::middleware(['auth', 'verified'])->prefix('mapas')->name('mapas.')->group(
             ->middleware('permission:mapa-rastreo-vendedores-ver')
             ->name('users.stats');
 
+        // PDVs filtrados para mostrar en el mapa
+        Route::get('/pdvs/filtered', [TrackingController::class, 'getFilteredPdvs'])
+            ->middleware('permission:mapa-rastreo-vendedores-ver')
+            ->name('pdvs.filtered');
+
+        // Obtener visitas de PDV de un usuario específico
+        Route::get('/users/{user}/pdv-visits', [TrackingController::class, 'getUserPdvVisits'])
+            ->middleware('permission:mapa-rastreo-vendedores-ver')
+            ->name('users.pdv-visits');
+
         // PDVs cercanos a una ubicación
         Route::get('/pdvs/nearby', [TrackingController::class, 'getNearbyPdvs'])
             ->middleware('permission:mapa-rastreo-vendedores-ver')

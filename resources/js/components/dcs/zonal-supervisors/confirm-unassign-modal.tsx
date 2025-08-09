@@ -132,7 +132,7 @@ export function ConfirmToggleModal({ isOpen, onClose, zonal, assignmentId }: Con
                             <div className="text-xs text-gray-500">
                                 <span>Negocio:</span>{' '}
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 ml-1">
-                                    {zonal.business.name}
+                                    {zonal.business?.name || 'Sin negocio'}
                                 </Badge>
                             </div>
                         </div>

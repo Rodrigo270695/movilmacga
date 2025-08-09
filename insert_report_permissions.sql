@@ -1,0 +1,1 @@
+INSERT IGNORE INTO permissions (name, guard_name, created_at, updated_at) VALUES ('reporte-pdvs-visitados-acceso', 'web', NOW(), NOW()), ('reporte-pdvs-visitados-ver', 'web', NOW(), NOW()), ('reporte-pdvs-visitados-exportar', 'web', NOW(), NOW());

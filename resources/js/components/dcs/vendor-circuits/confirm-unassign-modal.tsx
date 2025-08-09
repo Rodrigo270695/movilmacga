@@ -146,7 +146,7 @@ export function ConfirmUnassignModal({ isOpen, onClose, circuit, assignment }: C
                             <div className="text-xs text-gray-500">
                                 <span>Negocio:</span>{' '}
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 ml-1">
-                                    {circuit.zonal.business.name}
+                                    {circuit.zonal.business?.name || 'Sin negocio'}
                                 </Badge>
                             </div>
                         </div>

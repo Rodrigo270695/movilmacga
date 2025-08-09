@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DCS\CircuitRequest;
 use App\Models\Circuit;
 use App\Models\Zonal;
+use App\Traits\HasBusinessScope;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
 class GlobalCircuitController extends Controller
 {
+    use HasBusinessScope;
     /**
      * Display a global listing of circuits with filters.
      */
@@ -25,10 +27,13 @@ class GlobalCircuitController extends Controller
         $zonalFilter = $request->get('zonal_id');
         $search = $request->get('search');
 
-        $query = Circuit::with(['zonal', 'frequencies'])
+        $query = Circuit::with(['zonal.business', 'frequencies'])
             ->withCount('routes');
 
-        // Aplicar filtros
+        // Aplicar filtros de scope automáticos (negocio y zonal)
+        $query = $this->applyFullScope($query, 'zonal.business', 'zonal');
+
+        // Aplicar filtros adicionales
         if ($zonalFilter) {
             $query->byZonal($zonalFilter);
         }
@@ -51,12 +56,13 @@ class GlobalCircuitController extends Controller
             return $circuit;
         });
 
-        // Cargar datos para los filtros
-        $zonales = Zonal::active()->orderBy('name')->get(['id', 'name']);
+        // Cargar datos para los filtros (aplicando scope)
+        $zonales = $this->getAvailableZonals();
 
         return Inertia::render('dcs/circuits/global-index', [
             'circuits' => $circuits,
             'zonales' => $zonales,
+            'businessScope' => $this->getBusinessScope(),
             'filters' => [
                 'search' => $search,
                 'zonal_id' => $zonalFilter,

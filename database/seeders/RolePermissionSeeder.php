@@ -47,6 +47,12 @@ class RolePermissionSeeder extends Seeder
             'gestor-business-eliminar',
             'gestor-business-cambiar-estado',
 
+            // Gestión de Usuario-Negocio
+            'gestor-business-user-acceso',
+            'gestor-business-user-ver',
+            'gestor-business-user-asignar',
+            'gestor-business-user-desasignar',
+
             // Gestión de usuarios (futuro módulo)
             'gestor-usuarios-acceso',
             'gestor-usuarios-ver',
@@ -105,6 +111,12 @@ class RolePermissionSeeder extends Seeder
             'mapa-rastreo-vendedores-ver',
             'mapa-rastreo-vendedores-tiempo-real',
             'mapa-rastreo-vendedores-historial',
+
+            // Reportes
+            'menu-reportes',
+            'reporte-pdvs-visitados-acceso',
+            'reporte-pdvs-visitados-ver',
+            'reporte-pdvs-visitados-exportar',
 
             // Aplicación Móvil (Supervisores/Vendedores)
             'app-movil-acceso',
@@ -165,6 +177,12 @@ class RolePermissionSeeder extends Seeder
             'app-movil-gps-tracking',
             'app-movil-pdv-visitas',
             'app-movil-reportes',
+
+            // Reportes
+            'menu-reportes',
+            'reporte-pdvs-visitados-acceso',
+            'reporte-pdvs-visitados-ver',
+            'reporte-pdvs-visitados-exportar',
         ];
         $supervisorRole->syncPermissions($supervisorPermissions);
 
@@ -211,6 +229,7 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   ⚙️  Admin: menu-admin');
         $this->command->info('   👥 Gestor Roles: gestor-roles-* (7 permisos)');
         $this->command->info('   🏢 Gestor Negocios: gestor-business-* (6 permisos)');
+        $this->command->info('   👥 Gestor Usuario-Negocio: gestor-business-user-* (4 permisos)');
         $this->command->info('   👤 Gestor Usuarios: gestor-usuarios-* (6 permisos)');
         $this->command->info('   📁 Gestor Zonales: gestor-zonal-* (6 permisos)');
         $this->command->info('   🔌 Gestor Circuitos: gestor-circuito-* (6 permisos)');
@@ -219,6 +238,7 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   👨‍💼 Supervisor-Zonal: gestor-zonal-supervisor-* (4 permisos)');
         $this->command->info('   🔄 Vendedor-Circuito: gestor-vendedor-circuito-* (4 permisos)');
         $this->command->info('   🗺️ Mapas: mapa-rastreo-vendedores-* (4 permisos)');
+        $this->command->info('   📊 Reportes: reporte-* (4 permisos)');
         $this->command->info('   📱 App Móvil: app-movil-* (4 permisos)');
         $this->command->info('   🔧 Configuración: configuracion-* (3 permisos)');
         $this->command->info('');

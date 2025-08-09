@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation, BarChart3 } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 import { useMemo, useCallback } from 'react';
@@ -32,6 +32,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/admin/businesses',
                 icon: Building2,
                 permission: 'gestor-business-acceso',
+            },
+            {
+                title: 'Usuario-Negocio',
+                href: '/admin/business-users',
+                icon: Users,
+                permission: 'gestor-business-user-acceso',
             },
             {
                 title: 'Gestor de usuarios',
@@ -95,6 +101,19 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 icon: Navigation,
                 permission: 'mapa-rastreo-vendedores-acceso',
                 openInNewTab: true,
+            },
+        ],
+    },
+    {
+        title: 'Reportes',
+        icon: BarChart3,
+        permission: 'menu-reportes',
+        items: [
+            {
+                title: 'PDVs Visitados',
+                href: '/reportes/pdvs-visitados',
+                icon: MapPin,
+                permission: 'reporte-pdvs-visitados-acceso',
             },
         ],
     },

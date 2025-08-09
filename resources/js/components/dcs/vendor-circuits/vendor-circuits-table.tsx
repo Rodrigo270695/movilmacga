@@ -440,7 +440,7 @@ export function VendorCircuitsTable({
                                                             {circuit.name}
                                                         </div>
                                                         <div className="text-xs text-gray-500">
-                                                            {circuit.code} • {circuit.zonal.business.name} • {circuit.zonal.name}
+                                                            {circuit.code} • {circuit.zonal.business?.name || 'Sin negocio'} • {circuit.zonal.name}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -531,7 +531,7 @@ export function VendorCircuitsTable({
                                                     {circuit.name}
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    {circuit.code} • {circuit.zonal.business.name}
+                                                    {circuit.code} • {circuit.zonal.business?.name || 'Sin negocio'}
                                                 </p>
                                             </div>
                                         </div>

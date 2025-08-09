@@ -21,18 +21,20 @@ interface AdvancedFiltersProps {
     showAdvancedFilters: boolean;
     selectedDocumentType: string;
     sellsRecharge: string;
+    selectedZonal: string; // NUEVO
     selectedCircuit: string;
     documentNumber: string;
     clientName: string;
     pointName: string;
     posId: string;
-    
+
     // Opciones para selects
     routes: Array<{id: number, name: string, code: string}>;
     statusOptions: Array<{value: string, label: string}>;
     classificationOptions: Array<{value: string, label: string}>;
+    zonales: Array<{id: number, name: string, business?: {name: string}}>;  // NUEVO
     circuits: Array<{id: number, name: string, code: string}>;
-    
+
     // Handlers
     handleSearch: (value: string) => void;
     handleRouteFilter: (value: string) => void;
@@ -41,14 +43,15 @@ interface AdvancedFiltersProps {
     setShowAdvancedFilters: (show: boolean) => void;
     setSelectedDocumentType: (value: string) => void;
     setSellsRecharge: (value: string) => void;
-    setSelectedCircuit: (value: string) => void;
+    handleZonalFilter: (value: string) => void; // NUEVO
+    handleCircuitFilter: (value: string) => void; // NUEVO (cambio de setter a handler)
     setDocumentNumber: (value: string) => void;
     setClientName: (value: string) => void;
     setPointName: (value: string) => void;
     setPosId: (value: string) => void;
     applyFilters: () => void;
     clearFilters: () => void;
-    
+
     // Estado
     hasActiveFilters: boolean;
     activeFilterCount: number;
@@ -62,6 +65,7 @@ export function AdvancedFilters({
     showAdvancedFilters,
     selectedDocumentType,
     sellsRecharge,
+    selectedZonal, // NUEVO
     selectedCircuit,
     documentNumber,
     clientName,
@@ -70,6 +74,7 @@ export function AdvancedFilters({
     routes,
     statusOptions,
     classificationOptions,
+    zonales, // NUEVO
     circuits,
     handleSearch,
     handleRouteFilter,
@@ -78,7 +83,8 @@ export function AdvancedFilters({
     setShowAdvancedFilters,
     setSelectedDocumentType,
     setSellsRecharge,
-    setSelectedCircuit,
+    handleZonalFilter, // NUEVO
+    handleCircuitFilter, // NUEVO (cambio de setter a handler)
     setDocumentNumber,
     setClientName,
     setPointName,
@@ -201,7 +207,7 @@ export function AdvancedFilters({
                             <Settings2 className="w-4 h-4 text-gray-600" />
                             <span className="font-medium text-gray-700">Filtros Avanzados</span>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {/* Filtros específicos */}
                             <div>
@@ -274,16 +280,34 @@ export function AdvancedFilters({
                                 />
                             </div>
 
+                            {/* NUEVO: Filtro de Zonal */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Zonal</label>
+                                <CustomSelect
+                                    value={selectedZonal || "all"}
+                                    onValueChange={handleZonalFilter}
+                                    options={[
+                                        { value: "all", label: "🌍 Todos los zonales" },
+                                        ...zonales.map((zonal) => ({
+                                            value: zonal.id.toString(),
+                                            label: `🏢 ${zonal.name}${zonal.business ? ` (${zonal.business.name})` : ''}`
+                                        }))
+                                    ]}
+                                    placeholder="Seleccionar zonal"
+                                    className="w-full"
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Circuito</label>
                                 <CustomSelect
                                     value={selectedCircuit || "all"}
-                                    onValueChange={(value) => setSelectedCircuit(value === "all" ? "" : value)}
+                                    onValueChange={handleCircuitFilter}
                                     options={[
-                                        { value: "all", label: "Todos los circuitos" },
+                                        { value: "all", label: "⚡ Todos los circuitos" },
                                         ...circuits.map((circuit) => ({
                                             value: circuit.id.toString(),
-                                            label: `${circuit.name} (${circuit.code})`
+                                            label: `⚡ ${circuit.name} (${circuit.code})`
                                         }))
                                     ]}
                                     placeholder="Seleccionar circuito"
@@ -313,8 +337,8 @@ export function AdvancedFilters({
                             {searchQuery && (
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                                     🔍 "{searchQuery}"
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-blue-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-blue-900"
                                         onClick={() => handleSearch('')}
                                     />
                                 </Badge>
@@ -322,8 +346,8 @@ export function AdvancedFilters({
                             {selectedRoute && (
                                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                                     📍 {routes.find(r => r.id.toString() === selectedRoute)?.name}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-green-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-green-900"
                                         onClick={() => handleRouteFilter("all")}
                                     />
                                 </Badge>
@@ -331,8 +355,8 @@ export function AdvancedFilters({
                             {selectedStatus && (
                                 <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                                     📊 {statusOptions.find(s => s.value === selectedStatus)?.label}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-yellow-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-yellow-900"
                                         onClick={() => handleStatusFilter("all")}
                                     />
                                 </Badge>
@@ -340,8 +364,8 @@ export function AdvancedFilters({
                             {selectedClassification && (
                                 <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                     🏪 {classificationOptions.find(c => c.value === selectedClassification)?.label}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-purple-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-purple-900"
                                         onClick={() => handleClassificationFilter("all")}
                                     />
                                 </Badge>
@@ -349,8 +373,8 @@ export function AdvancedFilters({
                             {pointName && (
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
                                     🏢 PDV: {pointName}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900"
                                         onClick={() => setPointName('')}
                                     />
                                 </Badge>
@@ -358,8 +382,8 @@ export function AdvancedFilters({
                             {clientName && (
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
                                     👤 Cliente: {clientName}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900"
                                         onClick={() => setClientName('')}
                                     />
                                 </Badge>
@@ -367,8 +391,8 @@ export function AdvancedFilters({
                             {documentNumber && (
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
                                     📄 Doc: {documentNumber}
-                                    <X 
-                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900" 
+                                    <X
+                                        className="w-3 h-3 ml-1 cursor-pointer hover:text-gray-900"
                                         onClick={() => setDocumentNumber('')}
                                     />
                                 </Badge>

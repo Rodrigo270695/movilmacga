@@ -16,7 +16,7 @@ class ZonalController extends Controller
     public function index(Request $request)
     {
         // Verificar permisos específicos
-        if (!auth()->user()->can('gestor-zonal-ver')) {
+        if (!auth()->user()?->can('gestor-zonal-ver')) {
             abort(403, 'No tienes permisos para ver los zonales.');
         }
 
@@ -50,8 +50,14 @@ class ZonalController extends Controller
 
         $zonales = $query->orderBy('name')->paginate($perPage);
 
+        // Obtener todas las empresas para el filtro
+        $businesses = \App\Models\Business::where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('dcs/zonales/index', [
             'zonales' => $zonales,
+            'businesses' => $businesses,
             'filters' => [
                 'search' => $search,
                 'business_filter' => $businessFilter,

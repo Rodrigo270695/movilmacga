@@ -7,12 +7,14 @@ use App\Http\Requests\DCS\PdvRequest;
 use App\Models\Pdv;
 use App\Models\Route;
 use App\Models\Localidad;
+use App\Traits\HasBusinessScope;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class GlobalPdvController extends Controller
 {
+    use HasBusinessScope;
         /**
      * Generate a unique 6-digit POS ID
      */
@@ -46,7 +48,7 @@ class GlobalPdvController extends Controller
     public function index(Request $request)
     {
         // Verificar permisos específicos
-        if (!Auth::user()->can('gestor-pdv-ver')) {
+        if (!Auth::user()?->can('gestor-pdv-ver')) {
             abort(403, 'No tienes permisos para ver los PDVs.');
         }
 
@@ -55,7 +57,8 @@ class GlobalPdvController extends Controller
         // Filtros básicos
         $searchFilter = $request->get('search');
         $routeFilter = $request->get('route_id');
-        $localityFilter = $request->get('locality_id');
+        $districtFilter = $request->get('district_id');
+        $localityTextFilter = $request->get('locality');
         $statusFilter = $request->get('status');
         $classificationFilter = $request->get('classification');
 
@@ -63,13 +66,17 @@ class GlobalPdvController extends Controller
         $documentTypeFilter = $request->get('document_type');
         $sellsRechargeFilter = $request->get('sells_recharge');
         $circuitFilter = $request->get('circuit_id');
+        $zonalFilter = $request->get('zonal_id'); // NUEVO: Filtro por zonal
         $documentNumberFilter = $request->get('document_number');
         $clientNameFilter = $request->get('client_name');
         $pointNameFilter = $request->get('point_name');
         $posIdFilter = $request->get('pos_id');
 
-        $query = Pdv::with(['route.circuit.zonal', 'locality'])
-            ->select('id', 'point_name', 'pos_id', 'document_type', 'document_number', 'client_name', 'classification', 'status', 'route_id', 'locality_id', 'sells_recharge', 'created_at');
+        $query = Pdv::with(['route.circuit.zonal.business', 'district'])
+            ->select('id', 'point_name', 'pos_id', 'document_type', 'document_number', 'client_name', 'classification', 'status', 'route_id', 'district_id', 'locality', 'sells_recharge', 'created_at');
+
+        // Aplicar filtros de scope automáticos (negocio y zonal)
+        $query = $this->applyFullScope($query, 'route.circuit.zonal.business', 'route.circuit.zonal');
 
         // Búsqueda general (search)
         if ($searchFilter) {
@@ -78,9 +85,7 @@ class GlobalPdvController extends Controller
                   ->orWhere('client_name', 'like', "%{$searchFilter}%")
                   ->orWhere('document_number', 'like', "%{$searchFilter}%")
                   ->orWhere('pos_id', 'like', "%{$searchFilter}%")
-                  ->orWhereHas('locality', function ($locQuery) use ($searchFilter) {
-                      $locQuery->where('name', 'like', "%{$searchFilter}%");
-                  })
+                  ->orWhere('locality', 'like', "%{$searchFilter}%")
                   ->orWhereHas('route', function ($routeQuery) use ($searchFilter) {
                       $routeQuery->where('name', 'like', "%{$searchFilter}%")
                                  ->orWhere('code', 'like', "%{$searchFilter}%");
@@ -93,8 +98,12 @@ class GlobalPdvController extends Controller
             $query->byRoute($routeFilter);
         }
 
-        if ($localityFilter) {
-            $query->byLocality($localityFilter);
+        if ($districtFilter) {
+            $query->byDistrict($districtFilter);
+        }
+
+        if ($localityTextFilter) {
+            $query->byLocalityText($localityTextFilter);
         }
 
         if ($statusFilter) {
@@ -120,6 +129,13 @@ class GlobalPdvController extends Controller
             });
         }
 
+        // NUEVO: Filtro por zonal (a través de la relación)
+        if ($zonalFilter) {
+            $query->whereHas('route.circuit', function ($q) use ($zonalFilter) {
+                $q->where('zonal_id', $zonalFilter);
+            });
+        }
+
         if ($documentNumberFilter) {
             $query->where('document_number', 'like', "%{$documentNumberFilter}%");
         }
@@ -138,28 +154,41 @@ class GlobalPdvController extends Controller
 
         $pdvs = $query->orderBy('point_name')->paginate($perPage);
 
-        // Cargar datos para los filtros y formularios
-        $circuits = \App\Models\Circuit::active()->with('zonal')->orderBy('name')->get(['id', 'name', 'code', 'zonal_id']);
-        $routes = Route::active()->with('circuit.zonal')->orderBy('name')->get(['id', 'name', 'code', 'circuit_id']);
+        // Cargar datos para los filtros y formularios (aplicando scope)
+        $zonales = $this->getAvailableZonals();
+
+        // Filtrar circuitos aplicando scope
+        $circuitsQuery = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
+        $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
+        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+
+        // Filtrar rutas aplicando scope
+        $routesQuery = Route::active()->with('circuit.zonal.business')->orderBy('name');
+        $routesQuery = $this->applyFullScope($routesQuery, 'circuit.zonal.business', 'circuit.zonal');
+        $routes = $routesQuery->get(['id', 'name', 'code', 'circuit_id']);
         $departamentos = \App\Models\Departamento::where('status', true)->orderBy('name')->get(['id', 'name', 'pais_id']);
         // REMOVIDO: Carga masiva de provincias, distritos y localidades
         // Solo cargar departamentos inicialmente, el resto se carga dinámicamente
 
         return Inertia::render('dcs/pdvs/global-index', [
             'pdvs' => $pdvs,
+            'zonales' => $zonales, // NUEVO
             'circuits' => $circuits,
             'routes' => $routes,
             'departamentos' => $departamentos,
+            'businessScope' => $this->getBusinessScope(),
             // REMOVIDO: 'provincias', 'distritos', 'localities'
             'filters' => [
                 'search' => $searchFilter,
                 'route_id' => $routeFilter,
-                'locality_id' => $localityFilter,
+                'district_id' => $districtFilter,
+                'locality' => $localityTextFilter,
                 'status' => $statusFilter,
                 'classification' => $classificationFilter,
                 'document_type' => $documentTypeFilter,
                 'sells_recharge' => $sellsRechargeFilter,
                 'circuit_id' => $circuitFilter,
+                'zonal_id' => $zonalFilter,
                 'document_number' => $documentNumberFilter,
                 'client_name' => $clientNameFilter,
                 'point_name' => $pointNameFilter,
@@ -264,7 +293,7 @@ class GlobalPdvController extends Controller
         // Cargar PDV con todas las relaciones necesarias
         $pdv->load([
             'route.circuit',
-            'locality.distrito.provincia.departamento'
+            'district.provincia.departamento'
         ]);
 
         return response()->json([
@@ -283,12 +312,12 @@ class GlobalPdvController extends Controller
             'latitude' => $pdv->latitude,
             'longitude' => $pdv->longitude,
             'route_id' => $pdv->route_id,
-            'locality_id' => $pdv->locality_id,
+            'district_id' => $pdv->district_id,
+            'locality' => $pdv->locality,
             // IDs para cargar las listas dependientes
             'circuit_id' => $pdv->route?->circuit_id,
-            'departamento_id' => $pdv->locality?->distrito?->provincia?->departamento_id,
-            'provincia_id' => $pdv->locality?->distrito?->provincia_id,
-            'distrito_id' => $pdv->locality?->distrito_id,
+            'departamento_id' => $pdv->district?->provincia?->departamento_id,
+            'provincia_id' => $pdv->district?->provincia_id,
         ]);
     }
 
@@ -321,7 +350,8 @@ class GlobalPdvController extends Controller
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'route_id' => $request->route_id,
-            'locality_id' => $request->locality_id,
+            'district_id' => $request->district_id,
+            'locality' => $request->locality,
         ]);
 
         return redirect()->route('dcs.pdvs.index')
@@ -357,7 +387,8 @@ class GlobalPdvController extends Controller
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'route_id' => $request->route_id,
-            'locality_id' => $request->locality_id,
+            'district_id' => $request->district_id,
+            'locality' => $request->locality,
         ]);
 
         return redirect()->route('dcs.pdvs.index')

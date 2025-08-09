@@ -9,6 +9,7 @@ use App\Models\Circuit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,7 +22,7 @@ class VendorCircuitController extends Controller
     public function index(Request $request): Response
     {
         // Validar permisos
-        if (!auth()->user()->can('gestor-vendedor-circuito-ver')) {
+        if (!$request->user() || !$request->user()->can('gestor-vendedor-circuito-ver')) {
             abort(403, 'No tienes permisos para ver las asignaciones de vendedores a circuitos.');
         }
 
@@ -74,10 +75,9 @@ class VendorCircuitController extends Controller
         // Obtener resultados paginados
         $circuits = $circuitsQuery->where('status', true)->paginate($perPage);
 
-        // Obtener vendedores disponibles (sin asignación activa)
+        // Obtener todos los vendedores activos (pueden tener múltiples circuitos)
         $vendors = User::role('Vendedor')
             ->where('status', true)
-            ->whereDoesntHave('activeUserCircuits')
             ->get(['id', 'first_name', 'last_name', 'email', 'status']);
 
         // Obtener todos los negocios para el filtro
@@ -107,17 +107,12 @@ class VendorCircuitController extends Controller
     public function store(VendorCircuitRequest $request): RedirectResponse
     {
         // Validar permisos
-        if (!auth()->user()->can('gestor-vendedor-circuito-asignar')) {
+        if (!$request->user() || !$request->user()->can('gestor-vendedor-circuito-asignar')) {
             return back()->with('error', 'No tienes permisos para asignar vendedores a circuitos.');
         }
 
         try {
-            // Desactivar asignación anterior del circuito si existe
-            UserCircuit::where('circuit_id', $request->circuit_id)
-                ->where('is_active', true)
-                ->update(['is_active' => false]);
-
-            // Crear nueva asignación
+            // Crear nueva asignación (múltiples vendedores pueden estar asignados al mismo circuito)
             $userCircuit = UserCircuit::create([
                 'circuit_id' => $request->circuit_id,
                 'user_id' => $request->user_id,
@@ -141,20 +136,12 @@ class VendorCircuitController extends Controller
     public function update(VendorCircuitRequest $request, UserCircuit $userCircuit): RedirectResponse
     {
         // Validar permisos
-        if (!auth()->user()->can('gestor-vendedor-circuito-asignar')) {
+        if (!$request->user() || !$request->user()->can('gestor-vendedor-circuito-asignar')) {
             return back()->with('error', 'No tienes permisos para reasignar vendedores.');
         }
 
         try {
-            // Si se cambia el circuito, desactivar asignación anterior del circuito
-            if ($request->circuit_id != $userCircuit->circuit_id) {
-                UserCircuit::where('circuit_id', $request->circuit_id)
-                    ->where('is_active', true)
-                    ->where('id', '!=', $userCircuit->id)
-                    ->update(['is_active' => false]);
-            }
-
-            // Actualizar asignación
+            // Actualizar asignación (permitir múltiples vendedores por circuito)
             $userCircuit->update([
                 'circuit_id' => $request->circuit_id,
                 'user_id' => $request->user_id,
@@ -172,10 +159,10 @@ class VendorCircuitController extends Controller
     /**
      * Remove the specified resource from storage (desasignar).
      */
-    public function destroy(UserCircuit $userCircuit): RedirectResponse
+    public function destroy(Request $request, UserCircuit $userCircuit): RedirectResponse
     {
         // Validar permisos
-        if (!auth()->user()->can('gestor-vendedor-circuito-desasignar')) {
+        if (!$request->user() || !$request->user()->can('gestor-vendedor-circuito-desasignar')) {
             return back()->with('error', 'No tienes permisos para desasignar vendedores.');
         }
 

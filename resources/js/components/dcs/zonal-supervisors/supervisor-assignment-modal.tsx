@@ -180,7 +180,7 @@ export function SupervisorAssignmentModal({
                         <div className="flex items-center gap-2 mt-1">
                             <Building2 className="w-4 h-4 text-gray-500" />
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                {zonal.business.name}
+                                {zonal.business?.name || 'Sin negocio'}
                             </Badge>
                         </div>
                     </div>

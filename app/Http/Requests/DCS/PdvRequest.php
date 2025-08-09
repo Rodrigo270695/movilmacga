@@ -53,10 +53,7 @@ class PdvRequest extends FormRequest
                     if (!preg_match('/^[0-9]+$/', $value)) {
                         $fail('El número de documento solo puede contener números.');
                     }
-                },
-                Rule::unique('pdvs')->where(function ($query) {
-                    return $query->where('document_type', $this->input('document_type'));
-                })->ignore($pdvId)
+                }
             ],
             'client_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -75,7 +72,8 @@ class PdvRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'route_id' => ['required', 'exists:routes,id'],
-            'locality_id' => ['required', 'exists:localidades,id'],
+            'district_id' => ['required', 'exists:distritos,id'],
+            'locality' => ['required', 'string', 'max:255'],
         ];
 
         return $rules;
@@ -93,7 +91,7 @@ class PdvRequest extends FormRequest
             'document_type.required' => 'El tipo de documento es requerido.',
             'document_type.in' => 'El tipo de documento debe ser DNI o RUC.',
             'document_number.required' => 'El número de documento es requerido.',
-            'document_number.unique' => 'Este número de documento ya está registrado para este tipo.',
+
             'client_name.required' => 'El nombre del cliente es requerido.',
             'client_name.max' => 'El nombre del cliente no debe exceder 255 caracteres.',
             'email.email' => 'El correo electrónico debe ser válido.',
@@ -109,8 +107,10 @@ class PdvRequest extends FormRequest
             'longitude.between' => 'La longitud debe estar entre -180 y 180.',
             'route_id.required' => 'La ruta es requerida.',
             'route_id.exists' => 'La ruta seleccionada no existe.',
-            'locality_id.required' => 'La localidad es requerida.',
-            'locality_id.exists' => 'La localidad seleccionada no existe.',
+            'district_id.required' => 'El distrito es requerido.',
+            'district_id.exists' => 'El distrito seleccionado no existe.',
+            'locality.required' => 'La localidad es requerida.',
+            'locality.max' => 'La localidad no debe exceder 255 caracteres.',
         ];
     }
 
@@ -135,7 +135,8 @@ class PdvRequest extends FormRequest
             'latitude' => 'latitud',
             'longitude' => 'longitud',
             'route_id' => 'ruta',
-            'locality_id' => 'localidad',
+            'district_id' => 'distrito',
+            'locality' => 'localidad',
         ];
     }
 }
