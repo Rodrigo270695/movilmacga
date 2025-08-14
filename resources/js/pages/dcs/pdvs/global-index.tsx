@@ -9,7 +9,7 @@ import { PdvsTable } from '@/components/dcs/pdvs/pdvs-table';
 import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 
 interface PdvModel {
     id: number;
@@ -450,6 +450,69 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         setToggleModalData(null);
     };
 
+    // Función para exportar a Excel
+    const handleExportToExcel = () => {
+        if (!hasPermission('gestor-pdv-ver')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para exportar PDVs.',
+                duration: 4000
+            });
+            return;
+        }
+
+        // Construir URL con todos los filtros aplicados
+        const params = new URLSearchParams();
+
+        // Filtros básicos
+        if (searchQuery?.trim()) params.set('search', searchQuery);
+        if (selectedRoute?.trim()) params.set('route_id', selectedRoute);
+        if (selectedStatus?.trim()) params.set('status', selectedStatus);
+        if (selectedClassification?.trim()) params.set('classification', selectedClassification);
+
+        // Filtros avanzados
+        if (selectedDocumentType?.trim()) params.set('document_type', selectedDocumentType);
+        if (sellsRecharge?.trim()) params.set('sells_recharge', sellsRecharge);
+        if (selectedZonal?.trim()) params.set('zonal_id', selectedZonal);
+        if (selectedCircuit?.trim()) params.set('circuit_id', selectedCircuit);
+        if (selectedDistrict?.trim()) params.set('district_id', selectedDistrict);
+        if (localityText?.trim()) params.set('locality', localityText);
+        if (documentNumber?.trim()) params.set('document_number', documentNumber);
+        if (clientName?.trim()) params.set('client_name', clientName);
+        if (pointName?.trim()) params.set('point_name', pointName);
+        if (posId?.trim()) params.set('pos_id', posId);
+
+        // Crear URL de exportación
+        const exportUrl = `${route('dcs.pdvs.export')}?${params.toString()}`;
+
+        // Mostrar toast de inicio
+        addToast({
+            type: 'info',
+            title: 'Exportando...',
+            message: 'Preparando archivo Excel con los filtros aplicados.',
+            duration: 3000
+        });
+
+        // Descargar archivo
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Mostrar toast de éxito
+        setTimeout(() => {
+            addToast({
+                type: 'success',
+                title: '¡Exportación completada!',
+                message: 'El archivo Excel se ha descargado correctamente.',
+                duration: 4000
+            });
+        }, 1000);
+    };
+
     // Verificar si hay filtros activos
     const hasActiveFilters = !!(searchQuery || selectedRoute || selectedStatus || selectedClassification ||
                             selectedDocumentType || sellsRecharge || selectedZonal || selectedCircuit || selectedDistrict ||
@@ -506,9 +569,20 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
-                                {hasPermission('gestor-pdv-crear') && (
-                                    <div className="hidden sm:block">
+                                {/* Botones desktop - Solo mostrar en pantallas grandes */}
+                                <div className="hidden sm:flex items-center gap-3">
+                                    {/* Botón de exportación */}
+                                    <Button
+                                        onClick={handleExportToExcel}
+                                        variant="outline"
+                                        className="border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700 hover:text-green-700 px-4 py-2 text-sm font-medium cursor-pointer"
+                                    >
+                                        <Download className="w-4 h-4 mr-2" />
+                                        Exportar Excel
+                                    </Button>
+
+                                    {/* Botón de crear */}
+                                    {hasPermission('gestor-pdv-crear') && (
                                         <Button
                                             onClick={openCreateModal}
                                             className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
@@ -516,8 +590,8 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                                             <Plus className="w-4 h-4 mr-2" />
                                             Nuevo PDV
                                         </Button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -598,9 +672,20 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                     )}
                 </div>
 
-                {/* Botón flotante - Solo móviles */}
-                {hasPermission('gestor-pdv-crear') && (
-                    <div className="fixed bottom-6 right-6 z-50 sm:hidden">
+                {/* Botones flotantes - Solo móviles */}
+                <div className="fixed bottom-6 right-6 z-50 sm:hidden flex flex-col gap-3">
+                    {/* Botón de exportación */}
+                    <Button
+                        onClick={handleExportToExcel}
+                        size="lg"
+                        className="h-12 w-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer"
+                        title="Exportar Excel"
+                    >
+                        <Download className="w-5 h-5" />
+                    </Button>
+
+                    {/* Botón de crear */}
+                    {hasPermission('gestor-pdv-crear') && (
                         <Button
                             onClick={openCreateModal}
                             size="lg"
@@ -608,8 +693,8 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                         >
                             <Plus className="w-6 h-6" />
                         </Button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </AppLayout>
     );

@@ -8,6 +8,7 @@ use App\Http\Controllers\DCS\GlobalRouteController;
 use App\Http\Controllers\DCS\GlobalPdvController;
 use App\Http\Controllers\DCS\ZonalSupervisorController;
 use App\Http\Controllers\DCS\VendorCircuitController;
+use App\Http\Controllers\DCS\RouteVisitDateController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -168,6 +169,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-ruta-eliminar')
                 ->name('routes.destroy');
 
+            // Rutas para fechas de visita de rutas
+            Route::get('routes/{route}/visit-dates', [RouteVisitDateController::class, 'index'])
+                ->middleware('permission:gestor-ruta-ver')
+                ->name('routes.visit-dates.index');
+
+            Route::post('routes/{route}/visit-dates', [RouteVisitDateController::class, 'store'])
+                ->middleware('permission:gestor-ruta-editar')
+                ->name('routes.visit-dates.store');
+
+            Route::patch('routes/{route}/visit-dates/{visitDate}', [RouteVisitDateController::class, 'update'])
+                ->middleware('permission:gestor-ruta-editar')
+                ->name('routes.visit-dates.update');
+
+            Route::delete('routes/{route}/visit-dates/{visitDate}', [RouteVisitDateController::class, 'destroy'])
+                ->middleware('permission:gestor-ruta-editar')
+                ->name('routes.visit-dates.destroy');
+
+            Route::delete('routes/{route}/visit-dates', [RouteVisitDateController::class, 'destroyMultiple'])
+                ->middleware('permission:gestor-ruta-editar')
+                ->name('routes.visit-dates.destroy-multiple');
+
+            Route::get('routes/{route}/visit-dates/range', [RouteVisitDateController::class, 'getDatesForRange'])
+                ->middleware('permission:gestor-ruta-ver')
+                ->name('routes.visit-dates.range');
+
         });
 
         // Grupo de rutas globales para PDVs con middleware de permisos
@@ -195,6 +221,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('pdvs/{pdv}', [GlobalPdvController::class, 'destroy'])
                 ->middleware('permission:gestor-pdv-eliminar')
                 ->name('pdvs.destroy');
+
+            // Ruta para exportar PDVs a Excel
+            Route::get('pdvs/export', [GlobalPdvController::class, 'export'])
+                ->middleware('permission:gestor-pdv-ver')
+                ->name('pdvs.export');
 
         });
 

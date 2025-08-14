@@ -9,6 +9,7 @@ import { AssociateZonalesModal } from '@/components/admin/businesses/associate-z
 import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
 import { usePage } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 
 interface Zonal {
     id: number;
@@ -139,6 +140,8 @@ export default function BusinessesIndex({ businesses, availableZonales, flash }:
         setIsAssociateZonalesOpen(true);
     };
 
+
+
     const closeBusinessForm = () => {
         setIsBusinessFormOpen(false);
         setEditingBusiness(null);
@@ -187,7 +190,7 @@ export default function BusinessesIndex({ businesses, availableZonales, flash }:
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
+                                {/* Botones desktop - Solo mostrar en pantallas grandes */}
                                 {hasPermission('gestor-business-crear') && (
                                     <div className="hidden sm:block">
                                         <Button
@@ -227,7 +230,7 @@ export default function BusinessesIndex({ businesses, availableZonales, flash }:
                     />
                 </div>
 
-                {/* Botón flotante - Solo móviles */}
+                {/* Botones flotantes - Solo móviles */}
                 {hasPermission('gestor-business-crear') && (
                     <div className="fixed bottom-6 right-6 z-50 sm:hidden">
                         <Button

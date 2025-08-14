@@ -5,6 +5,11 @@ use App\Http\Controllers\Api\GpsTrackingController;
 use App\Http\Controllers\Api\PdvVisitController;
 use App\Http\Controllers\Api\UserDataController;
 use App\Http\Controllers\Api\WorkingSessionController;
+use App\Http\Controllers\Api\FormController;
+use App\Http\Controllers\Api\CircuitRoutesController;
+use App\Http\Controllers\Api\RoutePdvsController;
+use App\Http\Controllers\Api\PdvFormController;
+use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,7 +29,7 @@ Route::prefix('auth')->group(function () {
 
 // Rutas protegidas (requieren autenticación)
 Route::middleware(['auth:sanctum'])->group(function () {
-    
+
     // ========================================
     // AUTENTICACIÓN Y PERFIL
     // ========================================
@@ -35,14 +40,46 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // ========================================
+    // PERFIL DEL USUARIO
+    // ========================================
+                    Route::prefix('profile')->group(function () {
+                    Route::get('stats', [ProfileController::class, 'getUserStats'])->name('api.profile.stats');
+                    Route::get('info', [ProfileController::class, 'getProfileInfo'])->name('api.profile.info');
+                    Route::post('change-password', [ProfileController::class, 'changePassword'])->name('api.profile.change-password');
+                    Route::put('update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
+                });
+
+    // ========================================
     // DATOS DEL USUARIO (Circuitos, PDVs asignados)
     // ========================================
     Route::prefix('user')->group(function () {
         Route::get('circuits', [UserDataController::class, 'getUserCircuits'])->name('api.user.circuits');
         Route::get('pdvs-today', [UserDataController::class, 'getTodayPdvs'])->name('api.user.pdvs-today');
         Route::get('pdvs-by-circuit/{circuit}', [UserDataController::class, 'getPdvsByCircuit'])->name('api.user.pdvs-by-circuit');
+        Route::get('circuit/{circuit}/routes-with-dates', [UserDataController::class, 'getCircuitRoutesWithDates'])->name('api.user.circuit-routes-with-dates');
         Route::get('stats', [UserDataController::class, 'getUserStats'])->name('api.user.stats');
     });
+
+    // ========================================
+    // RUTAS DE CIRCUITOS (Nuevo controlador)
+    // ========================================
+    Route::prefix('circuit-routes')->group(function () {
+        Route::get('{circuit}/all', [CircuitRoutesController::class, 'getCircuitRoutes'])->name('api.circuit-routes.all');
+        Route::get('{circuit}/today', [CircuitRoutesController::class, 'getTodayCircuitRoutes'])->name('api.circuit-routes.today');
+    });
+
+    // ========================================
+    // PDVs DE RUTAS (Nuevo controlador)
+    // ========================================
+    Route::prefix('route-pdvs')->group(function () {
+    Route::get('{route}/all', [RoutePdvsController::class, 'getRoutePdvs'])->name('api.route-pdvs.all');
+    Route::get('{route}/today', [RoutePdvsController::class, 'getTodayRoutePdvs'])->name('api.route-pdvs.today');
+});
+
+Route::prefix('pdv-forms')->group(function () {
+    Route::get('{pdv}', [PdvFormController::class, 'getPdvForm'])->name('api.pdv-forms.get');
+    Route::post('{pdv}/responses', [PdvFormController::class, 'saveFormResponses'])->name('api.pdv-forms.save-responses');
+});
 
     // ========================================
     // GESTIÓN DE JORNADAS LABORALES
@@ -76,6 +113,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('my-visits', [PdvVisitController::class, 'getMyVisits'])->name('api.pdv-visits.history');
         Route::get('visit/{visit}', [PdvVisitController::class, 'getVisitDetails'])->name('api.pdv-visits.details');
         Route::patch('visit/{visit}/update-data', [PdvVisitController::class, 'updateVisitData'])->name('api.pdv-visits.update-data');
+    });
+
+    // ========================================
+    // FORMULARIOS DINÁMICOS
+    // ========================================
+    Route::prefix('forms')->group(function () {
+        // Obtener formulario asignado a un PDV
+        Route::get('pdv/{pdvId}', [FormController::class, 'getPdvForm'])->name('api.forms.pdv-form');
+
+        // Guardar respuestas del formulario para una visita
+        Route::post('visit/{visitId}/responses', [FormController::class, 'saveFormResponses'])->name('api.forms.save-responses');
+
+        // Subir archivo para un campo específico
+        Route::post('visit/{visitId}/field/{fieldId}/upload', [FormController::class, 'uploadFile'])->name('api.forms.upload-file');
+
+        // Obtener respuestas de una visita específica
+        Route::get('visit/{visitId}/responses', [FormController::class, 'getVisitResponses'])->name('api.forms.get-responses');
     });
 
     // ========================================

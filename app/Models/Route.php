@@ -81,6 +81,22 @@ class Route extends Model
     }
 
     /**
+     * Get the visit dates for this route.
+     */
+    public function visitDates(): HasMany
+    {
+        return $this->hasMany(RouteVisitDate::class);
+    }
+
+    /**
+     * Get the active visit dates for this route.
+     */
+    public function activeVisitDates(): HasMany
+    {
+        return $this->hasMany(RouteVisitDate::class)->where('is_active', true);
+    }
+
+    /**
      * Scope para obtener solo rutas activas
      *
      * @param \Illuminate\Database\Eloquent\Builder $query

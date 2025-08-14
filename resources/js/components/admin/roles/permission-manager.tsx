@@ -24,7 +24,8 @@ import {
     UserCheck,
     Map,
     Navigation,
-    BarChart3
+    BarChart3,
+    FileText
 } from 'lucide-react';
 
 interface Permission {
@@ -117,6 +118,21 @@ const menuStructure = [
                     { id: 'gestor-usuarios-editar', label: 'Editar usuarios' },
                     { id: 'gestor-usuarios-cambiar-estado', label: 'Activar/Desactivar usuarios' }
                 ]
+            },
+            {
+                id: 'formularios',
+                label: 'Gestión de Formularios',
+                icon: FileText,
+                className: 'text-rose-600 bg-rose-100',
+                permission: 'gestor-formularios-acceso',
+                actions: [
+                    { id: 'gestor-formularios-ver', label: 'Ver formularios' },
+                    { id: 'gestor-formularios-crear', label: 'Crear formularios' },
+                    { id: 'gestor-formularios-editar', label: 'Editar formularios' },
+                    { id: 'gestor-formularios-cambiar-estado', label: 'Activar/Desactivar formularios' },
+                    { id: 'gestor-formularios-gestionar-secciones', label: 'Gestionar secciones' },
+                    { id: 'gestor-formularios-gestionar-campos', label: 'Gestionar campos' }
+                ]
             }
         ]
     },
@@ -163,7 +179,8 @@ const menuStructure = [
                     { id: 'gestor-ruta-ver', label: 'Ver rutas' },
                     { id: 'gestor-ruta-crear', label: 'Crear rutas' },
                     { id: 'gestor-ruta-editar', label: 'Editar rutas' },
-                    { id: 'gestor-ruta-cambiar-estado', label: 'Activar/Desactivar rutas' }
+                    { id: 'gestor-ruta-cambiar-estado', label: 'Activar/Desactivar rutas' },
+                    { id: 'gestor-ruta-fechas-visita', label: 'Gestionar fechas de visita' }
                 ]
             },
             {
@@ -284,6 +301,14 @@ const actionLabels: Record<string, string> = {
     'gestor-usuarios-editar': 'Editar usuarios',
     'gestor-usuarios-eliminar': 'Eliminar usuarios',
     'gestor-usuarios-cambiar-estado': 'Activar/Desactivar usuarios',
+
+    'gestor-formularios-ver': 'Ver formularios dinámicos',
+    'gestor-formularios-crear': 'Crear formularios dinámicos',
+    'gestor-formularios-editar': 'Editar formularios dinámicos',
+    'gestor-formularios-eliminar': 'Eliminar formularios dinámicos',
+    'gestor-formularios-cambiar-estado': 'Activar/Desactivar formularios dinámicos',
+    'gestor-formularios-gestionar-secciones': 'Gestionar secciones de formularios',
+    'gestor-formularios-gestionar-campos': 'Gestionar campos de formularios',
     'gestor-zonal-ver': 'Ver zonales del sistema',
     'gestor-zonal-crear': 'Crear nuevos zonales',
     'gestor-zonal-editar': 'Editar zonales existentes',
@@ -301,6 +326,7 @@ const actionLabels: Record<string, string> = {
     'gestor-ruta-editar': 'Editar rutas existentes',
     'gestor-ruta-eliminar': 'Eliminar rutas',
     'gestor-ruta-cambiar-estado': 'Activar/Desactivar rutas',
+    'gestor-ruta-fechas-visita': 'Gestionar fechas de visita de rutas',
 
     'gestor-pdv-ver': 'Ver PDVs del sistema',
     'gestor-pdv-crear': 'Crear nuevos PDVs',

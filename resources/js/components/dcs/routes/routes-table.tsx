@@ -62,10 +62,12 @@ interface RoutesTableProps {
     circuit?: Circuit;
     onEdit: (route: RouteModel) => void;
     onToggleStatus?: (route: RouteModel) => void;
+    onManageVisitDates?: (route: RouteModel) => void;
+    onViewVisitDates?: (route: RouteModel) => void;
     isGlobalView?: boolean;
 }
 
-export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, isGlobalView = false }: RoutesTableProps) {
+export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, isGlobalView = false }: RoutesTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [confirmToggleRoute, setConfirmToggleRoute] = useState<RouteModel | null>(null);
@@ -222,6 +224,24 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, isGlobalV
                 </Button>
             );
         }
+
+        // Botón de fechas de visita
+        if (hasPermission('gestor-ruta-fechas-visita') && onManageVisitDates) {
+            actions.push(
+                <Button
+                    key="visit-dates"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onManageVisitDates(route)}
+                    className="h-8 w-8 p-0 hover:bg-purple-50 hover:border-purple-200 cursor-pointer"
+                    title="Gestionar fechas de visita"
+                >
+                    <Calendar className="w-3 h-3 text-purple-600" />
+                </Button>
+            );
+        }
+
+
 
         return actions;
     };

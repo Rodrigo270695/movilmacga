@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PdvVisit extends Model
 {
@@ -46,6 +47,22 @@ class PdvVisit extends Model
     public function pdv(): BelongsTo
     {
         return $this->belongsTo(Pdv::class);
+    }
+
+    /**
+     * Get form responses for this visit
+     */
+    public function formResponses(): HasMany
+    {
+        return $this->hasMany(PdvVisitFormResponse::class);
+    }
+
+    /**
+     * Get form responses with field information
+     */
+    public function formResponsesWithFields(): HasMany
+    {
+        return $this->hasMany(PdvVisitFormResponse::class)->with('formField');
     }
 
     // Scopes

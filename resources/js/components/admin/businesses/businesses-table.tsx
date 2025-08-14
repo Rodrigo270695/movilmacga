@@ -15,7 +15,8 @@ import {
     X,
     Calendar,
     MapPin,
-    Network
+    Network,
+    FileText
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
@@ -54,6 +55,20 @@ export function BusinessesTable({ businesses, onEdit, onAssociateZonales, userPe
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
         return userPermissions.includes(permission);
+    };
+
+    // Función para navegar a formularios del negocio
+    const navigateToBusinessForms = (business: Business) => {
+        if (!hasPermission('gestor-formularios-ver')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para ver formularios dinámicos.',
+                duration: 4000
+            });
+            return;
+        }
+        router.visit(route('admin.business-forms.index', { business_id: business.id }));
     };
 
     // Filtrar businesses por término de búsqueda
@@ -121,6 +136,21 @@ export function BusinessesTable({ businesses, onEdit, onAssociateZonales, userPe
                     title="Gestionar zonales"
                 >
                     <Network className="w-4 h-4 text-green-600" />
+                </Button>
+            );
+        }
+
+        if (hasPermission('gestor-formularios-ver')) {
+            actions.push(
+                <Button
+                    key="forms"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateToBusinessForms(business)}
+                    className="h-8 w-8 p-0 hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer"
+                    title="Gestionar formularios"
+                >
+                    <FileText className="w-4 h-4 text-indigo-600" />
                 </Button>
             );
         }

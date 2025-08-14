@@ -99,4 +99,20 @@ class Business extends Model
     {
         return $query->withCount(['zonales', 'activeZonales']);
     }
+
+    /**
+     * Get all forms for this business
+     */
+    public function businessForms(): HasMany
+    {
+        return $this->hasMany(BusinessForm::class);
+    }
+
+    /**
+     * Get active forms for this business
+     */
+    public function activeBusinessForms(): HasMany
+    {
+        return $this->hasMany(BusinessForm::class)->where('is_active', true);
+    }
 }

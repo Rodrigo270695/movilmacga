@@ -56,11 +56,19 @@ interface UsersTableProps {
     users: PaginatedUsers;
     onEdit: (user: User) => void;
     userPermissions: string[];
+    filters?: {
+        search?: string;
+        role?: string;
+        status?: string;
+        per_page?: number;
+    };
 }
 
-export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) {
+export function UsersTable({ users, onEdit, userPermissions, filters = {} }: UsersTableProps) {
     const { addToast } = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [selectedRole, setSelectedRole] = useState(filters.role || '');
+    const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [confirmToggleUser, setConfirmToggleUser] = useState<User | null>(null);
 
     // Función para verificar permisos
@@ -68,36 +76,61 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
         return userPermissions.includes(permission);
     };
 
-    // Filtrar usuarios basado en el término de búsqueda (solo en la página actual)
-    const filteredUsers = useMemo(() => {
-        if (!searchTerm) return users.data;
+    // Función para aplicar filtros al servidor
+    const applyFilters = (overrides = {}) => {
+        const params: Record<string, string> = {};
 
-        const search = searchTerm.toLowerCase();
-        return users.data.filter(user => {
-            // Buscar por nombre completo
-            const matchesName = user.name.toLowerCase().includes(search);
+        if (searchTerm?.trim()) params.search = searchTerm;
+        if (selectedRole?.trim()) params.role = selectedRole;
+        if (selectedStatus?.trim()) params.status = selectedStatus;
 
-            // Buscar por username
-            const matchesUsername = user.username.toLowerCase().includes(search);
+        // Aplicar overrides (como page, per_page)
+        Object.assign(params, overrides);
 
-            // Buscar por email
-            const matchesEmail = user.email.toLowerCase().includes(search);
-
-            // Buscar por DNI
-            const matchesDni = user.dni.includes(search);
-
-            // Buscar por estado
-            const status = (user.status === false || user.status === 0 || user.status === null) ? 'inactivo' : 'activo';
-            const matchesStatus = status.includes(search);
-
-            // Buscar por roles
-            const matchesRoles = user.roles.some(role =>
-                role.name.toLowerCase().includes(search)
-            );
-
-            return matchesName || matchesUsername || matchesEmail || matchesDni || matchesStatus || matchesRoles;
+        router.get(route('admin.users.index'), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
         });
-    }, [users.data, searchTerm]);
+    };
+
+    // Función para manejar búsqueda con debounce
+    const handleSearch = (value: string) => {
+        setSearchTerm(value);
+
+        // Aplicar filtros después de un delay
+        setTimeout(() => {
+            applyFilters();
+        }, 500);
+    };
+
+    // Función para manejar cambio de rol
+    const handleRoleChange = (role: string) => {
+        setSelectedRole(role);
+        setTimeout(() => {
+            applyFilters();
+        }, 100);
+    };
+
+    // Función para manejar cambio de estado
+    const handleStatusChange = (status: string) => {
+        setSelectedStatus(status);
+        setTimeout(() => {
+            applyFilters();
+        }, 100);
+    };
+
+    // Función para limpiar filtros
+    const clearFilters = () => {
+        setSearchTerm('');
+        setSelectedRole('');
+        setSelectedStatus('');
+        router.get(route('admin.users.index'), {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    };
 
     const handleToggleStatus = (user: User) => {
         if (!hasPermission('gestor-usuarios-cambiar-estado')) {
@@ -117,39 +150,11 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
     };
 
     const handlePageChange = (page: number) => {
-        router.get(route('admin.users.index'), {
-            page,
-            per_page: users.per_page
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            onStart: () => {
-                addToast({
-                    type: 'info',
-                    title: 'Cargando...',
-                    message: `Navegando a la página ${page}`,
-                    duration: 2000
-                });
-            }
-        });
+        applyFilters({ page: page.toString() });
     };
 
     const handlePerPageChange = (perPage: number) => {
-        router.get(route('admin.users.index'), {
-            page: 1, // Reset to first page when changing per_page
-            per_page: perPage
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            onStart: () => {
-                addToast({
-                    type: 'info',
-                    title: 'Actualizando vista',
-                    message: `Mostrando ${perPage} elementos por página`,
-                    duration: 2000
-                });
-            }
-        });
+        applyFilters({ per_page: perPage.toString(), page: '1' });
     };
 
     const getStatusConfig = (status?: boolean | number) => {
@@ -235,33 +240,61 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                             <Users className="w-5 h-5 text-gray-600" />
                             <h3 className="text-base sm:text-lg font-medium text-gray-900">Usuarios del Sistema</h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
-                                {searchTerm
-                                    ? `${filteredUsers.length} de ${users.data.length}`
+                                {searchTerm || selectedRole || selectedStatus
+                                    ? `${users.data.length} resultados`
                                     : `${users.total} total`
                                 }
                             </Badge>
                         </div>
 
-                        {/* Buscador - Responsive */}
-                        <div className="flex items-center gap-4">
+                        {/* Buscador y Filtros - Responsive */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            {/* Buscador */}
                             <div className="relative w-full sm:w-80">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Buscar..."
+                                    placeholder="Buscar por nombre, DNI, email, rol..."
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => handleSearch(e.target.value)}
                                     className="pl-10 pr-10 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 />
                                 {searchTerm && (
                                     <button
                                         type="button"
-                                        onClick={() => setSearchTerm('')}
+                                        onClick={() => handleSearch('')}
                                         className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                                         title="Limpiar búsqueda"
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
+                                )}
+                            </div>
+
+                            {/* Filtros adicionales */}
+                            <div className="flex items-center gap-2">
+                                {/* Filtro por estado */}
+                                <select
+                                    value={selectedStatus}
+                                    onChange={(e) => handleStatusChange(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="">Todos los estados</option>
+                                    <option value="active">Activos</option>
+                                    <option value="inactive">Inactivos</option>
+                                </select>
+
+                                {/* Botón limpiar filtros */}
+                                {(searchTerm || selectedRole || selectedStatus) && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={clearFilters}
+                                        className="text-xs"
+                                    >
+                                        <X className="w-3 h-3 mr-1" />
+                                        Limpiar
+                                    </Button>
                                 )}
                             </div>
                         </div>
@@ -297,7 +330,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
 
                         {/* Body */}
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredUsers.map((user) => {
+                            {users.data.map((user) => {
                                 const statusConfig = getStatusConfig(user.status);
 
                                 return (
@@ -392,7 +425,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
 
                 {/* Vista Mobile - Tarjetas */}
                 <div className="sm:hidden">
-                    {filteredUsers.map((user) => {
+                    {users.data.map((user) => {
                         const statusConfig = getStatusConfig(user.status);
                         const actions = UserActions({ user });
 
@@ -481,7 +514,7 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                 </div>
 
                 {/* Estado vacío */}
-                {filteredUsers.length === 0 && (
+                {users.data.length === 0 && (
                     <div className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -489,11 +522,11 @@ export function UsersTable({ users, onEdit, userPermissions }: UsersTableProps) 
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                                    {searchTerm ? 'No se encontraron resultados' : 'No hay usuarios en esta página'}
+                                    {searchTerm || selectedRole || selectedStatus ? 'No se encontraron resultados' : 'No hay usuarios en esta página'}
                                 </h3>
                                 <p className="text-gray-500 text-sm">
-                                    {searchTerm
-                                        ? 'Intenta con otros términos de búsqueda'
+                                    {searchTerm || selectedRole || selectedStatus
+                                        ? 'Intenta con otros términos de búsqueda o limpia los filtros'
                                         : 'Navega a otras páginas o crea un nuevo usuario'
                                     }
                                 </p>

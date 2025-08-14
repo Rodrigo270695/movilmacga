@@ -24,11 +24,26 @@ class BusinessScopeMiddleware
             return $next($request);
         }
 
+        // Verificar si es Vendedor (bypasear completamente el middleware)
+        if ($user->hasRole('Vendedor')) {
+            // No aplicar ningún filtro, dejar pasar como si no existiera el middleware
+            $this->shareGlobalScope([
+                'is_admin' => true, // Tratar como admin para no aplicar filtros
+                'business_id' => null,
+                'business_ids' => [],
+                'zonal_ids' => [],
+                'has_business_restriction' => false,
+                'has_zonal_restriction' => false
+            ]);
+            return $next($request);
+        }
+
         // Verificar si es Administrador (acceso completo)
         if ($user->hasRole('Administrador')) {
             $this->shareGlobalScope([
                 'is_admin' => true,
                 'business_id' => null,
+                'business_ids' => [],
                 'zonal_ids' => [],
                 'has_business_restriction' => false,
                 'has_zonal_restriction' => false

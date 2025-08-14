@@ -41,6 +41,12 @@ interface PaginatedUsers {
 interface Props {
     users: PaginatedUsers;
     roles: Role[];
+    filters?: {
+        search?: string;
+        role?: string;
+        status?: string;
+        per_page?: number;
+    };
     flash?: {
         success?: string;
         error?: string;
@@ -62,11 +68,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function UsersIndex({ users, roles, flash }: Props) {
+export default function UsersIndex({ users, roles, filters = {}, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
-    
+
     const [isUserFormOpen, setIsUserFormOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -85,7 +91,7 @@ export default function UsersIndex({ users, roles, flash }: Props) {
                 duration: 4000
             });
         }
-        
+
         if (flash?.error) {
             addToast({
                 type: 'error',
@@ -132,7 +138,7 @@ export default function UsersIndex({ users, roles, flash }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Gestión de Usuarios" />
-            
+
             <div className="min-h-screen bg-gray-50/30 p-3 sm:p-6 relative">
                 <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-6">
 
@@ -147,7 +153,7 @@ export default function UsersIndex({ users, roles, flash }: Props) {
                                     <p className="text-xs sm:text-sm text-gray-600 mt-1">
                                         Administra los usuarios y roles del sistema
                                     </p>
-                                    
+
                                     {/* Stats - Responsive */}
                                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3">
                                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
@@ -166,11 +172,11 @@ export default function UsersIndex({ users, roles, flash }: Props) {
                                         )}
                                     </div>
                                 </div>
-                                
+
                                 {/* Botón desktop - Solo mostrar en pantallas grandes */}
                                 {hasPermission('gestor-usuarios-crear') && (
                                     <div className="hidden sm:block">
-                                        <Button 
+                                        <Button
                                             onClick={openCreateUserDialog}
                                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
                                         >
@@ -188,6 +194,7 @@ export default function UsersIndex({ users, roles, flash }: Props) {
                         users={users}
                         onEdit={openEditUserDialog}
                         userPermissions={userPermissions}
+                        filters={filters}
                     />
 
                     {/* Modales */}
@@ -214,4 +221,4 @@ export default function UsersIndex({ users, roles, flash }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

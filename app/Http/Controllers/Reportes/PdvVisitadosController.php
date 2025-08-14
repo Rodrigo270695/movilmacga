@@ -7,11 +7,13 @@ use App\Models\PdvVisit;
 use App\Models\User;
 use App\Models\Pdv;
 use App\Traits\HasBusinessScope;
+use App\Exports\PdvVisitadosExport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PdvVisitadosController extends Controller
 {
@@ -236,28 +238,6 @@ class PdvVisitadosController extends Controller
 
         $visitas = $query->orderBy('check_in_at', 'desc')->get();
 
-        // Preparar datos para exportación
-        $datos = $visitas->map(function ($visita) {
-            return [
-                'Fecha' => $visita->check_in_at->format('d/m/Y'),
-                'Hora' => $visita->check_in_at->format('H:i:s'),
-                'Vendedor' => $visita->user->first_name . ' ' . $visita->user->last_name,
-                'Usuario' => $visita->user->username,
-                'PDV' => $visita->pdv->point_name,
-                'Cliente' => $visita->pdv->client_name,
-                'Clasificación' => $visita->pdv->classification,
-                'Estado PDV' => $visita->pdv->status,
-                'Negocio' => $visita->pdv->route->circuit->zonal->business->name ?? 'N/A',
-                'Zonal' => $visita->pdv->route->circuit->zonal->name ?? 'N/A',
-                'Circuito' => $visita->pdv->route->circuit->name ?? 'N/A',
-                'Ruta' => $visita->pdv->route->name ?? 'N/A',
-                'Estado Visita' => $this->getEstadoLabel($visita->visit_status),
-                'Duración (min)' => $visita->duration_minutes ?? 'N/A',
-                'Distancia (m)' => $visita->distance_to_pdv ?? 'N/A',
-                'Check-out' => $visita->check_out_at ? $visita->check_out_at->format('d/m/Y H:i:s') : 'N/A',
-            ];
-        });
-
         // Generar nombre del archivo
         $nombreArchivo = "pdvs_visitados_{$fechaDesde}_a_{$fechaHasta}";
 
@@ -265,29 +245,8 @@ class PdvVisitadosController extends Controller
             // TODO: Implementar exportación a PDF
             return response()->json(['message' => 'Exportación a PDF próximamente']);
         } else {
-            // Exportar a CSV (Excel compatible)
-            $headers = [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => "attachment; filename=\"{$nombreArchivo}.csv\"",
-            ];
-
-            $callback = function() use ($datos) {
-                $file = fopen('php://output', 'w');
-
-                // Headers
-                if ($datos->count() > 0) {
-                    fputcsv($file, array_keys($datos->first()));
-                }
-
-                // Datos
-                foreach ($datos as $row) {
-                    fputcsv($file, $row);
-                }
-
-                fclose($file);
-            };
-
-            return response()->stream($callback, 200, $headers);
+            // Exportar a Excel usando la clase de exportación
+            return Excel::download(new PdvVisitadosExport($visitas), "{$nombreArchivo}.xlsx");
         }
     }
 

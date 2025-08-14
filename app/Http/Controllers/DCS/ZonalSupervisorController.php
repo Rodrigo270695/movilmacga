@@ -73,11 +73,25 @@ class ZonalSupervisorController extends Controller
         // Obtener resultados paginados
         $zonals = $zonalsQuery->where('status', true)->paginate($perPage);
 
-        // Obtener supervisores disponibles (sin asignación activa)
+        // Obtener todos los supervisores activos (permitir asignación a múltiples zonales)
         $supervisors = User::role('Supervisor')
             ->where('status', true)
-            ->whereDoesntHave('activeZonalSupervisorAssignments')
             ->get(['id', 'first_name', 'last_name', 'email', 'status']);
+
+        // Obtener información de asignaciones existentes por supervisor
+        $supervisorAssignments = [];
+        foreach ($supervisors as $supervisor) {
+            $activeAssignments = $supervisor->activeZonalSupervisorAssignments()
+                ->with('zonal:id,name')
+                ->get();
+
+            if ($activeAssignments->count() > 0) {
+                $supervisorAssignments[$supervisor->id] = [
+                    'count' => $activeAssignments->count(),
+                    'zonals' => $activeAssignments->pluck('zonal.name')->toArray()
+                ];
+            }
+        }
 
         // Obtener negocios disponibles para el filtro (según scope del usuario)
         $businesses = $this->getAvailableBusinesses();
@@ -85,6 +99,7 @@ class ZonalSupervisorController extends Controller
         return Inertia::render('dcs/zonal-supervisors/index', [
             'zonals' => $zonals,
             'supervisors' => $supervisors,
+            'supervisorAssignments' => $supervisorAssignments,
             'businesses' => $businesses,
             'businessScope' => $this->getBusinessScope(),
             'filters' => [

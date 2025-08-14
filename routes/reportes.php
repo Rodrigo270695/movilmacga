@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Reportes\PdvVisitadosController;
+use App\Http\Controllers\Reportes\PdvVisitFormResponsesController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -13,5 +14,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pdvs-visitados/exportar', [PdvVisitadosController::class, 'exportar'])
             ->name('pdvs-visitados.exportar')
             ->middleware('permission:reporte-pdvs-visitados-exportar');
+
+        // Respuestas de formularios de visita
+        Route::get('pdvs-visitados/{visit}/formulario', [PdvVisitFormResponsesController::class, 'show'])
+            ->name('pdvs-visitados.formulario')
+            ->middleware('permission:reporte-pdvs-visitados-ver');
     });
 });

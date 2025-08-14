@@ -59,6 +59,33 @@ class Pdv extends Model
         return $this->hasMany(PdvVisit::class);
     }
 
+    /**
+     * Get form assignments for this PDV
+     */
+    public function formAssignments(): HasMany
+    {
+        return $this->hasMany(PdvFormAssignment::class);
+    }
+
+    /**
+     * Get active form assignments for this PDV
+     */
+    public function activeFormAssignments(): HasMany
+    {
+        return $this->hasMany(PdvFormAssignment::class)->where('is_active', true);
+    }
+
+    /**
+     * Get the assigned form for this PDV
+     */
+    public function assignedForm(): BelongsTo
+    {
+        return $this->belongsTo(BusinessForm::class, 'business_form_id', 'id')
+            ->join('pdv_form_assignments', 'pdv_form_assignments.business_form_id', '=', 'business_forms.id')
+            ->where('pdv_form_assignments.pdv_id', $this->id)
+            ->where('pdv_form_assignments.is_active', true);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

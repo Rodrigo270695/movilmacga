@@ -8,9 +8,12 @@ use App\Models\Pdv;
 use App\Models\Route;
 use App\Models\Localidad;
 use App\Traits\HasBusinessScope;
+use App\Exports\PdvsExport;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class GlobalPdvController extends Controller
 {
@@ -442,5 +445,62 @@ class GlobalPdvController extends Controller
 
         return redirect()->route('dcs.pdvs.index')
             ->with('success', "PDV '{$pdvName}' eliminado exitosamente.");
+    }
+
+    /**
+     * Export PDVs to Excel with applied filters.
+     */
+    public function export(Request $request)
+    {
+        try {
+            // Verificar permisos
+            if (!auth()->user()->can('gestor-pdv-ver')) {
+                abort(403, 'No tienes permisos para exportar PDVs.');
+            }
+
+            // Recopilar todos los filtros aplicados
+            $filters = [
+                'search' => $request->get('search'),
+                'route_id' => $request->get('route_id'),
+                'status' => $request->get('status'),
+                'classification' => $request->get('classification'),
+                'district_id' => $request->get('district_id'),
+                'locality' => $request->get('locality'),
+                'document_type' => $request->get('document_type'),
+                'sells_recharge' => $request->get('sells_recharge'),
+                'circuit_id' => $request->get('circuit_id'),
+                'zonal_id' => $request->get('zonal_id'),
+                'document_number' => $request->get('document_number'),
+                'client_name' => $request->get('client_name'),
+                'point_name' => $request->get('point_name'),
+                'pos_id' => $request->get('pos_id'),
+            ];
+
+            // Generar nombre del archivo con timestamp
+            $timestamp = now()->format('Y-m-d_H-i-s');
+            $filename = "pdvs_export_{$timestamp}.xlsx";
+
+            // Log para debug
+            Log::info('Iniciando exportación de PDVs', ['filters' => $filters]);
+
+            return Excel::download(new PdvsExport($filters), $filename);
+
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de PDVs', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Si es una petición AJAX, devolver JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Error al exportar: ' . $e->getMessage()
+                ], 500);
+            }
+
+            // Si no, redirigir con error
+            return redirect()->route('dcs.pdvs.index')
+                ->with('error', 'Error al exportar: ' . $e->getMessage());
+        }
     }
 }

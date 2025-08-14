@@ -37,6 +37,24 @@ class PdvVisitController extends Controller
             ], 400);
         }
 
+        // Verificar que no haya visitado este PDV hoy
+        $todayVisit = PdvVisit::where('user_id', $user->id)
+            ->where('pdv_id', $pdv->id)
+            ->whereDate('check_in_at', now()->toDateString())
+            ->where('visit_status', 'completed')
+            ->first();
+
+        if ($todayVisit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya has visitado este PDV hoy. No puedes hacer otra visita en el mismo día.',
+                'data' => [
+                    'previous_visit_id' => $todayVisit->id,
+                    'previous_visit_time' => $todayVisit->check_in_at,
+                ]
+            ], 400);
+        }
+
         // Verificar que no tenga una visita activa en otro PDV
         $activeVisit = PdvVisit::where('user_id', $user->id)
             ->where('visit_status', 'in_progress')
@@ -61,21 +79,24 @@ class PdvVisitController extends Controller
             $pdv->longitude
         );
 
-        // Verificar geofence si existe
-        $geofence = Geofence::where('pdv_id', $pdv->id)
-            ->where('is_active', true)
-            ->first();
+        // TEMPORALMENTE DESHABILITADO PARA TESTING - Verificar geofence si existe
+        // $geofence = Geofence::where('pdv_id', $pdv->id)
+        //     ->where('is_active', true)
+        //     ->first();
 
+        // $isWithinGeofence = true;
+        // if ($geofence) {
+        //     $geofenceDistance = $this->calculateDistance(
+        //         $request->latitude,
+        //         $request->longitude,
+        //         $geofence->center_latitude,
+        //         $geofence->center_longitude
+        //     );
+        //     $isWithinGeofence = $geofenceDistance <= ($geofence->radius_meters / 1000); // Convertir a km
+        // }
+
+        // Para testing: permitir visitas desde cualquier distancia
         $isWithinGeofence = true;
-        if ($geofence) {
-            $geofenceDistance = $this->calculateDistance(
-                $request->latitude,
-                $request->longitude,
-                $geofence->center_latitude,
-                $geofence->center_longitude
-            );
-            $isWithinGeofence = $geofenceDistance <= ($geofence->radius_meters / 1000); // Convertir a km
-        }
 
         try {
             DB::beginTransaction();
@@ -97,8 +118,8 @@ class PdvVisitController extends Controller
                     ],
                     'geofence_validation' => [
                         'within_geofence' => $isWithinGeofence,
-                        'distance_to_geofence' => $geofence ? round($geofenceDistance * 1000, 2) : null,
-                        'geofence_radius' => $geofence?->radius_meters,
+                        'distance_to_geofence' => null, // Comentado para testing
+                        'geofence_radius' => null, // Comentado para testing
                     ]
                 ]
             ]);

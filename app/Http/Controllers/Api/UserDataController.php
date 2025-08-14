@@ -12,16 +12,27 @@ use Illuminate\Support\Facades\DB;
 class UserDataController extends Controller
 {
     /**
-     * Obtener circuitos asignados al vendedor
+     * Obtener circuitos asignados al vendedor con rutas filtradas por fecha de visita
+     * NUEVA LÓGICA: Solo mostrar rutas que coincidan con la fecha actual (zona horaria Perú)
      */
     public function getUserCircuits(Request $request)
     {
         $user = $request->user();
 
+        // Obtener fecha actual en zona horaria de Perú
+        $peruDate = now()->setTimezone('America/Lima');
+        $todayDate = $peruDate->format('Y-m-d');
+
         $circuits = $user->activeUserCircuits()
             ->with([
                 'circuit.zonal:id,name',
-                'circuit.routes:id,circuit_id,name,code,status'
+                'circuit.routes' => function ($query) use ($todayDate) {
+                    $query->where('status', true)
+                          ->whereHas('visitDates', function ($subQuery) use ($todayDate) {
+                              $subQuery->where('visit_date', $todayDate)
+                                      ->where('is_active', true);
+                          });
+                }
             ])
             ->orderBy('priority')
             ->get()
@@ -35,7 +46,7 @@ class UserDataController extends Controller
                         'status' => $assignment->circuit->status,
                         'zonal_name' => $assignment->circuit->zonal->name,
                     ],
-                    'routes_count' => $assignment->circuit->routes->where('status', true)->count(),
+                    'routes_count' => $assignment->circuit->routes->count(),
                     'priority' => $assignment->priority,
                     'assigned_date' => $assignment->assigned_date,
                     'notes' => $assignment->notes,
@@ -45,6 +56,8 @@ class UserDataController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
+                'current_date' => $todayDate,
+                'timezone' => 'America/Lima',
                 'circuits_count' => $circuits->count(),
                 'circuits' => $circuits
             ]
@@ -53,42 +66,47 @@ class UserDataController extends Controller
 
     /**
      * Obtener PDVs que debe visitar hoy
+     * NUEVA LÓGICA: Basado en fechas específicas de visita (route_visit_dates)
      */
     public function getTodayPdvs(Request $request)
     {
         $user = $request->user();
-        $today = now()->format('l'); // Día de la semana en inglés (monday, tuesday, etc.)
 
-        // Obtener circuitos asignados que deben ser visitados hoy
-        $circuitIds = DB::table('user_circuits as uc')
-            ->join('circuit_frequencies as cf', 'uc.circuit_id', '=', 'cf.circuit_id')
+        // Obtener fecha actual en zona horaria de Perú
+        $peruDate = now()->setTimezone('America/Lima');
+        $todayDate = $peruDate->format('Y-m-d');
+
+        // Obtener rutas que tienen visitas programadas para hoy
+        $routeIds = DB::table('route_visit_dates as rvd')
+            ->join('routes as r', 'rvd.route_id', '=', 'r.id')
+            ->join('user_circuits as uc', 'r.circuit_id', '=', 'uc.circuit_id')
             ->where('uc.user_id', $user->id)
             ->where('uc.is_active', true)
-            ->where('cf.day_of_week', strtolower($today))
-            ->pluck('uc.circuit_id');
+            ->where('rvd.visit_date', $todayDate)
+            ->where('rvd.is_active', true)
+            ->where('r.status', true)
+            ->pluck('rvd.route_id');
 
-        if ($circuitIds->isEmpty()) {
+        if ($routeIds->isEmpty()) {
             return response()->json([
                 'success' => true,
-                'message' => 'No tienes circuitos programados para hoy',
+                'message' => 'No tienes rutas programadas para visitar hoy',
                 'data' => [
-                    'date' => today()->format('Y-m-d'),
-                    'day_of_week' => $today,
+                    'date' => $todayDate,
+                    'timezone' => 'America/Lima',
+                    'routes_count' => 0,
                     'pdvs_count' => 0,
                     'pdvs' => []
                 ]
             ]);
         }
 
-        // Obtener PDVs de esos circuitos
+        // Obtener PDVs de esas rutas
         $pdvs = Pdv::with([
             'route.circuit:id,name,code',
             'locality:id,name'
         ])
-        ->whereHas('route', function ($query) use ($circuitIds) {
-            $query->whereIn('circuit_id', $circuitIds)
-                  ->where('status', true);
-        })
+        ->whereIn('route_id', $routeIds)
         ->where('status', 'vende') // Solo PDVs que venden
         ->orderBy('route_id')
         ->get()
@@ -129,9 +147,9 @@ class UserDataController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'date' => today()->format('Y-m-d'),
-                'day_of_week' => $today,
-                'circuits_count' => $circuitIds->count(),
+                'date' => $todayDate,
+                'timezone' => 'America/Lima',
+                'routes_count' => $routeIds->count(),
                 'pdvs_count' => $pdvs->count(),
                 'visited_count' => $pdvs->where('visited_today', true)->count(),
                 'pending_count' => $pdvs->where('visited_today', false)->count(),
@@ -297,7 +315,7 @@ class UserDataController extends Controller
         }
 
         // Calcular porcentaje de cumplimiento
-        $compliancePercentage = $scheduledPdvsCount > 0 ? 
+        $compliancePercentage = $scheduledPdvsCount > 0 ?
             round(($validVisits / $scheduledPdvsCount) * 100, 1) : 0;
 
         return response()->json([
@@ -382,7 +400,7 @@ class UserDataController extends Controller
                 ],
                 'distance' => [
                     'total_km' => $totalDistance ? round($totalDistance, 1) : 0,
-                    'average_per_vendor' => $activeVendors > 0 && $totalDistance > 0 ? 
+                    'average_per_vendor' => $activeVendors > 0 && $totalDistance > 0 ?
                         round($totalDistance / $activeVendors, 1) : 0,
                 ]
             ]
@@ -431,6 +449,78 @@ class UserDataController extends Controller
             'data' => [
                 'active_vendors_count' => $activeVendors->count(),
                 'vendors' => $activeVendors
+            ]
+        ]);
+    }
+
+    /**
+     * Obtener rutas con fechas de visita específicas para un circuito
+     * NUEVO MÉTODO: Para mostrar rutas con sus fechas programadas
+     */
+    public function getCircuitRoutesWithDates(Request $request, Circuit $circuit)
+    {
+        $user = $request->user();
+
+        // Verificar que el usuario tenga asignado este circuito
+        $hasAccess = $user->activeUserCircuits()
+            ->where('circuit_id', $circuit->id)
+            ->exists();
+
+        if (!$hasAccess) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes acceso a este circuito.',
+            ], 403);
+        }
+
+        // Obtener fecha actual en zona horaria de Perú
+        $peruDate = now()->setTimezone('America/Lima');
+        $todayDate = $peruDate->format('Y-m-d');
+
+        $routes = $circuit->routes()
+            ->with(['visitDates' => function ($query) {
+                $query->where('is_active', true)
+                      ->orderBy('visit_date');
+            }])
+            ->where('status', true)
+            ->get()
+            ->map(function ($route) use ($todayDate) {
+                $todayVisit = $route->visitDates
+                    ->where('visit_date', $todayDate)
+                    ->first();
+
+                return [
+                    'id' => $route->id,
+                    'name' => $route->name,
+                    'code' => $route->code,
+                    'status' => $route->status,
+                    'has_visit_today' => $todayVisit ? true : false,
+                    'today_visit_date' => $todayVisit ? $todayVisit->visit_date : null,
+                    'today_visit_notes' => $todayVisit ? $todayVisit->notes : null,
+                    'all_visit_dates' => $route->visitDates->map(function ($visitDate) {
+                        return [
+                            'date' => $visitDate->visit_date,
+                            'notes' => $visitDate->notes,
+                            'is_active' => $visitDate->is_active,
+                        ];
+                    }),
+                    'pdvs_count' => $route->pdvs()->where('status', 'vende')->count(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'circuit' => [
+                    'id' => $circuit->id,
+                    'name' => $circuit->name,
+                    'code' => $circuit->code,
+                ],
+                'current_date' => $todayDate,
+                'timezone' => 'America/Lima',
+                'routes_count' => $routes->count(),
+                'routes_with_visits_today' => $routes->where('has_visit_today', true)->count(),
+                'routes' => $routes
             ]
         ]);
     }

@@ -51,12 +51,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        // Registrar middleware de Spatie Laravel Permission
+        // Registrar middleware y aliases de servicios
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'mobile.user' => EnsureMobileUser::class,
+            'Excel' => \Maatwebsite\Excel\Facades\Excel::class,
         ]);
 
         // Configurar throttling para APIs

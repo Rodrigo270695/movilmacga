@@ -25,17 +25,59 @@ class UserController extends Controller
         }
 
         $perPage = $request->get('per_page', 10);
-        $page = $request->get('page', 1);
+        $search = $request->get('search', '');
+        $roleFilter = $request->get('role', '');
+        $statusFilter = $request->get('status', '');
 
-        $users = User::with('roles')
-            ->select('id', 'name', 'first_name', 'last_name', 'username', 'email', 'dni', 'phone_number', 'status', 'created_at')
-            ->paginate($perPage);
+        // Query base
+        $usersQuery = User::with('roles')
+            ->select('id', 'name', 'first_name', 'last_name', 'username', 'email', 'dni', 'phone_number', 'status', 'created_at');
+
+        // Aplicar filtro de búsqueda
+        if ($search) {
+            $usersQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                      ->orWhere('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('username', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('dni', 'like', "%{$search}%")
+                      ->orWhere('phone_number', 'like', "%{$search}%")
+                      ->orWhereHas('roles', function ($roleQuery) use ($search) {
+                          $roleQuery->where('name', 'like', "%{$search}%");
+                      });
+            });
+        }
+
+        // Aplicar filtro por rol
+        if ($roleFilter) {
+            $usersQuery->whereHas('roles', function ($query) use ($roleFilter) {
+                $query->where('name', $roleFilter);
+            });
+        }
+
+        // Aplicar filtro por estado
+        if ($statusFilter !== '') {
+            if ($statusFilter === 'active') {
+                $usersQuery->where('status', true);
+            } elseif ($statusFilter === 'inactive') {
+                $usersQuery->where('status', false);
+            }
+        }
+
+        $users = $usersQuery->paginate($perPage);
 
         $roles = Role::where('status', true)->get();
 
         return Inertia::render('admin/users/index', [
             'users' => $users,
             'roles' => $roles,
+            'filters' => [
+                'search' => $search,
+                'role' => $roleFilter,
+                'status' => $statusFilter,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 

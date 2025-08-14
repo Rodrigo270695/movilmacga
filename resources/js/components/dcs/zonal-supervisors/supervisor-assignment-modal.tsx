@@ -42,6 +42,13 @@ interface Props {
     onClose: () => void;
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
+    // Agregar información de asignaciones existentes
+    supervisorAssignments?: {
+        [supervisorId: number]: {
+            count: number;
+            zonals: string[];
+        };
+    };
 }
 
 export function SupervisorAssignmentModal({
@@ -50,7 +57,8 @@ export function SupervisorAssignmentModal({
     mode,
     onClose,
     onSuccess,
-    onError
+    onError,
+    supervisorAssignments = {}
 }: Props) {
     const [selectedSupervisorId, setSelectedSupervisorId] = useState<string>(
         mode === 'reassign' && zonal.active_zonal_supervisor
@@ -217,16 +225,33 @@ export function SupervisorAssignmentModal({
                             </SelectTrigger>
                             <SelectContent>
                                 {availableSupervisors.length > 0 ? (
-                                    availableSupervisors.map((supervisor) => (
-                                        <SelectItem key={supervisor.id} value={supervisor.id.toString()}>
-                                            <div className="flex flex-col">
-                                                <span className="font-medium">
-                                                    {supervisor.first_name} {supervisor.last_name}
-                                                </span>
-                                                <span className="text-sm text-gray-500">{supervisor.email}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))
+                                    availableSupervisors.map((supervisor) => {
+                                        const assignments = supervisorAssignments[supervisor.id];
+                                        const isCurrentlyAssigned = zonal.active_zonal_supervisor?.user_id === supervisor.id;
+
+                                        return (
+                                            <SelectItem key={supervisor.id} value={supervisor.id.toString()}>
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">
+                                                            {supervisor.first_name} {supervisor.last_name}
+                                                        </span>
+                                                        {isCurrentlyAssigned && (
+                                                            <Badge variant="secondary" className="text-xs">
+                                                                Actual
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">{supervisor.email}</span>
+                                                    {assignments && assignments.count > 0 && (
+                                                        <span className="text-xs text-blue-600">
+                                                            {assignments.count} zonal{assignments.count > 1 ? 'es' : ''} asignado{assignments.count > 1 ? 's' : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </SelectItem>
+                                        );
+                                    })
                                 ) : (
                                     <SelectItem value="no-supervisors" disabled>
                                         No hay supervisores disponibles

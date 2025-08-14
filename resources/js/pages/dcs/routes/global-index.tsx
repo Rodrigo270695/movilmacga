@@ -10,6 +10,7 @@ import AppLayout from '@/layouts/app-layout';
 import { RoutesTable } from '@/components/dcs/routes/routes-table';
 import { RouteForm } from '@/components/dcs/routes/route-form';
 import { ConfirmToggleModal } from '@/components/dcs/routes/confirm-toggle-modal';
+import { VisitDatesModal } from '@/components/dcs/routes/visit-dates-modal';
 import { type BreadcrumbItem } from '@/types';
 import {
     Search,
@@ -89,6 +90,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingRoute, setEditingRoute] = useState<RouteModel | null>(null);
     const [toggleModalData, setToggleModalData] = useState<{ route: RouteModel } | null>(null);
+    const [isVisitDatesModalOpen, setIsVisitDatesModalOpen] = useState(false);
+    const [selectedRouteForDates, setSelectedRouteForDates] = useState<RouteModel | null>(null);
 
     // Breadcrumbs dinámicos
     const breadcrumbs: BreadcrumbItem[] = [
@@ -245,6 +248,29 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
     const closeToggleModal = () => {
         setToggleModalData(null);
     };
+
+    const openVisitDatesModal = (route: RouteModel) => {
+        if (!hasPermission('gestor-ruta-fechas-visita')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para gestionar fechas de visita.',
+                duration: 4000
+            });
+            return;
+        }
+        setSelectedRouteForDates(route);
+        setIsVisitDatesModalOpen(true);
+    };
+
+    const closeVisitDatesModal = () => {
+        setIsVisitDatesModalOpen(false);
+        setSelectedRouteForDates(null);
+        // Limpiar todos los datos del modal cuando se cierre
+        // Los datos se limpiarán automáticamente cuando el modal se desmonte
+    };
+
+
 
     const hasActiveFilters = selectedZonal || selectedCircuit || searchQuery;
 
@@ -423,6 +449,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         routes={routes}
                         onEdit={openEditModal}
                         onToggleStatus={openToggleModal}
+                        onManageVisitDates={openVisitDatesModal}
+                        onViewVisitDates={openVisitDatesModal}
                         isGlobalView={true}
                     />
 
@@ -445,6 +473,13 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                             isGlobalView={true}
                         />
                     )}
+
+                    {/* Modal de Fechas de Visita */}
+                    <VisitDatesModal
+                        isOpen={isVisitDatesModalOpen}
+                        onClose={closeVisitDatesModal}
+                        route={selectedRouteForDates}
+                    />
                 </div>
 
                 {/* Botón flotante - Solo móviles */}

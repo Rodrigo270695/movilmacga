@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Download, Filter, BarChart3 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { PdvVisitadosFilters } from '@/components/reportes/pdvs-visitados/pdv-visitados-filters';
 import { PdvVisitadosTable } from '@/components/reportes/pdvs-visitados/pdv-visitados-table';
@@ -47,6 +47,11 @@ interface PaginatedVisitas {
     total: number;
     from: number;
     to: number;
+    links: Array<{
+        url?: string;
+        label: string;
+        active: boolean;
+    }>;
 }
 
 
@@ -100,8 +105,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }: Props) {
     const { addToast } = useToast();
-    const { auth } = usePage().props as any;
-    const userPermissions = auth?.user?.permissions || [];
+    const pageProps = usePage().props as any;
+    const userPermissions = pageProps.auth?.user?.permissions || [];
 
     const [isExporting, setIsExporting] = useState(false);
 
@@ -163,7 +168,7 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
             // Crear enlace temporal para descarga
             const link = document.createElement('a');
             link.href = url;
-            link.download = `pdvs_visitados_${filtros.fecha_desde}_a_${filtros.fecha_hasta}.${formato}`;
+            link.download = `pdvs_visitados_${filtros.fecha_desde}_a_${filtros.fecha_hasta}.xlsx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -171,10 +176,10 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
             addToast({
                 type: 'success',
                 title: '¡Exportación iniciada!',
-                message: `El reporte se está descargando en formato ${formato.toUpperCase()}.`,
+                message: 'El reporte se está descargando en formato Excel.',
                 duration: 4000
             });
-        } catch (error) {
+        } catch {
             addToast({
                 type: 'error',
                 title: 'Error en exportación',
@@ -231,7 +236,7 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                                             className="bg-green-600 hover:bg-green-700 text-white"
                                         >
                                             <Download className="w-4 h-4 mr-2" />
-                                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
+                                            {isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
                                         </Button>
                                     )}
                                 </div>
@@ -255,14 +260,41 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                     {visitas.last_page > 1 && (
                         <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
                             <Pagination
-                                currentPage={visitas.current_page}
-                                lastPage={visitas.last_page}
-                                total={visitas.total}
-                                perPage={visitas.per_page}
-                                from={visitas.from}
-                                to={visitas.to}
-                                baseUrl="/reportes/pdvs-visitados"
-                                queryParams={filtros}
+                                data={{
+                                    current_page: visitas.current_page,
+                                    last_page: visitas.last_page,
+                                    total: visitas.total,
+                                    per_page: visitas.per_page,
+                                    from: visitas.from,
+                                    to: visitas.to,
+                                }}
+                                onPageChange={(page) => {
+                                    const params = new URLSearchParams();
+                                    Object.entries(filtros).forEach(([key, value]) => {
+                                        if (value && value !== 'todos') {
+                                            params.set(key, value);
+                                        }
+                                    });
+                                    params.set('page', page.toString());
+                                    router.visit(`/reportes/pdvs-visitados?${params.toString()}`, {
+                                        preserveState: true,
+                                        preserveScroll: true
+                                    });
+                                }}
+                                onPerPageChange={(perPage) => {
+                                    const params = new URLSearchParams();
+                                    Object.entries(filtros).forEach(([key, value]) => {
+                                        if (value && value !== 'todos') {
+                                            params.set(key, value);
+                                        }
+                                    });
+                                    params.set('per_page', perPage.toString());
+                                    params.set('page', '1');
+                                    router.visit(`/reportes/pdvs-visitados?${params.toString()}`, {
+                                        preserveState: true,
+                                        preserveScroll: true
+                                    });
+                                }}
                             />
                         </div>
                     )}
@@ -276,6 +308,7 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                             size="lg"
                             disabled={isExporting}
                             className="h-12 w-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                            title={isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
                         >
                             <Download className="w-5 h-5" />
                         </Button>

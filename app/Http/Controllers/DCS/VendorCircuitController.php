@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,6 +41,28 @@ class VendorCircuitController extends Controller
                 $query->select('id', 'first_name', 'last_name', 'email', 'status');
             }
         ]);
+
+        // Aplicar filtros de scope según el usuario
+        $businessScope = app('business.scope');
+
+        // Log para debug
+        Log::info('VendorCircuitController - Business Scope:', [
+            'user_id' => $request->user()->id,
+            'user_name' => $request->user()->name,
+            'business_scope' => $businessScope
+        ]);
+
+        // Si el usuario tiene restricciones de negocio
+        if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+            $circuitsQuery->whereHas('zonal.business', function ($query) use ($businessScope) {
+                $query->whereIn('businesses.id', $businessScope['business_ids']);
+            });
+        }
+
+        // Si el usuario tiene restricciones de zonal
+        if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+            $circuitsQuery->whereIn('zonal_id', $businessScope['zonal_ids']);
+        }
 
         // Aplicar filtros a circuitos
         if ($search) {
@@ -75,16 +98,43 @@ class VendorCircuitController extends Controller
         // Obtener resultados paginados
         $circuits = $circuitsQuery->where('status', true)->paginate($perPage);
 
-        // Obtener todos los vendedores activos (pueden tener múltiples circuitos)
-        $vendors = User::role('Vendedor')
-            ->where('status', true)
-            ->get(['id', 'first_name', 'last_name', 'email', 'status']);
+        // Obtener vendedores filtrados según el scope del usuario
+        $vendorsQuery = User::role('Vendedor')->where('status', true);
 
-        // Obtener todos los negocios para el filtro
-        $businesses = \App\Models\Business::where('status', true)->get(['id', 'name']);
+        // Si el usuario tiene restricciones de negocio, filtrar vendedores por circuitos asignados
+        if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+            $vendorsQuery->whereHas('activeUserCircuits.circuit.zonal.business', function ($query) use ($businessScope) {
+                $query->whereIn('businesses.id', $businessScope['business_ids']);
+            });
+        }
 
-        // Obtener todos los zonales para el filtro
-        $zonals = \App\Models\Zonal::where('status', true)->with('business')->get(['id', 'name', 'business_id']);
+        // Si el usuario tiene restricciones de zonal, filtrar vendedores por zonales asignados
+        if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+            $vendorsQuery->whereHas('activeUserCircuits.circuit', function ($query) use ($businessScope) {
+                $query->whereIn('zonal_id', $businessScope['zonal_ids']);
+            });
+        }
+
+        $vendors = $vendorsQuery->get(['id', 'first_name', 'last_name', 'email', 'status']);
+
+        // Obtener negocios filtrados según el scope del usuario
+        $businessesQuery = \App\Models\Business::where('status', true);
+        if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+            $businessesQuery->whereIn('id', $businessScope['business_ids']);
+        }
+        $businesses = $businessesQuery->get(['id', 'name']);
+
+        // Obtener zonales filtrados según el scope del usuario
+        $zonalsQuery = \App\Models\Zonal::where('status', true)->with('business');
+        if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+            $zonalsQuery->whereIn('id', $businessScope['zonal_ids']);
+        } elseif ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+            // Si no tiene restricción de zonal pero sí de negocio, filtrar por negocio
+            $zonalsQuery->whereHas('business', function ($query) use ($businessScope) {
+                $query->whereIn('businesses.id', $businessScope['business_ids']);
+            });
+        }
+        $zonals = $zonalsQuery->get(['id', 'name', 'business_id']);
 
         return Inertia::render('dcs/vendor-circuits/index', [
             'circuits' => $circuits,

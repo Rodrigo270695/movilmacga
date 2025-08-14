@@ -10,7 +10,8 @@ import {
     MapPin,
     User,
     Calendar,
-    Map
+    Map,
+    FileText
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
@@ -193,6 +194,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                     <TableHead className="w-[100px]">Duración</TableHead>
                                     <TableHead className="w-[100px]">Distancia</TableHead>
                                     <TableHead className="w-[120px]">Check-out</TableHead>
+                                    <TableHead className="w-[100px]">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -268,6 +270,17 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                             ) : (
                                                 <span className="text-xs text-gray-400">Pendiente</span>
                                             )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
+                                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                                title="Ver formulario"
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -347,6 +360,19 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Botón formulario */}
+                                <div className="pt-3 border-t border-gray-100">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
+                                        className="w-full flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        Ver Formulario
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

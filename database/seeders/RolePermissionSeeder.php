@@ -61,6 +61,16 @@ class RolePermissionSeeder extends Seeder
             'gestor-usuarios-eliminar',
             'gestor-usuarios-cambiar-estado',
 
+            // Gestión de formularios dinámicos
+            'gestor-formularios-acceso',
+            'gestor-formularios-ver',
+            'gestor-formularios-crear',
+            'gestor-formularios-editar',
+            'gestor-formularios-eliminar',
+            'gestor-formularios-cambiar-estado',
+            'gestor-formularios-gestionar-secciones',
+            'gestor-formularios-gestionar-campos',
+
             // Gestión de zonales (DCS)
             'gestor-zonal-acceso',
             'gestor-zonal-ver',
@@ -84,6 +94,7 @@ class RolePermissionSeeder extends Seeder
             'gestor-ruta-editar',
             'gestor-ruta-eliminar',
             'gestor-ruta-cambiar-estado',
+            'gestor-ruta-fechas-visita',
 
             // Gestión de PDVs (DCS)
             'gestor-pdv-acceso',
@@ -153,6 +164,11 @@ class RolePermissionSeeder extends Seeder
             'ver-dashboard',
             'ver-estadisticas',
             'menu-dcs',
+
+            // Gestión de rutas (incluyendo fechas de visita)
+            'gestor-ruta-acceso',
+            'gestor-ruta-ver',
+            'gestor-ruta-fechas-visita',
 
                         // Módulos específicos para supervisores
             'gestor-zonal-supervisor-acceso',
@@ -231,9 +247,10 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   🏢 Gestor Negocios: gestor-business-* (6 permisos)');
         $this->command->info('   👥 Gestor Usuario-Negocio: gestor-business-user-* (4 permisos)');
         $this->command->info('   👤 Gestor Usuarios: gestor-usuarios-* (6 permisos)');
+        $this->command->info('   📝 Gestor Formularios: gestor-formularios-* (8 permisos)');
         $this->command->info('   📁 Gestor Zonales: gestor-zonal-* (6 permisos)');
         $this->command->info('   🔌 Gestor Circuitos: gestor-circuito-* (6 permisos)');
-        $this->command->info('   🛤️ Gestor Rutas: gestor-ruta-* (6 permisos)');
+        $this->command->info('   🛤️ Gestor Rutas: gestor-ruta-* (7 permisos)');
         $this->command->info('   📍 Gestor PDVs: gestor-pdv-* (6 permisos)');
         $this->command->info('   👨‍💼 Supervisor-Zonal: gestor-zonal-supervisor-* (4 permisos)');
         $this->command->info('   🔄 Vendedor-Circuito: gestor-vendedor-circuito-* (4 permisos)');

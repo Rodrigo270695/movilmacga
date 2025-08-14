@@ -135,6 +135,18 @@ export function PdvForm({
     // Estado para enfoque dinámico del mapa
     const [mapFocusLocation, setMapFocusLocation] = useState<string>('');
 
+    // Función helper para limpieza completa del formulario
+    const clearFormCompletely = () => {
+        reset();
+        setAvailableRoutes([]);
+        setProvincias([]);
+        setDistritos([]);
+        setMapFocusLocation('');
+        setLoadingProvincias(false);
+        setLoadingDistritos(false);
+        setLoadingRoutes(false);
+    };
+
     // Cargar rutas cuando cambia el circuito
     const handleCircuitChange = async (circuitId: string, keepValues = false) => {
         if (!circuitId) {
@@ -252,13 +264,18 @@ export function PdvForm({
             // Cargar datos dependientes para edición (incluye setData)
             loadEditingData();
         } else if (open && !pdv) {
-            reset();
-            setAvailableRoutes([]);
-            setProvincias([]);
-            setDistritos([]);
-            setMapFocusLocation(''); // Limpiar enfoque del mapa para nuevo PDV
+            // Limpieza completa para nuevo PDV
+            clearFormCompletely();
         }
     }, [open, pdv?.id]); // Solo depender del ID del PDV para evitar bucles
+
+    // Efecto para limpiar cuando se cierra el modal
+    useEffect(() => {
+        if (!open) {
+            // Limpieza completa cuando se cierra el modal
+            clearFormCompletely();
+        }
+    }, [open]);
 
         // Función para cargar datos cuando se está editando
     const loadEditingData = async () => {
@@ -335,24 +352,32 @@ export function PdvForm({
         if (pdv) {
             patch(`/dcs/pdvs/${pdv.id}`, {
                 onSuccess: () => {
+                    // Limpieza completa después de editar exitosamente
+                    clearFormCompletely();
                     onClose();
-                    reset();
+                },
+                onError: () => {
+                    // No limpiar en caso de error para mantener los datos ingresados
                 },
             });
         } else {
             post('/dcs/pdvs', {
                 onSuccess: () => {
+                    // Limpieza completa después de crear exitosamente
+                    clearFormCompletely();
                     onClose();
-                    reset();
+                },
+                onError: () => {
+                    // No limpiar en caso de error para mantener los datos ingresados
                 },
             });
         }
     };
 
     const handleClose = () => {
+        // Limpieza completa antes de cerrar
+        clearFormCompletely();
         onClose();
-        reset();
-        setMapFocusLocation(''); // Limpiar enfoque del mapa
     };
 
     const isEditing = !!pdv;

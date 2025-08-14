@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\BusinessUserController;
+use App\Http\Controllers\Admin\BusinessFormController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -97,6 +98,76 @@ Route::middleware(['auth', 'verified'])
             Route::delete('business-users/{business}/users/{user}', [BusinessUserController::class, 'unassignUser'])
                 ->middleware('permission:gestor-business-user-desasignar')
                 ->name('business-users.unassign-user');
+
+        });
+
+        // Grupo de rutas para formularios dinámicos con middleware de permisos
+        Route::middleware(['permission:gestor-formularios-acceso'])->group(function () {
+
+            // Rutas específicas con permisos granulares
+            Route::get('business-forms', [BusinessFormController::class, 'index'])
+                ->middleware('permission:gestor-formularios-ver')
+                ->name('business-forms.index');
+
+            Route::get('business-forms/create', [BusinessFormController::class, 'create'])
+                ->middleware('permission:gestor-formularios-crear')
+                ->name('business-forms.create');
+
+            Route::post('business-forms', [BusinessFormController::class, 'store'])
+                ->middleware('permission:gestor-formularios-crear')
+                ->name('business-forms.store');
+
+            Route::get('business-forms/{businessForm}', [BusinessFormController::class, 'show'])
+                ->middleware('permission:gestor-formularios-ver')
+                ->name('business-forms.show');
+
+            Route::get('business-forms/{businessForm}/edit', [BusinessFormController::class, 'edit'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.edit');
+
+            Route::patch('business-forms/{businessForm}', [BusinessFormController::class, 'update'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.update');
+
+            // Ruta para cambiar estado del formulario
+            Route::patch('business-forms/{businessForm}/toggle-status', [BusinessFormController::class, 'toggleStatus'])
+                ->middleware('permission:gestor-formularios-cambiar-estado')
+                ->name('business-forms.toggle-status');
+
+            // Ruta para eliminar formulario
+            Route::delete('business-forms/{businessForm}', [BusinessFormController::class, 'destroy'])
+                ->middleware('permission:gestor-formularios-eliminar')
+                ->name('business-forms.destroy');
+
+            // Rutas para gestión de campos de formularios
+            Route::get('business-forms/{businessForm}/fields', [BusinessFormController::class, 'fieldsIndex'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.fields.index');
+
+            Route::post('business-forms/{businessForm}/fields', [BusinessFormController::class, 'storeField'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.fields.store');
+
+            Route::patch('business-forms/{businessForm}/fields/{field}', [BusinessFormController::class, 'updateField'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.fields.update');
+
+            Route::delete('business-forms/{businessForm}/fields/{field}', [BusinessFormController::class, 'destroyField'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.fields.destroy');
+
+            // Rutas para gestión de secciones de formularios
+            Route::post('business-forms/{businessForm}/sections', [BusinessFormController::class, 'storeSection'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.sections.store');
+
+            Route::patch('business-forms/{businessForm}/sections/{section}', [BusinessFormController::class, 'updateSection'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.sections.update');
+
+            Route::delete('business-forms/{businessForm}/sections/{section}', [BusinessFormController::class, 'destroySection'])
+                ->middleware('permission:gestor-formularios-editar')
+                ->name('business-forms.sections.destroy');
 
         });
 

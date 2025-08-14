@@ -52,6 +52,12 @@ interface Props {
     zonals: PaginatedZonals;
     supervisors: User[];
     businesses: Business[];
+    supervisorAssignments?: {
+        [supervisorId: number]: {
+            count: number;
+            zonals: string[];
+        };
+    };
     businessScope: {
         is_admin: boolean;
         business_id?: number;
@@ -87,7 +93,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses, businessScope, filters, flash }: Props) {
+export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses, supervisorAssignments = {}, businessScope, filters, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
@@ -260,6 +266,7 @@ export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses,
                             onClose={closeAssignmentModal}
                             onSuccess={handleAssignmentSuccess}
                             onError={handleAssignmentError}
+                            supervisorAssignments={supervisorAssignments}
                         />
                     )}
                 </div>

@@ -66,6 +66,7 @@ class AuthController extends Controller
                     'first_name' => $user->first_name,
                     'last_name' => $user->last_name,
                     'username' => $user->username,
+                    'email' => $user->email,
                     'dni' => $user->dni,
                     'phone_number' => $user->phone_number,
                     'roles' => $user->getRoleNames(),
@@ -96,7 +97,7 @@ class AuthController extends Controller
     public function profile(Request $request)
     {
         $user = $request->user();
-        
+
         // Cargar circuitos asignados activos
         $user->load(['activeUserCircuits.circuit.zonal', 'activeZonalSupervisorAssignments.zonal']);
 
@@ -151,10 +152,10 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         // Revocar token actual
         $request->user()->currentAccessToken()->delete();
-        
+
         // Crear nuevo token
         $token = $user->createToken($request->device_name, [
             'gps:record',
