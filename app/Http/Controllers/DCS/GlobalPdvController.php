@@ -325,6 +325,54 @@ class GlobalPdvController extends Controller
     }
 
     /**
+     * Obtener PDVs de una ruta específica para mostrar en el mapa (AJAX)
+     */
+    public function getRoutePdvs(Route $route)
+    {
+        // Obtener PDVs con la información necesaria para el mapa
+        $pdvs = $route->pdvs()
+            ->with(['district'])
+            ->select([
+                'id',
+                'point_name',
+                'client_name',
+                'pos_id',
+                'address',
+                'latitude',
+                'longitude',
+                'status',
+                'district_id',
+                'locality',
+            ])
+            ->orderBy('id') // Ordenar por ID para mantener el orden de creación
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'pdvs' => $pdvs,
+            'route' => [
+                'id' => $route->id,
+                'name' => $route->name,
+                'code' => $route->code,
+                'circuit' => $route->circuit ? [
+                    'id' => $route->circuit->id,
+                    'name' => $route->circuit->name,
+                    'zonal' => $route->circuit->zonal ? [
+                        'id' => $route->circuit->zonal->id,
+                        'name' => $route->circuit->zonal->name
+                    ] : null
+                ] : null
+            ],
+            'stats' => [
+                'total' => $pdvs->count(),
+                'active' => $pdvs->where('status', 'vende')->count(),
+                'inactive' => $pdvs->where('status', '!=', 'vende')->count(),
+                'with_coordinates' => $pdvs->whereNotNull('latitude')->whereNotNull('longitude')->count()
+            ]
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage (global).
      */
     public function store(PdvRequest $request)
@@ -502,5 +550,29 @@ class GlobalPdvController extends Controller
             return redirect()->route('dcs.pdvs.index')
                 ->with('error', 'Error al exportar: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get circuits by zonal for AJAX requests.
+     */
+    public function getCircuitsByZonal(Request $request)
+    {
+        $zonalId = $request->get('zonal_id');
+
+        if (!$zonalId) {
+            return response()->json([]);
+        }
+
+        // Obtener circuitos del zonal aplicando scope
+        $circuitsQuery = \App\Models\Circuit::active()
+            ->where('zonal_id', $zonalId)
+            ->orderBy('name');
+
+        // Aplicar scope de negocio y zonal
+        $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
+
+        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+
+        return response()->json($circuits);
     }
 }

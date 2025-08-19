@@ -657,7 +657,8 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                         open={isFormModalOpen}
                         onClose={closeFormModal}
                         pdv={editingPdv}
-                                        circuits={circuits}
+                        zonales={zonales}
+                        circuits={circuits}
                         departamentos={departamentos}
                     />
 

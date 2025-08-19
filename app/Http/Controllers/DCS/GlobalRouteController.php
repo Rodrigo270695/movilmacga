@@ -8,8 +8,12 @@ use App\Models\Route;
 use App\Models\Circuit;
 use App\Models\Zonal;
 use App\Traits\HasBusinessScope;
+use App\Exports\RoutesExport;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class GlobalRouteController extends Controller
 {
@@ -28,11 +32,15 @@ class GlobalRouteController extends Controller
         $zonalFilter = $request->get('zonal_id');
         $circuitFilter = $request->get('circuit_id');
 
-        $query = Route::with(['circuit.zonal.business'])
-            ->select('id', 'circuit_id', 'name', 'code', 'status', 'created_at');
+        $query = Route::with(['circuit.zonal.business']);
 
-        // Aplicar filtros de scope automáticos (negocio y zonal)
+        // Aplicar filtros de scope automáticos (negocio y zonal) ANTES del conteo
         $query = $this->applyFullScope($query, 'circuit.zonal.business', 'circuit.zonal');
+
+        // Agregar conteo de PDVs DESPUÉS del scope
+        $query->withCount('pdvs');
+
+
 
         // Aplicar filtros adicionales
         if ($zonalFilter) {
@@ -149,5 +157,51 @@ class GlobalRouteController extends Controller
 
         return redirect()->route('dcs.routes.index')
             ->with('success', "Ruta '{$routeName}' eliminada exitosamente.");
+    }
+
+    /**
+     * Export routes to Excel with applied filters.
+     */
+    public function export(Request $request)
+    {
+        try {
+            // Verificar permisos
+            if (!auth()->user()->can('gestor-ruta-ver')) {
+                abort(403, 'No tienes permisos para exportar rutas.');
+            }
+
+            // Recopilar todos los filtros aplicados
+            $filters = [
+                'search' => $request->get('search'),
+                'zonal_id' => $request->get('zonal_id'),
+                'circuit_id' => $request->get('circuit_id'),
+            ];
+
+            // Generar nombre del archivo con timestamp
+            $timestamp = now()->format('Y-m-d_H-i-s');
+            $filename = "rutas_export_{$timestamp}.xlsx";
+
+            // Log para debug
+            Log::info('Iniciando exportación de rutas', ['filters' => $filters]);
+
+            return Excel::download(new RoutesExport($filters), $filename);
+
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de rutas', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Si es una petición AJAX, devolver JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Error al exportar: ' . $e->getMessage()
+                ], 500);
+            }
+
+            // Si no, redirigir con error
+            return redirect()->route('dcs.routes.index')
+                ->with('error', 'Error al exportar: ' . $e->getMessage());
+        }
     }
 }

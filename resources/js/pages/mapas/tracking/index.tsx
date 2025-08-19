@@ -36,9 +36,19 @@ export default function TrackingDashboard({ users, circuits, zonales, userStats,
     const [businessFilter, setBusinessFilter] = useState('all');
     const [zonalFilter, setZonalFilter] = useState('all');
     const [circuitFilter, setCircuitFilter] = useState('all');
-        // Usar fecha actual (2025-08-06 para datos de prueba)
+        // Usar fecha actual en zona horaria local
     const getCurrentDate = () => {
-        return '2025-08-06'; // Fecha fija para coincidir con los datos de prueba
+        const now = new Date();
+        // Usar métodos que respetan la zona horaria local del navegador
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+
+        // Verificar que la fecha sea válida
+        const dateString = `${year}-${month}-${day}`;
+        console.log('📅 Fecha actual generada:', dateString, 'Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+        return dateString; // Formato YYYY-MM-DD en zona horaria local
     };
 
     const [dateFrom, setDateFrom] = useState(getCurrentDate());
@@ -148,7 +158,7 @@ export default function TrackingDashboard({ users, circuits, zonales, userStats,
         setBusinessFilter('all');
         setZonalFilter('all');
         setCircuitFilter('all');
-        setDateFrom(getCurrentDate()); // Volver a fecha de datos de prueba
+        setDateFrom(getCurrentDate()); // Volver a fecha actual
         setHasSearched(false);
         clearVendorFocus(); // También limpiar el focus del vendedor
         setIsAutoRefresh(false);

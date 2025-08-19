@@ -11,12 +11,14 @@ import { RoutesTable } from '@/components/dcs/routes/routes-table';
 import { RouteForm } from '@/components/dcs/routes/route-form';
 import { ConfirmToggleModal } from '@/components/dcs/routes/confirm-toggle-modal';
 import { VisitDatesModal } from '@/components/dcs/routes/visit-dates-modal';
+import { RouteMapModal } from '@/components/dcs/routes/route-map-modal';
 import { type BreadcrumbItem } from '@/types';
 import {
     Search,
     X,
     Filter,
-    Plus
+    Plus,
+    Download
 } from 'lucide-react';
 
 interface RouteModel {
@@ -92,6 +94,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
     const [toggleModalData, setToggleModalData] = useState<{ route: RouteModel } | null>(null);
     const [isVisitDatesModalOpen, setIsVisitDatesModalOpen] = useState(false);
     const [selectedRouteForDates, setSelectedRouteForDates] = useState<RouteModel | null>(null);
+    const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+    const [selectedRouteForMap, setSelectedRouteForMap] = useState<RouteModel | null>(null);
 
     // Breadcrumbs dinámicos
     const breadcrumbs: BreadcrumbItem[] = [
@@ -270,6 +274,75 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         // Los datos se limpiarán automáticamente cuando el modal se desmonte
     };
 
+    const openMapModal = (route: RouteModel) => {
+        if (!hasPermission('gestor-ruta-ver')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para ver el mapa de la ruta.',
+                duration: 4000
+            });
+            return;
+        }
+        setSelectedRouteForMap(route);
+        setIsMapModalOpen(true);
+    };
+
+    const closeMapModal = () => {
+        setIsMapModalOpen(false);
+        setSelectedRouteForMap(null);
+    };
+
+    // Función para exportar a Excel
+    const handleExportToExcel = () => {
+        if (!hasPermission('gestor-ruta-ver')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para exportar rutas.',
+                duration: 4000
+            });
+            return;
+        }
+
+        // Construir URL con todos los filtros aplicados
+        const params = new URLSearchParams();
+
+        // Filtros aplicados
+        if (searchQuery?.trim()) params.set('search', searchQuery);
+        if (selectedZonal?.trim()) params.set('zonal_id', selectedZonal);
+        if (selectedCircuit?.trim()) params.set('circuit_id', selectedCircuit);
+
+        // Crear URL de exportación
+        const exportUrl = `${route('dcs.routes.export')}?${params.toString()}`;
+
+        // Mostrar toast de inicio
+        addToast({
+            type: 'info',
+            title: 'Exportando...',
+            message: 'Preparando archivo Excel con los filtros aplicados.',
+            duration: 3000
+        });
+
+        // Descargar archivo
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Mostrar toast de éxito
+        setTimeout(() => {
+            addToast({
+                type: 'success',
+                title: '¡Exportación completada!',
+                message: 'El archivo Excel se ha descargado correctamente.',
+                duration: 4000
+            });
+        }, 1000);
+    };
+
 
 
     const hasActiveFilters = selectedZonal || selectedCircuit || searchQuery;
@@ -318,9 +391,20 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
-                                {hasPermission('gestor-ruta-crear') && (
-                                    <div className="hidden sm:block">
+                                {/* Botones desktop - Solo mostrar en pantallas grandes */}
+                                <div className="hidden sm:flex items-center gap-3">
+                                    {/* Botón de exportación */}
+                                    <Button
+                                        onClick={handleExportToExcel}
+                                        variant="outline"
+                                        className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-700 hover:text-emerald-700 px-4 py-2 text-sm font-medium cursor-pointer"
+                                    >
+                                        <Download className="w-4 h-4 mr-2" />
+                                        Exportar Excel
+                                    </Button>
+
+                                    {/* Botón de crear */}
+                                    {hasPermission('gestor-ruta-crear') && (
                                         <Button
                                             onClick={openCreateModal}
                                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
@@ -328,8 +412,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                             <Plus className="w-4 h-4 mr-2" />
                                             Nueva Ruta
                                         </Button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -451,6 +535,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         onToggleStatus={openToggleModal}
                         onManageVisitDates={openVisitDatesModal}
                         onViewVisitDates={openVisitDatesModal}
+                        onViewMap={openMapModal}
                         isGlobalView={true}
                     />
 
@@ -480,11 +565,29 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         onClose={closeVisitDatesModal}
                         route={selectedRouteForDates}
                     />
+
+                    {/* Modal del Mapa */}
+                    <RouteMapModal
+                        isOpen={isMapModalOpen}
+                        onClose={closeMapModal}
+                        route={selectedRouteForMap}
+                    />
                 </div>
 
-                {/* Botón flotante - Solo móviles */}
-                {hasPermission('gestor-ruta-crear') && (
-                    <div className="fixed bottom-6 right-6 z-50 sm:hidden">
+                {/* Botones flotantes - Solo móviles */}
+                <div className="fixed bottom-6 right-6 z-50 sm:hidden flex flex-col gap-3">
+                    {/* Botón de exportación */}
+                    <Button
+                        onClick={handleExportToExcel}
+                        size="lg"
+                        className="h-12 w-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer"
+                        title="Exportar Excel"
+                    >
+                        <Download className="w-5 h-5" />
+                    </Button>
+
+                    {/* Botón de crear */}
+                    {hasPermission('gestor-ruta-crear') && (
                         <Button
                             onClick={openCreateModal}
                             size="lg"
@@ -492,8 +595,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         >
                             <Plus className="w-6 h-6" />
                         </Button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </AppLayout>
     );

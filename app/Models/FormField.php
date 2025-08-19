@@ -70,6 +70,14 @@ class FormField extends Model
     }
 
     /**
+     * Obtener la sección a la que pertenece este campo (alias para compatibilidad)
+     */
+    public function formSection(): BelongsTo
+    {
+        return $this->belongsTo(FormSection::class, 'form_section_id');
+    }
+
+    /**
      * Obtener el formulario al que pertenece este campo
      */
     public function businessForm(): BelongsTo
@@ -83,6 +91,14 @@ class FormField extends Model
      * Obtener las respuestas de este campo
      */
     public function responses(): HasMany
+    {
+        return $this->hasMany(PdvVisitFormResponse::class);
+    }
+
+    /**
+     * Obtener las respuestas de este campo (alias para compatibilidad)
+     */
+    public function formResponses(): HasMany
     {
         return $this->hasMany(PdvVisitFormResponse::class);
     }

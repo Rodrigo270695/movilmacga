@@ -19,5 +19,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pdvs-visitados/{visit}/formulario', [PdvVisitFormResponsesController::class, 'show'])
             ->name('pdvs-visitados.formulario')
             ->middleware('permission:reporte-pdvs-visitados-ver');
+
+        // Eliminar visita (solo in_progress) - Acceso universal para usuarios autenticados
+        Route::delete('pdvs-visitados/{visit}', [PdvVisitadosController::class, 'destroy'])
+            ->name('pdvs-visitados.destroy');
     });
 });

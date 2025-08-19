@@ -14,7 +14,9 @@ import {
     Search,
     X,
     Calendar,
-    Hash
+    Hash,
+    MapPin,
+    Map
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
@@ -26,6 +28,7 @@ interface RouteModel {
     status?: boolean | number;
     circuit_id: number;
     created_at: string;
+    pdvs_count?: number; // Agregar conteo de PDVs
     circuit?: {
         id: number;
         name: string;
@@ -64,13 +67,19 @@ interface RoutesTableProps {
     onToggleStatus?: (route: RouteModel) => void;
     onManageVisitDates?: (route: RouteModel) => void;
     onViewVisitDates?: (route: RouteModel) => void;
+    onViewMap?: (route: RouteModel) => void;
     isGlobalView?: boolean;
 }
 
-export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, isGlobalView = false }: RoutesTableProps) {
+export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, onViewMap, isGlobalView = false }: RoutesTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [confirmToggleRoute, setConfirmToggleRoute] = useState<RouteModel | null>(null);
+
+    // Función para navegar a PDVs con filtro de ruta
+    const handleViewPdvs = (route: RouteModel) => {
+        router.visit(`/dcs/pdvs?route_id=${route.id}`);
+    };
 
     // Función para verificar permisos (simplificada por ahora)
     const hasPermission = (permission: string): boolean => {
@@ -304,6 +313,9 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     Estado
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    PDVs
+                                </th>
+                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Fecha de Creación
                                 </th>
                                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -366,6 +378,33 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             </Badge>
                                         </td>
 
+                                        {/* PDVs */}
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleViewPdvs(route)}
+                                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                                    title={`Ver ${route.pdvs_count || 0} PDVs de esta ruta`}
+                                                >
+                                                    <MapPin className="w-3 h-3" />
+                                                    <span className="font-medium">{route.pdvs_count || 0}</span>
+                                                </Button>
+                                                {onViewMap && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => onViewMap(route)}
+                                                        className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 cursor-pointer"
+                                                        title="Ver mapa de PDVs"
+                                                    >
+                                                        <Map className="w-3 h-3" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
+
                                         {/* Fecha de creación */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-1 text-sm text-gray-900">
@@ -426,6 +465,31 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     <span className="font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
                                         {route.code}
                                     </span>
+                                </div>
+
+                                {/* PDVs */}
+                                <div className="flex items-center gap-1 text-xs">
+                                    <MapPin className="w-3 h-3 text-blue-500" />
+                                    <span className="text-gray-500">PDVs:</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewPdvs(route)}
+                                        className="h-6 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                    >
+                                        <span className="font-medium">{route.pdvs_count || 0}</span>
+                                    </Button>
+                                    {onViewMap && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => onViewMap(route)}
+                                            className="h-6 px-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 cursor-pointer"
+                                            title="Ver mapa"
+                                        >
+                                            <Map className="w-3 h-3" />
+                                        </Button>
+                                    )}
                                 </div>
 
                                 {/* Fecha de registro */}

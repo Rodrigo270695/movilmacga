@@ -62,8 +62,9 @@ class RoutePdvsController extends Controller
             ]);
         }
 
-        // Obtener PDVs de la ruta (todos sin filtrar por estado)
+        // Obtener PDVs de la ruta (excluyendo los que no venden)
         $pdvs = $route->pdvs()
+            ->where('status', '!=', 'no vende') // Excluir PDVs que no venden
             ->with(['route:id,name,code', 'locality:id,name', 'district:id,name'])
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {
@@ -171,8 +172,9 @@ class RoutePdvsController extends Controller
             ]);
         }
 
-        // Obtener PDVs de la ruta (todos sin filtrar por estado)
+        // Obtener PDVs de la ruta (excluyendo los que no venden)
         $pdvs = $route->pdvs()
+            ->where('status', '!=', 'no vende') // Excluir PDVs que no venden
             ->with(['locality:id,name', 'district:id,name'])
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {

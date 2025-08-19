@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\CircuitRoutesController;
 use App\Http\Controllers\Api\RoutePdvsController;
 use App\Http\Controllers\Api\PdvFormController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\RouteController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -75,6 +76,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('{route}/all', [RoutePdvsController::class, 'getRoutePdvs'])->name('api.route-pdvs.all');
     Route::get('{route}/today', [RoutePdvsController::class, 'getTodayRoutePdvs'])->name('api.route-pdvs.today');
 });
+
+    // ========================================
+    // RUTAS PARA MAPAS (Dashboard)
+    // ========================================
+    Route::prefix('routes')->group(function () {
+        Route::get('{route}/pdvs', [RouteController::class, 'getPdvs'])->name('api.routes.pdvs');
+    });
 
 Route::prefix('pdv-forms')->group(function () {
     Route::get('{pdv}', [PdvFormController::class, 'getPdvForm'])->name('api.pdv-forms.get');

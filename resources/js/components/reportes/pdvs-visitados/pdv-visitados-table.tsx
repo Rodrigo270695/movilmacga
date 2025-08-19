@@ -11,9 +11,12 @@ import {
     User,
     Calendar,
     Map,
-    FileText
+    FileText,
+    Trash2
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
+import { useState } from 'react';
+import { ConfirmDeleteModal } from './confirm-delete-modal';
 
 interface User {
     id: number;
@@ -64,6 +67,18 @@ interface PdvVisitadosTableProps {
 }
 
 export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTableProps) {
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [selectedVisita, setSelectedVisita] = useState<PdvVisit | null>(null);
+
+    const handleDeleteVisit = (visita: PdvVisit) => {
+        setSelectedVisita(visita);
+        setDeleteModalOpen(true);
+    };
+
+    const handleCloseDeleteModal = () => {
+        setDeleteModalOpen(false);
+        setSelectedVisita(null);
+    };
     const getEstadoBadge = (status: string) => {
         switch (status) {
             case 'completed':
@@ -148,11 +163,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
         return meters < 1000 ? `${meters}m` : `${(meters / 1000).toFixed(1)}km`;
     };
 
-    const handlePageChange = (url: string) => {
-        if (url) {
-            router.visit(url, { preserveState: true, preserveScroll: true });
-        }
-    };
+
 
     if (visitas.data.length === 0) {
         return (
@@ -173,7 +184,8 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
     }
 
     return (
-        <div className="space-y-4">
+        <>
+            <div className="space-y-4">
             {/* Tabla Desktop */}
             <div className="hidden lg:block">
                 <Card className="border border-gray-200">
@@ -272,15 +284,30 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
-                                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
-                                                title="Ver formulario"
-                                            >
-                                                <FileText className="w-4 h-4" />
-                                            </Button>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
+                                                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                                    title="Ver formulario"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </Button>
+
+                                                {/* Botón eliminar - Solo para visitas en progreso */}
+                                                {visita.visit_status === 'in_progress' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteVisit(visita)}
+                                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 cursor-pointer"
+                                                        title="Eliminar visita"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -361,8 +388,9 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                     </div>
                                 )}
 
-                                {/* Botón formulario */}
-                                <div className="pt-3 border-t border-gray-100">
+                                {/* Acciones */}
+                                <div className="pt-3 border-t border-gray-100 space-y-2">
+                                    {/* Botón formulario */}
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -372,6 +400,19 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                         <FileText className="w-4 h-4" />
                                         Ver Formulario
                                     </Button>
+
+                                    {/* Botón eliminar - Solo para visitas en progreso */}
+                                    {visita.visit_status === 'in_progress' && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteVisit(visita)}
+                                            className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-800 hover:bg-red-50 cursor-pointer"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Eliminar Visita
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -379,28 +420,15 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                 ))}
             </div>
 
-            {/* Paginación */}
-            {visitas.last_page > 1 && (
-                <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                        Mostrando {visitas.from} a {visitas.to} de {visitas.total} resultados
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {visitas.links.map((link, index) => (
-                            <Button
-                                key={index}
-                                variant={link.active ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => handlePageChange(link.url || '')}
-                                disabled={!link.url || link.label === '...'}
-                                className="min-w-[40px]"
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-            )}
+
         </div>
+
+        {/* Modal de confirmación de eliminación */}
+        <ConfirmDeleteModal
+            open={deleteModalOpen}
+            onClose={handleCloseDeleteModal}
+            visita={selectedVisita}
+        />
+        </>
     );
 }

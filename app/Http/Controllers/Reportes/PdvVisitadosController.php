@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Pdv;
 use App\Traits\HasBusinessScope;
 use App\Exports\PdvVisitadosExport;
+use App\Exports\PdvVisitadosWithFormResponsesExport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,8 @@ class PdvVisitadosController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener filtros de la request
-        $fechaDesde = $request->get('fecha_desde', now()->subDays(30)->format('Y-m-d'));
+        // Obtener filtros de la request con valores por defecto del día actual en Perú
+        $fechaDesde = $request->get('fecha_desde', now()->format('Y-m-d'));
         $fechaHasta = $request->get('fecha_hasta', now()->format('Y-m-d'));
         $vendedorId = $request->get('vendedor_id');
         $pdvId = $request->get('pdv_id');
@@ -173,8 +174,8 @@ class PdvVisitadosController extends Controller
      */
     public function exportar(Request $request)
     {
-        // Obtener filtros
-        $fechaDesde = $request->get('fecha_desde', now()->subDays(30)->format('Y-m-d'));
+        // Obtener filtros con valores por defecto del día actual en Perú
+        $fechaDesde = $request->get('fecha_desde', now()->format('Y-m-d'));
         $fechaHasta = $request->get('fecha_hasta', now()->format('Y-m-d'));
         $vendedorId = $request->get('vendedor_id');
         $pdvId = $request->get('pdv_id');
@@ -184,6 +185,7 @@ class PdvVisitadosController extends Controller
         $circuitId = $request->get('circuit_id');
         $routeId = $request->get('route_id');
         $formato = $request->get('formato', 'excel');
+        $incluirFormularios = $request->get('incluir_formularios', 'true') === 'true';
 
         // Query para exportación con filtros
         $query = PdvVisit::with([
@@ -245,8 +247,42 @@ class PdvVisitadosController extends Controller
             // TODO: Implementar exportación a PDF
             return response()->json(['message' => 'Exportación a PDF próximamente']);
         } else {
-            // Exportar a Excel usando la clase de exportación
-            return Excel::download(new PdvVisitadosExport($visitas), "{$nombreArchivo}.xlsx");
+            // Exportar a Excel usando la clase de exportación apropiada
+            if ($incluirFormularios) {
+                return Excel::download(new PdvVisitadosWithFormResponsesExport($visitas), "{$nombreArchivo}_con_formularios.xlsx");
+            } else {
+                return Excel::download(new PdvVisitadosExport($visitas), "{$nombreArchivo}.xlsx");
+            }
+        }
+    }
+
+    /**
+     * Eliminar una visita en estado in_progress
+     */
+    public function destroy(PdvVisit $visit)
+    {
+        // Verificar que la visita esté en estado in_progress
+        if ($visit->visit_status !== 'in_progress') {
+            return back()->with('error', 'Solo se pueden eliminar visitas en estado "En Progreso".');
+        }
+
+        // Los permisos se verifican en el middleware de la ruta (acceso general a reportes)
+
+        // Aplicar scope de negocio
+        $this->applyFullScope(PdvVisit::query(), 'pdv.route.circuit.zonal.business', 'pdv.route.circuit.zonal')
+            ->where('id', $visit->id)
+            ->firstOrFail();
+
+        try {
+            // Eliminar respuestas de formularios asociadas
+            $visit->formResponses()->delete();
+
+            // Eliminar la visita
+            $visit->delete();
+
+            return back()->with('success', 'Visita eliminada correctamente.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al eliminar la visita: ' . $e->getMessage());
         }
     }
 

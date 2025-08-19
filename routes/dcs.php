@@ -169,6 +169,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-ruta-eliminar')
                 ->name('routes.destroy');
 
+
+
             // Rutas para fechas de visita de rutas
             Route::get('routes/{route}/visit-dates', [RouteVisitDateController::class, 'index'])
                 ->middleware('permission:gestor-ruta-ver')
@@ -193,6 +195,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('routes/{route}/visit-dates/range', [RouteVisitDateController::class, 'getDatesForRange'])
                 ->middleware('permission:gestor-ruta-ver')
                 ->name('routes.visit-dates.range');
+
+            // Ruta para exportar rutas a Excel
+            Route::get('routes/export', [GlobalRouteController::class, 'export'])
+                ->middleware('permission:gestor-ruta-ver')
+                ->name('routes.export');
 
         });
 
@@ -226,6 +233,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('pdvs/export', [GlobalPdvController::class, 'export'])
                 ->middleware('permission:gestor-pdv-ver')
                 ->name('pdvs.export');
+
+
 
         });
 
@@ -283,6 +292,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // RUTAS AJAX PARA CARGA DINÁMICA (SIN MIDDLEWARE DE PERMISOS)
         // ========================================
 
+        // Obtener PDVs de una ruta específica (para mapa) - sin middleware de permiso adicional
+        Route::get('routes/{route}/pdvs', [GlobalPdvController::class, 'getRoutePdvs'])
+            ->name('routes.pdvs');
+
         // Obtener provincias por departamento
         Route::get('ajax/provincias', [GlobalPdvController::class, 'getProvinciasByDepartamento'])
             ->name('dcs.ajax.provincias');
@@ -294,6 +307,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Buscar localidades por distrito (con filtro de texto)
         Route::get('ajax/localidades', [GlobalPdvController::class, 'searchLocalidades'])
             ->name('dcs.ajax.localidades');
+
+        // Obtener circuitos por zonal
+        Route::get('ajax/circuits', [GlobalPdvController::class, 'getCircuitsByZonal'])
+            ->name('dcs.ajax.circuits');
 
         // Obtener rutas por circuito
         Route::get('ajax/routes', [GlobalPdvController::class, 'getRoutesByCircuit'])

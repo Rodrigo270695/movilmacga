@@ -43,6 +43,12 @@ interface PdvModel {
     district?: { name: string; provincia?: { name: string } };
 }
 
+interface Zonal {
+    id: number;
+    name: string;
+    business_id: number;
+}
+
 interface Circuit {
     id: number;
     name: string;
@@ -54,6 +60,7 @@ interface Route {
     id: number;
     name: string;
     code: string;
+    circuit_id: number;
 }
 
 interface Departamento {
@@ -70,6 +77,7 @@ interface Props {
     open: boolean;
     onClose: () => void;
     pdv?: PdvModel | null;
+    zonales: Zonal[];
     circuits: Circuit[];
     departamentos: Departamento[];
 }
@@ -87,6 +95,7 @@ interface FormData {
     reference: string;
     latitude: string;
     longitude: string;
+    zonal_id: string;
     circuit_id: string;
     route_id: string;
     district_id: string;
@@ -100,6 +109,7 @@ export function PdvForm({
     open,
     onClose,
     pdv,
+    zonales,
     circuits,
     departamentos
 }: Props) {
@@ -116,6 +126,7 @@ export function PdvForm({
         reference: '',
         latitude: '',
         longitude: '',
+        zonal_id: '',
         circuit_id: '',
         route_id: '',
         district_id: '',
@@ -125,9 +136,11 @@ export function PdvForm({
     });
 
     // Estados para carga dinámica
+    const [availableCircuits, setAvailableCircuits] = useState<Circuit[]>([]);
     const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]);
     const [provincias, setProvincias] = useState<GeographicItem[]>([]);
     const [distritos, setDistritos] = useState<GeographicItem[]>([]);
+    const [loadingCircuits, setLoadingCircuits] = useState(false);
     const [loadingProvincias, setLoadingProvincias] = useState(false);
     const [loadingDistritos, setLoadingDistritos] = useState(false);
     const [loadingRoutes, setLoadingRoutes] = useState(false);
@@ -138,22 +151,67 @@ export function PdvForm({
     // Función helper para limpieza completa del formulario
     const clearFormCompletely = () => {
         reset();
+        setAvailableCircuits([]);
         setAvailableRoutes([]);
         setProvincias([]);
         setDistritos([]);
         setMapFocusLocation('');
+        setLoadingCircuits(false);
         setLoadingProvincias(false);
         setLoadingDistritos(false);
         setLoadingRoutes(false);
     };
 
+    // Cargar circuitos cuando cambia el zonal
+    const handleZonalChange = async (zonalId: string, keepValues = false) => {
+        setData('zonal_id', zonalId);
+
+        if (!keepValues) {
+            setData('circuit_id', '');
+            setData('route_id', '');
+        }
+
+        setAvailableCircuits([]);
+        setAvailableRoutes([]);
+
+        if (!zonalId) {
+            return;
+        }
+
+        setLoadingCircuits(true);
+        try {
+            const response = await fetch(`/dcs/ajax/circuits?zonal_id=${zonalId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Response is not JSON");
+            }
+
+            const circuits = await response.json();
+            setAvailableCircuits(Array.isArray(circuits) ? circuits : []);
+        } catch (error) {
+            console.error('Error cargando circuitos:', error);
+            setAvailableCircuits([]);
+        } finally {
+            setLoadingCircuits(false);
+        }
+    };
+
     // Cargar rutas cuando cambia el circuito
     const handleCircuitChange = async (circuitId: string, keepValues = false) => {
+        setData('circuit_id', circuitId);
+
+        if (!keepValues) {
+            setData('route_id', '');
+        }
+
+        setAvailableRoutes([]);
+
         if (!circuitId) {
-            setAvailableRoutes([]);
-            if (!keepValues) {
-                setData('route_id', '');
-            }
             return;
         }
 
@@ -314,9 +372,16 @@ export function PdvForm({
 
                 // Cargar listas dependientes en secuencia usando promesas
                 const loadSequentially = async () => {
-                    // Cargar circuito y rutas
-                    if (pdvDetails.circuit_id) {
-                        await handleCircuitChange(pdvDetails.circuit_id.toString(), true);
+                    // Cargar jerarquía Zonal → Circuito → Ruta
+                    if (pdvDetails.zonal_id) {
+                        await handleZonalChange(pdvDetails.zonal_id.toString(), true);
+
+                        // Esperar a que se actualicen los circuitos
+                        await new Promise(resolve => setTimeout(resolve, 300));
+
+                        if (pdvDetails.circuit_id) {
+                            await handleCircuitChange(pdvDetails.circuit_id.toString(), true);
+                        }
                     }
 
                     // Cargar ubicación geográfica paso a paso
@@ -554,6 +619,27 @@ export function PdvForm({
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div>
+                                    <Label htmlFor="zonal">
+                                        Zonal <span className="text-red-500">*</span>
+                                    </Label>
+                                    <CustomSelect
+                                        value={data.zonal_id}
+                                        onValueChange={(value) => {
+                                            setData('zonal_id', value);
+                                            handleZonalChange(value, false);
+                                        }}
+                                        options={zonales.map(zonal => ({
+                                            value: zonal.id.toString(),
+                                            label: zonal.name
+                                        }))}
+                                        placeholder="Seleccionar zonal"
+                                    />
+                                    {errors.zonal_id && (
+                                        <p className="text-sm text-red-500">{errors.zonal_id}</p>
+                                    )}
+                                </div>
+
+                                <div>
                                     <Label htmlFor="circuit">
                                         Circuito <span className="text-red-500">*</span>
                                     </Label>
@@ -563,12 +649,16 @@ export function PdvForm({
                                             setData('circuit_id', value);
                                             handleCircuitChange(value, false);
                                         }}
-                                        options={circuits.map(circuit => ({
+                                        disabled={availableCircuits.length === 0}
+                                        options={availableCircuits.map(circuit => ({
                                             value: circuit.id.toString(),
                                             label: `${circuit.name} (${circuit.code})`
                                         }))}
-                                        placeholder="Seleccionar circuito"
+                                        placeholder={loadingCircuits ? "Cargando..." : "Seleccionar circuito"}
                                     />
+                                    {errors.circuit_id && (
+                                        <p className="text-sm text-red-500">{errors.circuit_id}</p>
+                                    )}
                                 </div>
 
                                 <div>

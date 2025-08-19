@@ -78,6 +78,14 @@ interface Opciones {
     estados: Array<{ value: string; label: string }>;
 }
 
+interface PageProps {
+    auth?: {
+        user?: {
+            permissions?: string[];
+        };
+    };
+}
+
 interface Props {
     visitas: PaginatedVisitas;
     filtros: Filtros;
@@ -105,10 +113,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }: Props) {
     const { addToast } = useToast();
-    const pageProps = usePage().props as any;
+    const pageProps = usePage().props as PageProps;
     const userPermissions = pageProps.auth?.user?.permissions || [];
 
     const [isExporting, setIsExporting] = useState(false);
+    const [incluirFormularios, setIncluirFormularios] = useState(true);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
@@ -162,13 +171,17 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
             if (filtros.circuit_id && filtros.circuit_id !== 'todos') params.set('circuit_id', filtros.circuit_id);
             if (filtros.route_id && filtros.route_id !== 'todos') params.set('route_id', filtros.route_id);
             params.set('formato', formato);
+            params.set('incluir_formularios', incluirFormularios.toString());
 
             const url = `/reportes/pdvs-visitados/exportar?${params.toString()}`;
 
             // Crear enlace temporal para descarga
             const link = document.createElement('a');
             link.href = url;
-            link.download = `pdvs_visitados_${filtros.fecha_desde}_a_${filtros.fecha_hasta}.xlsx`;
+            const fileName = incluirFormularios
+                ? `pdvs_visitados_con_formularios_${filtros.fecha_desde}_a_${filtros.fecha_hasta}.xlsx`
+                : `pdvs_visitados_${filtros.fecha_desde}_a_${filtros.fecha_hasta}.xlsx`;
+            link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -176,7 +189,9 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
             addToast({
                 type: 'success',
                 title: '¡Exportación iniciada!',
-                message: 'El reporte se está descargando en formato Excel.',
+                message: incluirFormularios
+                    ? 'El reporte con respuestas de formularios se está descargando.'
+                    : 'El reporte básico se está descargando en formato Excel.',
                 duration: 4000
             });
         } catch {
@@ -230,14 +245,27 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                                 {/* Botón exportar desktop - Solo mostrar en pantallas grandes */}
                                 <div className="hidden sm:flex items-center gap-3">
                                     {hasPermission('reporte-pdvs-visitados-exportar') && (
-                                        <Button
-                                            onClick={() => handleExport('excel')}
-                                            disabled={isExporting}
-                                            className="bg-green-600 hover:bg-green-700 text-white"
-                                        >
-                                            <Download className="w-4 h-4 mr-2" />
-                                            {isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
-                                        </Button>
+                                        <div className="flex items-center gap-3">
+                                            {/* Checkbox para incluir formularios */}
+                                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={incluirFormularios}
+                                                    onChange={(e) => setIncluirFormularios(e.target.checked)}
+                                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                                />
+                                                <span>Incluir respuestas de formularios</span>
+                                            </label>
+
+                                            <Button
+                                                onClick={() => handleExport('excel')}
+                                                disabled={isExporting}
+                                                className="bg-green-600 hover:bg-green-700 text-white"
+                                            >
+                                                <Download className="w-4 h-4 mr-2" />
+                                                {isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -303,15 +331,28 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                 {/* Botón exportar flotante - Solo móviles */}
                 <div className="fixed bottom-6 right-6 z-50 sm:hidden">
                     {hasPermission('reporte-pdvs-visitados-exportar') && (
-                        <Button
-                            onClick={() => handleExport('excel')}
-                            size="lg"
-                            disabled={isExporting}
-                            className="h-12 w-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                            title={isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
-                        >
-                            <Download className="w-5 h-5" />
-                        </Button>
+                        <div className="flex flex-col items-end gap-2">
+                            {/* Checkbox para incluir formularios */}
+                            <label className="flex items-center gap-2 text-xs text-gray-700 bg-white px-2 py-1 rounded shadow-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={incluirFormularios}
+                                    onChange={(e) => setIncluirFormularios(e.target.checked)}
+                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                />
+                                <span>Con formularios</span>
+                            </label>
+
+                            <Button
+                                onClick={() => handleExport('excel')}
+                                size="lg"
+                                disabled={isExporting}
+                                className="h-12 w-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                title={isExporting ? 'Exportando...' : 'Exportar Excel (.xlsx)'}
+                            >
+                                <Download className="w-5 h-5" />
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>

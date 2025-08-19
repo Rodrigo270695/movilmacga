@@ -39,8 +39,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'route_id', 'district_id', 'locality', 'created_at', 'updated_at'
         ]);
 
-        // Aplicar filtros de scope automáticos (comentado temporalmente para debug)
-        // $query = $this->applyFullScope($query, 'route.circuit.zonal.business', 'route.circuit.zonal');
+        // Aplicar filtros de scope automáticos (negocio y zonal)
+        $query = $this->applyFullScope($query, 'route.circuit.zonal.business', 'route.circuit.zonal');
 
         // Aplicar filtros de búsqueda
         if (!empty($this->filters['search'])) {

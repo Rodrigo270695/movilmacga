@@ -10,6 +10,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Facade;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -49,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Middleware para rutas API
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\CorsMiddleware::class,
         ]);
 
         // Registrar middleware y aliases de servicios
@@ -57,7 +59,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'mobile.user' => EnsureMobileUser::class,
-            'Excel' => \Maatwebsite\Excel\Facades\Excel::class,
         ]);
 
         // Configurar throttling para APIs
