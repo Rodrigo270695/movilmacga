@@ -65,15 +65,15 @@ class GlobalPdvController extends Controller
         $statusFilter = $request->get('status');
         $classificationFilter = $request->get('classification');
 
-        // Filtros avanzados
-        $documentTypeFilter = $request->get('document_type');
-        $sellsRechargeFilter = $request->get('sells_recharge');
+        // Filtros jerárquicos
+        $businessFilter = $request->get('business_id');
+        $zonalFilter = $request->get('zonal_id');
         $circuitFilter = $request->get('circuit_id');
-        $zonalFilter = $request->get('zonal_id'); // NUEVO: Filtro por zonal
-        $documentNumberFilter = $request->get('document_number');
-        $clientNameFilter = $request->get('client_name');
-        $pointNameFilter = $request->get('point_name');
-        $posIdFilter = $request->get('pos_id');
+        $routeFilter = $request->get('route_id');
+
+        // Filtros básicos
+        $statusFilter = $request->get('status');
+        $classificationFilter = $request->get('classification');
 
         $query = Pdv::with(['route.circuit.zonal.business', 'district'])
             ->select('id', 'point_name', 'pos_id', 'document_type', 'document_number', 'client_name', 'classification', 'status', 'route_id', 'district_id', 'locality', 'sells_recharge', 'created_at');
@@ -88,6 +88,8 @@ class GlobalPdvController extends Controller
                   ->orWhere('client_name', 'like', "%{$searchFilter}%")
                   ->orWhere('document_number', 'like', "%{$searchFilter}%")
                   ->orWhere('pos_id', 'like', "%{$searchFilter}%")
+                  ->orWhere('status', 'like', "%{$searchFilter}%")
+                  ->orWhere('classification', 'like', "%{$searchFilter}%")
                   ->orWhere('locality', 'like', "%{$searchFilter}%")
                   ->orWhereHas('route', function ($routeQuery) use ($searchFilter) {
                       $routeQuery->where('name', 'like', "%{$searchFilter}%")
@@ -117,13 +119,17 @@ class GlobalPdvController extends Controller
             $query->byClassification($classificationFilter);
         }
 
-        // Filtros avanzados específicos
-        if ($documentTypeFilter) {
-            $query->where('document_type', $documentTypeFilter);
+        // Filtros jerárquicos
+        if ($businessFilter) {
+            $query->whereHas('route.circuit.zonal', function ($q) use ($businessFilter) {
+                $q->where('business_id', $businessFilter);
+            });
         }
 
-        if ($sellsRechargeFilter !== null && $sellsRechargeFilter !== '') {
-            $query->where('sells_recharge', $sellsRechargeFilter === '1' ? true : false);
+        if ($zonalFilter) {
+            $query->whereHas('route.circuit', function ($q) use ($zonalFilter) {
+                $q->where('zonal_id', $zonalFilter);
+            });
         }
 
         if ($circuitFilter) {
@@ -132,70 +138,89 @@ class GlobalPdvController extends Controller
             });
         }
 
-        // NUEVO: Filtro por zonal (a través de la relación)
-        if ($zonalFilter) {
-            $query->whereHas('route.circuit', function ($q) use ($zonalFilter) {
-                $q->where('zonal_id', $zonalFilter);
-            });
-        }
-
-        if ($documentNumberFilter) {
-            $query->where('document_number', 'like', "%{$documentNumberFilter}%");
-        }
-
-        if ($clientNameFilter) {
-            $query->where('client_name', 'like', "%{$clientNameFilter}%");
-        }
-
-        if ($pointNameFilter) {
-            $query->where('point_name', 'like', "%{$pointNameFilter}%");
-        }
-
-        if ($posIdFilter) {
-            $query->where('pos_id', 'like', "%{$posIdFilter}%");
+        if ($routeFilter) {
+            $query->where('route_id', $routeFilter);
         }
 
         $pdvs = $query->orderBy('point_name')->paginate($perPage);
 
-        // Cargar datos para los filtros y formularios (aplicando scope)
+        // Cargar datos para los filtros jerárquicos
+        $businesses = $this->getAvailableBusinesses()->toArray();
+        $allZonales = $this->getAvailableZonals()->toArray();
+
+        // Filtrar zonales por negocio seleccionado solo para la vista
         $zonales = $this->getAvailableZonals();
+        if ($businessFilter) {
+            $zonales = $zonales->where('business_id', $businessFilter);
+        }
+        $zonales = $zonales->toArray();
 
-        // Filtrar circuitos aplicando scope
-        $circuitsQuery = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
-        $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
-        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+        // Cargar todos los circuitos disponibles (aplicando scope)
+        $allCircuitsQuery = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
+        $allCircuitsQuery = $this->applyFullScope($allCircuitsQuery, 'zonal.business', 'zonal');
+        $allCircuits = $allCircuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
 
-        // Filtrar rutas aplicando scope
-        $routesQuery = Route::active()->with('circuit.zonal.business')->orderBy('name');
-        $routesQuery = $this->applyFullScope($routesQuery, 'circuit.zonal.business', 'circuit.zonal');
-        $routes = $routesQuery->get(['id', 'name', 'code', 'circuit_id']);
+        // Filtrar circuitos por negocio seleccionado solo para la vista
+        $circuits = $allCircuits;
+        if ($businessFilter) {
+            $circuits = $circuits->filter(function ($circuit) use ($businessFilter) {
+                return $circuit->zonal && $circuit->zonal->business_id == $businessFilter;
+            });
+        }
+        if ($zonalFilter) {
+            $circuits = $circuits->filter(function ($circuit) use ($zonalFilter) {
+                return $circuit->zonal_id == $zonalFilter;
+            });
+        }
+        $allCircuits = $allCircuits->toArray();
+        $circuits = $circuits->toArray();
+
+        // Cargar todas las rutas disponibles (aplicando scope)
+        $allRoutesQuery = Route::active()->with('circuit.zonal.business')->orderBy('name');
+        $allRoutesQuery = $this->applyFullScope($allRoutesQuery, 'circuit.zonal.business', 'circuit.zonal');
+        $allRoutes = $allRoutesQuery->get(['id', 'name', 'code', 'circuit_id']);
+
+        // Filtrar rutas por negocio y circuito seleccionado solo para la vista
+        $routes = $allRoutes;
+        if ($businessFilter) {
+            $routes = $routes->filter(function ($route) use ($businessFilter) {
+                return $route->circuit && $route->circuit->zonal && $route->circuit->zonal->business_id == $businessFilter;
+            });
+        }
+        if ($zonalFilter) {
+            $routes = $routes->filter(function ($route) use ($zonalFilter) {
+                return $route->circuit && $route->circuit->zonal_id == $zonalFilter;
+            });
+        }
+        if ($circuitFilter) {
+            $routes = $routes->filter(function ($route) use ($circuitFilter) {
+                return $route->circuit_id == $circuitFilter;
+            });
+        }
+        $allRoutes = $allRoutes->toArray();
+        $routes = $routes->toArray();
+
         $departamentos = \App\Models\Departamento::where('status', true)->orderBy('name')->get(['id', 'name', 'pais_id']);
-        // REMOVIDO: Carga masiva de provincias, distritos y localidades
-        // Solo cargar departamentos inicialmente, el resto se carga dinámicamente
 
         return Inertia::render('dcs/pdvs/global-index', [
             'pdvs' => $pdvs,
-            'zonales' => $zonales, // NUEVO
+            'businesses' => $businesses,
+            'zonales' => $zonales,
+            'allZonales' => $allZonales,
+            'allCircuits' => $allCircuits,
             'circuits' => $circuits,
+            'allRoutes' => $allRoutes,
             'routes' => $routes,
             'departamentos' => $departamentos,
             'businessScope' => $this->getBusinessScope(),
-            // REMOVIDO: 'provincias', 'distritos', 'localities'
             'filters' => [
                 'search' => $searchFilter,
+                'business_id' => $businessFilter,
+                'zonal_id' => $zonalFilter,
+                'circuit_id' => $circuitFilter,
                 'route_id' => $routeFilter,
-                'district_id' => $districtFilter,
-                'locality' => $localityTextFilter,
                 'status' => $statusFilter,
                 'classification' => $classificationFilter,
-                'document_type' => $documentTypeFilter,
-                'sells_recharge' => $sellsRechargeFilter,
-                'circuit_id' => $circuitFilter,
-                'zonal_id' => $zonalFilter,
-                'document_number' => $documentNumberFilter,
-                'client_name' => $clientNameFilter,
-                'point_name' => $pointNameFilter,
-                'pos_id' => $posIdFilter,
             ],
             'flash' => fn () => [
                 'success' => session('success'),
@@ -326,12 +351,14 @@ class GlobalPdvController extends Controller
 
     /**
      * Obtener PDVs de una ruta específica para mostrar en el mapa (AJAX)
+     * Solo PDVs con estado "vende" (activos)
      */
     public function getRoutePdvs(Route $route)
     {
-        // Obtener PDVs con la información necesaria para el mapa
+        // Obtener PDVs activos (solo con estado "vende") con la información necesaria para el mapa
         $pdvs = $route->pdvs()
             ->with(['district'])
+            ->where('status', 'vende') // Solo PDVs que venden
             ->select([
                 'id',
                 'point_name',
@@ -509,19 +536,10 @@ class GlobalPdvController extends Controller
             // Recopilar todos los filtros aplicados
             $filters = [
                 'search' => $request->get('search'),
-                'route_id' => $request->get('route_id'),
-                'status' => $request->get('status'),
-                'classification' => $request->get('classification'),
-                'district_id' => $request->get('district_id'),
-                'locality' => $request->get('locality'),
-                'document_type' => $request->get('document_type'),
-                'sells_recharge' => $request->get('sells_recharge'),
-                'circuit_id' => $request->get('circuit_id'),
+                'business_id' => $request->get('business_id'),
                 'zonal_id' => $request->get('zonal_id'),
-                'document_number' => $request->get('document_number'),
-                'client_name' => $request->get('client_name'),
-                'point_name' => $request->get('point_name'),
-                'pos_id' => $request->get('pos_id'),
+                'circuit_id' => $request->get('circuit_id'),
+                'route_id' => $request->get('route_id'),
             ];
 
             // Generar nombre del archivo con timestamp

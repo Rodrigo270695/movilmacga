@@ -48,6 +48,21 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
         return new Date().toLocaleString("en-US", {timeZone: "America/Lima"});
     };
 
+    // Función para obtener fecha en formato YYYY-MM-DD en zona horaria de Perú
+    const getPeruDateString = () => {
+        const peruDate = new Date().toLocaleString("en-US", {timeZone: "America/Lima"});
+        const date = new Date(peruDate);
+        return date.toISOString().split('T')[0];
+    };
+
+    // Función para crear fecha en zona horaria de Perú
+    const createPeruDate = (year: number, month: number, day: number) => {
+        const date = new Date(year, month - 1, day);
+        // Ajustar a zona horaria de Perú
+        const peruDate = new Date(date.toLocaleString("en-US", {timeZone: "America/Lima"}));
+        return peruDate;
+    };
+
     const [selectedYear, setSelectedYear] = useState(new Date(getPeruDate()).getFullYear());
     const [selectedDates, setSelectedDates] = useState<string[]>([]);
     const [visitDates, setVisitDates] = useState<VisitDate[]>([]);
@@ -57,13 +72,11 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
     // Generar años disponibles (desde 2020 hasta 2030)
     const availableYears = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
-
-
     // Generar calendario para el año seleccionado
     const generateCalendar = (year: number) => {
         const calendar = [];
         const peruNow = new Date(getPeruDate());
-        const peruToday = peruNow.toISOString().split('T')[0];
+        const peruToday = getPeruDateString();
 
         for (let month = 1; month <= 12; month++) {
             const monthData = {
@@ -75,7 +88,7 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
                 weeks: []
             };
 
-            const firstDay = new Date(year, month - 1, 1);
+            const firstDay = createPeruDate(year, month, 1);
             const daysInMonth = new Date(year, month, 0).getDate();
             const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
@@ -88,11 +101,12 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
 
             // Agregar todos los días del mes
             for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month - 1, day);
+                const date = createPeruDate(year, month, day);
                 const dateString = date.toISOString().split('T')[0];
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                 const isToday = dateString === peruToday;
-                const isPast = date < peruNow;
+                // Permitir selección desde hoy (incluyendo hoy)
+                const isPast = dateString < peruToday;
                 const hasVisit = visitDates.some(vd => {
                     const visitDate = new Date(vd.visit_date);
                     return visitDate.toISOString().split('T')[0] === dateString;
@@ -148,6 +162,18 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
         }
     }, [isOpen]);
 
+    // Función para obtener la fecha actual formateada en español
+    const getCurrentDateFormatted = () => {
+        const peruDate = new Date(getPeruDate());
+        return peruDate.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Lima'
+        });
+    };
+
     // Función para limpiar completamente el modal
     const clearModalData = () => {
         setSelectedDates([]);
@@ -199,6 +225,18 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
 
     const handleDateClick = (date: string) => {
         if (!date) return;
+
+        // Permitir selección desde hoy (incluyendo hoy)
+        const peruToday = getPeruDateString();
+        if (date < peruToday) {
+            addToast({
+                type: 'error',
+                title: 'Fecha no válida',
+                message: 'No puedes seleccionar fechas pasadas.',
+                duration: 3000
+            });
+            return;
+        }
 
         setSelectedDates(prev => {
             if (prev.includes(date)) {
@@ -324,6 +362,14 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
                                 )}
                             </span>
                         )}
+                        <br />
+                        <span className="text-xs text-gray-400 mt-1 block">
+                            Zona horaria: Perú (America/Lima) • Puedes seleccionar fechas desde hoy
+                        </span>
+                        <br />
+                        <span className="text-xs text-blue-600 mt-1 block font-medium">
+                            Fecha actual: {getCurrentDateFormatted()}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -414,18 +460,18 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
                                             <button
                                                 key={index}
                                                 onClick={() => handleDateClick(day.date)}
-                                                disabled={day.isPast}
+                                                disabled={day.isPast && !day.isToday}
                                                 className={`
                                                     h-8 w-8 text-xs rounded flex items-center justify-center
                                                     transition-all duration-200 cursor-pointer
-                                                    ${day.isPast
+                                                    ${day.isPast && !day.isToday
                                                         ? 'text-gray-300 cursor-not-allowed'
                                                         : day.isWeekend
                                                             ? 'text-red-600 hover:bg-red-50'
                                                             : 'text-gray-700 hover:bg-gray-100'
                                                     }
                                                     ${day.isToday
-                                                        ? 'bg-blue-100 text-blue-700 font-bold'
+                                                        ? 'bg-blue-100 text-blue-700 font-bold border-2 border-blue-300'
                                                         : ''
                                                     }
                                                     ${day.hasVisit
@@ -448,10 +494,10 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
                     </div>
 
                     {/* Leyenda */}
-                    <div className="flex items-center gap-4 text-xs text-gray-600">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
                         <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-blue-100 rounded"></div>
-                            <span>Hoy</span>
+                            <div className="w-3 h-3 bg-blue-100 rounded border border-blue-300"></div>
+                            <span>Hoy (seleccionable)</span>
                         </div>
                         <div className="flex items-center gap-1">
                             <div className="w-3 h-3 bg-green-100 rounded"></div>
@@ -464,6 +510,10 @@ export function VisitDatesModal({ isOpen, onClose, route }: Props) {
                         <div className="flex items-center gap-1">
                             <div className="w-3 h-3 bg-red-50 rounded"></div>
                             <span>Fin de semana</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-gray-100 rounded"></div>
+                            <span>Fechas futuras</span>
                         </div>
                     </div>
                 </div>

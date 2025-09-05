@@ -25,7 +25,8 @@ import {
     Map,
     Navigation,
     BarChart3,
-    FileText
+    FileText,
+    Clock
 } from 'lucide-react';
 
 interface Permission {
@@ -260,6 +261,17 @@ const menuStructure = [
                     { id: 'reporte-pdvs-visitados-ver', label: 'Ver reporte de PDVs visitados' },
                     { id: 'reporte-pdvs-visitados-exportar', label: 'Exportar reporte a Excel/PDF' }
                 ]
+            },
+            {
+                id: 'jornadas-laborales',
+                label: 'Jornadas Laborales',
+                icon: Clock,
+                className: 'text-purple-600 bg-purple-100',
+                permission: 'reporte-jornadas-laborales-acceso',
+                actions: [
+                    { id: 'reporte-jornadas-laborales-ver', label: 'Ver reporte de jornadas laborales' },
+                    { id: 'reporte-jornadas-laborales-exportar', label: 'Exportar reporte a Excel/PDF' }
+                ]
             }
         ]
     },
@@ -348,6 +360,8 @@ const actionLabels: Record<string, string> = {
 
     'reporte-pdvs-visitados-ver': 'Ver reporte de PDVs visitados',
     'reporte-pdvs-visitados-exportar': 'Exportar reporte de PDVs visitados',
+    'reporte-jornadas-laborales-ver': 'Ver reporte de jornadas laborales',
+    'reporte-jornadas-laborales-exportar': 'Exportar reporte de jornadas laborales',
 
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'

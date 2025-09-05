@@ -31,9 +31,10 @@ interface UserFormProps {
     onClose: () => void;
     user?: User | null;
     roles: Role[];
+    currentUserRoles?: string[]; // Roles del usuario logueado
 }
 
-export function UserForm({ isOpen, onClose, user, roles }: UserFormProps) {
+export function UserForm({ isOpen, onClose, user, roles, currentUserRoles = [] }: UserFormProps) {
     const { addToast } = useToast();
     const [formData, setFormData] = useState({
         first_name: '',
@@ -48,6 +49,21 @@ export function UserForm({ isOpen, onClose, user, roles }: UserFormProps) {
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Filtrar roles disponibles según el rol del usuario logueado
+    const availableRoles = roles.filter(role => {
+        // Si el usuario logueado es supervisor, solo puede asignar el rol de Vendedor
+        if (currentUserRoles.some(userRole => {
+            const roleName = typeof userRole === 'string' ? userRole : userRole?.name || '';
+            return roleName.toLowerCase() === 'supervisor';
+        })) {
+            return role.name === 'Vendedor';
+        }
+        // Si es administrador o cualquier otro rol, puede ver todos los roles
+        return true;
+    });
+
+
 
     // Resetear formulario cuando cambia el usuario o se abre/cierra el modal
     useEffect(() => {
@@ -174,7 +190,7 @@ export function UserForm({ isOpen, onClose, user, roles }: UserFormProps) {
     };
 
     const handleSelectAllRoles = () => {
-        setSelectedRoles(roles.map(r => r.name));
+        setSelectedRoles(availableRoles.map(r => r.name));
     };
 
     const handleDeselectAllRoles = () => {
@@ -435,10 +451,25 @@ export function UserForm({ isOpen, onClose, user, roles }: UserFormProps) {
                             </div>
                         </div>
 
+                        {/* Mensaje informativo para supervisores */}
+                        {currentUserRoles.some(userRole => {
+                            const roleName = typeof userRole === 'string' ? userRole : userRole?.name || '';
+                            return roleName.toLowerCase() === 'supervisor';
+                        }) && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div className="flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-blue-600" />
+                                    <p className="text-sm text-blue-800">
+                                        <span className="font-medium">Información:</span> Como supervisor, solo puedes asignar el rol de "Vendedor" a los usuarios.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                            {roles.length > 0 ? (
+                            {availableRoles.length > 0 ? (
                                 <div className="space-y-2">
-                                    {roles.map((role) => {
+                                    {availableRoles.map((role) => {
                                         const isSelected = selectedRoles.includes(role.name);
 
                                         return (

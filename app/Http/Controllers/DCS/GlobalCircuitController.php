@@ -24,6 +24,7 @@ class GlobalCircuitController extends Controller
         }
 
         $perPage = $request->get('per_page', 10);
+        $businessFilter = $request->get('business_id');
         $zonalFilter = $request->get('zonal_id');
         $search = $request->get('search');
 
@@ -34,6 +35,12 @@ class GlobalCircuitController extends Controller
         $query = $this->applyFullScope($query, 'zonal.business', 'zonal');
 
         // Aplicar filtros adicionales
+        if ($businessFilter) {
+            $query->whereHas('zonal', function ($q) use ($businessFilter) {
+                $q->where('business_id', $businessFilter);
+            });
+        }
+
         if ($zonalFilter) {
             $query->byZonal($zonalFilter);
         }
@@ -44,6 +51,9 @@ class GlobalCircuitController extends Controller
                   ->orWhere('code', 'like', "%{$search}%")
                   ->orWhereHas('zonal', function ($zonalQuery) use ($search) {
                       $zonalQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('zonal.business', function ($businessQuery) use ($search) {
+                      $businessQuery->where('name', 'like', "%{$search}%");
                   });
             });
         }
@@ -57,14 +67,25 @@ class GlobalCircuitController extends Controller
         });
 
         // Cargar datos para los filtros (aplicando scope)
+        $businesses = $this->getAvailableBusinesses()->toArray();
+        $allZonales = $this->getAvailableZonals()->toArray(); // Todos los zonales disponibles para el formulario
+
+        // Filtrar zonales por negocio seleccionado solo para la vista
         $zonales = $this->getAvailableZonals();
+        if ($businessFilter) {
+            $zonales = $zonales->where('business_id', $businessFilter);
+        }
+        $zonales = $zonales->toArray();
 
         return Inertia::render('dcs/circuits/global-index', [
             'circuits' => $circuits,
+            'businesses' => $businesses,
             'zonales' => $zonales,
+            'allZonales' => $allZonales, // Todos los zonales disponibles para el formulario
             'businessScope' => $this->getBusinessScope(),
             'filters' => [
                 'search' => $search,
+                'business_id' => $businessFilter,
                 'zonal_id' => $zonalFilter,
             ]
         ]);

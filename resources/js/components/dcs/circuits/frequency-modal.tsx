@@ -246,3 +246,7 @@ export function FrequencyModal({ isOpen, onClose, circuit }: FrequencyModalProps
 
 
 
+
+
+
+

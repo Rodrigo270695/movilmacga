@@ -28,6 +28,11 @@ interface RouteModel {
     status?: boolean | number;
     circuit_id: number;
     created_at: string;
+    pdvs_count?: number; // Conteo total de PDVs
+    active_pdvs_count?: number; // Conteo de PDVs activos (vende)
+    thisWeekVisits?: Array<{
+        visit_date: string;
+    }>; // Fechas de visita de esta semana
     circuit?: {
         id: number;
         name: string;
@@ -54,6 +59,11 @@ interface Zonal {
     name: string;
 }
 
+interface Business {
+    id: number;
+    name: string;
+}
+
 interface Props {
     routes: {
         data: RouteModel[];
@@ -64,9 +74,13 @@ interface Props {
         from: number;
         to: number;
     };
+    businesses: Business[];
     zonales: Zonal[];
+    allZonales: Zonal[];
+    allCircuits: Circuit[];
     circuits: Circuit[];
     filters: {
+        business_id?: string;
         zonal_id?: string;
         circuit_id?: string;
     };
@@ -76,12 +90,13 @@ interface Props {
     };
 }
 
-export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, flash }: Props) {
+export default function GlobalRoutesIndex({ routes, businesses, zonales, allZonales, allCircuits, circuits, filters, flash }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage().props as any;
     const userPermissions = auth?.user?.permissions || [];
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedBusiness, setSelectedBusiness] = useState(filters.business_id || '');
     const [selectedZonal, setSelectedZonal] = useState(filters.zonal_id || '');
     const [selectedCircuit, setSelectedCircuit] = useState(filters.circuit_id || '');
 
@@ -139,10 +154,15 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         }
     }, [flash, addToast]);
 
+    // Filtrar zonales por negocio seleccionado
+    const filteredZonales = selectedBusiness && Array.isArray(allZonales)
+        ? allZonales.filter(zonal => zonal.business_id?.toString() === selectedBusiness)
+        : (Array.isArray(allZonales) ? allZonales : []);
+
     // Filtrar circuitos por zonal seleccionado
-    const filteredCircuits = selectedZonal
-        ? circuits.filter(circuit => circuit.zonal_id.toString() === selectedZonal)
-        : circuits;
+    const filteredCircuits = selectedZonal && Array.isArray(allCircuits)
+        ? allCircuits.filter(circuit => circuit.zonal_id?.toString() === selectedZonal)
+        : (Array.isArray(allCircuits) ? allCircuits : []);
 
     // Búsqueda automática con debounce
     useEffect(() => {
@@ -153,6 +173,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         const timeout = setTimeout(() => {
             router.get(route('dcs.routes.index'), {
                 search: searchQuery || undefined,
+                business_id: selectedBusiness || undefined,
                 zonal_id: selectedZonal || undefined,
                 circuit_id: selectedCircuit || undefined
             }, {
@@ -169,9 +190,54 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         };
     }, [searchQuery]); // Solo cuando cambie searchQuery
 
+    // Limpiar filtros cuando cambie el negocio
+    useEffect(() => {
+        if (selectedBusiness && selectedZonal) {
+            // Verificar si el zonal seleccionado pertenece al nuevo negocio
+            const zonalBelongsToBusiness = Array.isArray(allZonales) &&
+                allZonales.some(zonal =>
+                    zonal.id.toString() === selectedZonal &&
+                    zonal.business_id?.toString() === selectedBusiness
+                );
+
+            if (!zonalBelongsToBusiness) {
+                setSelectedZonal('');
+                setSelectedCircuit('');
+            }
+        }
+    }, [selectedBusiness, allZonales, selectedZonal]);
+
+    // Limpiar filtro de circuito cuando cambie el zonal
+    useEffect(() => {
+        if (selectedZonal && selectedCircuit && Array.isArray(allCircuits)) {
+            // Verificar si el circuito seleccionado pertenece al nuevo zonal
+            const circuitBelongsToZonal = allCircuits.some(circuit =>
+                circuit.id.toString() === selectedCircuit &&
+                circuit.zonal_id.toString() === selectedZonal
+            );
+
+            if (!circuitBelongsToZonal) {
+                setSelectedCircuit('');
+            }
+        }
+    }, [selectedZonal, allCircuits, selectedCircuit]);
+
     const handleSearch = (query: string) => {
         // Esta función ya no es necesaria, pero la mantendré por compatibilidad
         setSearchQuery(query);
+    };
+
+    const handleBusinessFilter = (businessId: string) => {
+        setSelectedBusiness(businessId);
+        router.get(route('dcs.routes.index'), {
+            search: searchQuery || undefined,
+            business_id: businessId || undefined,
+            zonal_id: undefined, // Reset zonal filter
+            circuit_id: undefined // Reset circuit filter
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
     };
 
     const handleZonalFilter = (zonalId: string) => {
@@ -182,6 +248,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         }
         router.get(route('dcs.routes.index'), {
             search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
             zonal_id: zonalId || undefined,
             circuit_id: undefined // Reset circuit filter
         }, {
@@ -194,6 +261,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         setSelectedCircuit(circuitId);
         router.get(route('dcs.routes.index'), {
             search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
             zonal_id: selectedZonal || undefined,
             circuit_id: circuitId || undefined
         }, {
@@ -204,6 +272,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
 
     const clearFilters = () => {
         setSearchQuery('');
+        setSelectedBusiness('');
         setSelectedZonal('');
         setSelectedCircuit('');
         router.get(route('dcs.routes.index'), {}, {
@@ -308,8 +377,9 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
         // Construir URL con todos los filtros aplicados
         const params = new URLSearchParams();
 
-        // Filtros aplicados
+        // Filtros jerárquicos
         if (searchQuery?.trim()) params.set('search', searchQuery);
+        if (selectedBusiness?.trim()) params.set('business_id', selectedBusiness);
         if (selectedZonal?.trim()) params.set('zonal_id', selectedZonal);
         if (selectedCircuit?.trim()) params.set('circuit_id', selectedCircuit);
 
@@ -345,7 +415,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
 
 
 
-    const hasActiveFilters = selectedZonal || selectedCircuit || searchQuery;
+    const hasActiveFilters = selectedBusiness || selectedZonal || selectedCircuit || searchQuery;
 
         return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -380,8 +450,16 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                                 <span>{routes.data.filter(r => r.status === true || r.status === 1).length} activas</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                                <span>{routes.data.reduce((total, route) => total + (route.active_pdvs_count || 0), 0)} PDVs activos</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                                <span>{Array.isArray(businesses) ? businesses.length : 0} negocios</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                                <span>{zonales.length} zonales</span>
+                                                <span>{Array.isArray(zonales) ? zonales.length : 0} zonales</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
@@ -426,16 +504,16 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                             <span className="text-sm font-medium text-gray-700">Filtros</span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             {/* Búsqueda */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Buscar por nombre, código o circuito..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10"
-                                />
+                                                                    <Input
+                                        placeholder="Buscar por nombre, código o estado..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10"
+                                    />
                                 {searchQuery && (
                                     <Button
                                         variant="ghost"
@@ -448,17 +526,40 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                 )}
                             </div>
 
+                            {/* Filtro por Negocio */}
+                            <Select
+                                value={selectedBusiness || "all"}
+                                onValueChange={(value) => handleBusinessFilter(value === "all" ? "" : value)}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Todos los negocios" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos los negocios</SelectItem>
+                                    {Array.isArray(businesses) && businesses.map((business) => (
+                                        <SelectItem key={business.id} value={business.id.toString()}>
+                                            {business.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
                             {/* Filtro por Zonal */}
                             <Select
                                 value={selectedZonal || "all"}
                                 onValueChange={(value) => handleZonalFilter(value === "all" ? "" : value)}
+                                disabled={!selectedBusiness}
                             >
                                 <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Todos los zonales" />
+                                    <SelectValue
+                                        placeholder={selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todos los zonales</SelectItem>
-                                    {zonales.map((zonal) => (
+                                    <SelectItem value="all">
+                                        {selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                    </SelectItem>
+                                    {Array.isArray(filteredZonales) && filteredZonales.map((zonal) => (
                                         <SelectItem key={zonal.id} value={zonal.id.toString()}>
                                             {zonal.name}
                                         </SelectItem>
@@ -466,7 +567,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                 </SelectContent>
                             </Select>
 
-                                                        {/* Filtro por Circuito */}
+                            {/* Filtro por Circuito */}
                             <div className="flex gap-2">
                                 <Select
                                     value={selectedCircuit || "all"}
@@ -482,7 +583,7 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                                         <SelectItem value="all">
                                             {selectedZonal ? 'Todos los circuitos' : 'Selecciona un zonal primero'}
                                         </SelectItem>
-                                        {filteredCircuits.map((circuit) => (
+                                        {Array.isArray(filteredCircuits) && filteredCircuits.map((circuit) => (
                                             <SelectItem key={circuit.id} value={circuit.id.toString()}>
                                                 {circuit.name} - {circuit.code}
                                             </SelectItem>
@@ -508,14 +609,19 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         {hasActiveFilters && (
                             <div className="flex items-center gap-2 pt-2 border-t">
                                 <span className="text-xs text-gray-500">Filtros activos:</span>
+                                {selectedBusiness && (
+                                    <Badge variant="outline" className="text-xs">
+                                        Negocio: {Array.isArray(businesses) ? businesses.find(b => b.id.toString() === selectedBusiness)?.name : ''}
+                                    </Badge>
+                                )}
                                 {selectedZonal && (
                                     <Badge variant="outline" className="text-xs">
-                                        Zonal: {zonales.find(z => z.id.toString() === selectedZonal)?.name}
+                                        Zonal: {Array.isArray(allZonales) ? allZonales.find(z => z.id.toString() === selectedZonal)?.name : ''}
                                     </Badge>
                                 )}
                                 {selectedCircuit && (
                                     <Badge variant="outline" className="text-xs">
-                                        Circuito: {circuits.find(c => c.id.toString() === selectedCircuit)?.name}
+                                        Circuito: {Array.isArray(allCircuits) ? allCircuits.find(c => c.id.toString() === selectedCircuit)?.name : ''}
                                     </Badge>
                                 )}
                                 {searchQuery && (
@@ -544,8 +650,8 @@ export default function GlobalRoutesIndex({ routes, zonales, circuits, filters, 
                         isOpen={isFormModalOpen}
                         onClose={closeFormModal}
                         route={editingRoute}
-                        circuits={circuits}
-                        zonales={zonales}
+                        circuits={Array.isArray(allCircuits) ? allCircuits : []}
+                        zonales={allZonales}
                         isGlobalView={true}
                     />
 

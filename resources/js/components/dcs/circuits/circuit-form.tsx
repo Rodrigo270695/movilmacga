@@ -26,8 +26,8 @@ interface CircuitFormProps {
     isOpen: boolean;
     onClose: () => void;
     circuit?: Circuit | null;
-    zonal?: Zonal;
-    zonales?: Zonal[];
+    zonal?: Zonal | null;
+    zonales?: Zonal[] | null;
     isGlobalView?: boolean;
 }
 
@@ -292,11 +292,17 @@ export function CircuitForm({ isOpen, onClose, circuit, zonal, zonales, isGlobal
                                     <SelectValue placeholder="Selecciona un zonal" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {zonales?.map((zonalOption) => (
-                                        <SelectItem key={zonalOption.id} value={zonalOption.id.toString()}>
-                                            {zonalOption.name}
+                                    {Array.isArray(zonales) && zonales.length > 0 ? (
+                                        zonales.map((zonalOption) => (
+                                            <SelectItem key={zonalOption.id} value={zonalOption.id.toString()}>
+                                                {zonalOption.name}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <SelectItem value="" disabled>
+                                            No hay zonales disponibles
                                         </SelectItem>
-                                    ))}
+                                    )}
                                 </SelectContent>
                             </Select>
                             {errors.zonal_id && (

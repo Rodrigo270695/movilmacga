@@ -9,6 +9,13 @@ import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
 import { usePage } from '@inertiajs/react';
 
+interface AuthUser {
+    user?: {
+        permissions?: string[];
+        roles?: Array<string | { name: string }>;
+    };
+}
+
 interface Role {
     id: number;
     name: string;
@@ -70,7 +77,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function UsersIndex({ users, roles, filters = {}, flash }: Props) {
     const { addToast } = useToast();
-    const { auth } = usePage().props as any;
+    const pageProps = usePage().props as Record<string, unknown>;
+    const auth = pageProps.auth as AuthUser;
     const userPermissions = auth?.user?.permissions || [];
 
     const [isUserFormOpen, setIsUserFormOpen] = useState(false);
@@ -194,6 +202,7 @@ export default function UsersIndex({ users, roles, filters = {}, flash }: Props)
                         users={users}
                         onEdit={openEditUserDialog}
                         userPermissions={userPermissions}
+                        currentUserRoles={auth?.user?.roles?.map((role: string | { name: string }) => typeof role === 'string' ? role : role.name) || []}
                         filters={filters}
                     />
 
@@ -203,6 +212,7 @@ export default function UsersIndex({ users, roles, filters = {}, flash }: Props)
                         onClose={closeUserForm}
                         user={editingUser}
                         roles={roles}
+                        currentUserRoles={auth?.user?.roles?.map((role: string | { name: string }) => typeof role === 'string' ? role : role.name) || []}
                     />
                 </div>
 

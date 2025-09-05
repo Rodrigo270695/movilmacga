@@ -20,7 +20,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         // Verificar permisos específicos
-        if (!auth()->user()->can('gestor-usuarios-ver')) {
+        if (!request()->user()->can('gestor-usuarios-ver')) {
             abort(403, 'No tienes permisos para ver los usuarios.');
         }
 
@@ -32,6 +32,15 @@ class UserController extends Controller
         // Query base
         $usersQuery = User::with('roles')
             ->select('id', 'name', 'first_name', 'last_name', 'username', 'email', 'dni', 'phone_number', 'status', 'created_at');
+
+        // Filtro automático por rol del usuario logueado
+        $currentUser = request()->user();
+        if ($currentUser->hasRole('Supervisor')) {
+            // Los supervisores solo pueden ver vendedores
+            $usersQuery->whereHas('roles', function ($query) {
+                $query->where('name', 'Vendedor');
+            });
+        }
 
         // Aplicar filtro de búsqueda
         if ($search) {
@@ -87,7 +96,7 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         // Verificar permisos
-        if (!auth()->user()->can('gestor-usuarios-crear')) {
+        if (!request()->user()->can('gestor-usuarios-crear')) {
             abort(403, 'No tienes permisos para crear usuarios.');
         }
 
@@ -118,7 +127,7 @@ class UserController extends Controller
     public function update(UserRequest $request, User $user)
     {
         // Verificar permisos de editar
-        if (!auth()->user()->can('gestor-usuarios-editar')) {
+        if (!request()->user()->can('gestor-usuarios-editar')) {
             abort(403, 'No tienes permisos para editar usuarios.');
         }
 
@@ -155,12 +164,12 @@ class UserController extends Controller
     public function toggleStatus(User $user)
     {
         // Verificar permisos
-        if (!auth()->user()->can('gestor-usuarios-cambiar-estado')) {
+        if (!request()->user()->can('gestor-usuarios-cambiar-estado')) {
             abort(403, 'No tienes permisos para cambiar el estado de usuarios.');
         }
 
         // Prevenir desactivar el propio usuario
-        if ($user->id === auth()->user()->id) {
+        if ($user->id === request()->user()->id) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'No puedes desactivar tu propia cuenta.');
         }

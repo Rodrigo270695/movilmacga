@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
@@ -11,14 +10,12 @@ import {
     Power,
     CheckCircle2,
     XCircle,
-    Search,
-    X,
     Calendar,
     Hash,
     Route
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 interface Circuit {
     id: number;
@@ -60,7 +57,6 @@ interface CircuitsTableProps {
 
 export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, isGlobalView = false }: CircuitsTableProps) {
     const { addToast } = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
     const [confirmToggleCircuit, setConfirmToggleCircuit] = useState<Circuit | null>(null);
 
     // Función para verificar permisos
@@ -68,25 +64,7 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
         return userPermissions.includes(permission);
     };
 
-    // Filtrar circuitos basado en el término de búsqueda (solo en la página actual)
-    const filteredCircuits = useMemo(() => {
-        if (!searchTerm) return circuits.data;
 
-        const search = searchTerm.toLowerCase();
-        return circuits.data.filter(circuit => {
-            // Buscar por nombre
-            const matchesName = circuit.name.toLowerCase().includes(search);
-
-            // Buscar por código
-            const matchesCode = circuit.code.toLowerCase().includes(search);
-
-            // Buscar por estado
-            const status = (circuit.status === false || circuit.status === 0 || circuit.status === null) ? 'inactivo' : 'activo';
-            const matchesStatus = status.includes(search);
-
-            return matchesName || matchesCode || matchesStatus;
-        });
-    }, [circuits.data, searchTerm]);
 
     const handleToggleStatus = (circuit: Circuit) => {
         if (!hasPermission('gestor-circuito-cambiar-estado')) {
@@ -237,36 +215,11 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                                 {isGlobalView ? 'Todos los Circuitos' : `Circuitos de ${zonal?.name || 'N/A'}`}
                             </h3>
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
-                                {searchTerm
-                                    ? `${filteredCircuits.length} de ${circuits.data.length}`
-                                    : `${circuits.total} total`
-                                }
+                                {circuits.total} total
                             </Badge>
                         </div>
 
-                        {/* Buscador - Responsive */}
-                        <div className="flex items-center gap-4">
-                            <div className="relative w-full sm:w-80">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    type="text"
-                                    placeholder="Buscar por nombre, código o estado..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 pr-10 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                                />
-                                {searchTerm && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                                        title="Limpiar búsqueda"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+
                     </div>
                 </div>
 
@@ -299,7 +252,7 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
 
                         {/* Body */}
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredCircuits.map((circuit) => {
+                            {circuits.data.map((circuit) => {
                                 const statusConfig = getStatusConfig(circuit.status);
                                 const actions = CircuitActions({ circuit });
 
@@ -387,7 +340,7 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
 
                 {/* Vista Mobile - Cards */}
                 <div className="sm:hidden divide-y divide-gray-200">
-                    {filteredCircuits.map((circuit) => {
+                    {circuits.data.map((circuit) => {
                         const statusConfig = getStatusConfig(circuit.status);
                         const actions = CircuitActions({ circuit });
 
@@ -467,7 +420,7 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                 </div>
 
                 {/* Estado vacío */}
-                {filteredCircuits.length === 0 && (
+                {circuits.data.length === 0 && (
                     <div className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -475,12 +428,10 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                                    {searchTerm ? 'No se encontraron resultados' : 'No hay circuitos en esta página'}
+                                    No hay circuitos en esta página
                                 </h3>
                                 <p className="text-gray-500 text-sm">
-                                    {searchTerm
-                                        ? 'Intenta con otros términos de búsqueda'
-                                        : isGlobalView
+                                    {isGlobalView
                                             ? 'Crea nuevos circuitos desde el botón superior'
                                             : `Crea circuitos para el zonal ${zonal?.name || 'seleccionado'}`
                                     }

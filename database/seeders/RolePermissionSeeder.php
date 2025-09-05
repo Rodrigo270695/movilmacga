@@ -129,7 +129,12 @@ class RolePermissionSeeder extends Seeder
             'reporte-pdvs-visitados-ver',
             'reporte-pdvs-visitados-exportar',
 
-            // Aplicación Móvil (Supervisores/Vendedores)
+            // NUEVOS PERMISOS PARA REPORTE DE JORNADAS LABORALES
+            'reporte-jornadas-laborales-acceso',
+            'reporte-jornadas-laborales-ver',
+            'reporte-jornadas-laborales-exportar',
+
+            // Aplicación Móvil (Supervisores/Vendedores)e qel 
             'app-movil-acceso',
             'app-movil-gps-tracking',
             'app-movil-pdv-visitas',
@@ -234,6 +239,13 @@ class RolePermissionSeeder extends Seeder
 
         $this->command->info('🎉 ¡Sistema de permisos configurado exitosamente!');
         $this->command->info('📋 Permisos totales creados: ' . Permission::count());
+        $this->command->info('');
+        $this->command->info('🆕 NUEVOS PERMISOS AGREGADOS:');
+        $this->command->info('   • reporte-jornadas-laborales-acceso');
+        $this->command->info('   • reporte-jornadas-laborales-ver');
+        $this->command->info('   • reporte-jornadas-laborales-exportar');
+        $this->command->info('   📊 Para el reporte de jornadas laborales (solo Administrador)');
+        $this->command->info('');
         $this->command->info('👑 Roles creados:');
         $this->command->info('   - Administrador (acceso completo al sistema)');
         $this->command->info('   - Supervisor (acceso web + app móvil)');

@@ -29,6 +29,8 @@ class GlobalRouteController extends Controller
         }
 
         $perPage = $request->get('per_page', 10);
+        $searchFilter = $request->get('search');
+        $businessFilter = $request->get('business_id');
         $zonalFilter = $request->get('zonal_id');
         $circuitFilter = $request->get('circuit_id');
 
@@ -37,12 +39,25 @@ class GlobalRouteController extends Controller
         // Aplicar filtros de scope automáticos (negocio y zonal) ANTES del conteo
         $query = $this->applyFullScope($query, 'circuit.zonal.business', 'circuit.zonal');
 
-        // Agregar conteo de PDVs DESPUÉS del scope
+        // Agregar conteo de PDVs totales DESPUÉS del scope
         $query->withCount('pdvs');
 
-
+        // Aplicar filtro de búsqueda
+        if ($searchFilter) {
+            $query->where(function ($q) use ($searchFilter) {
+                $q->where('name', 'like', "%{$searchFilter}%")
+                  ->orWhere('code', 'like', "%{$searchFilter}%")
+                  ->orWhere('status', 'like', "%{$searchFilter}%");
+            });
+        }
 
         // Aplicar filtros adicionales
+        if ($businessFilter) {
+            $query->whereHas('circuit.zonal', function ($q) use ($businessFilter) {
+                $q->where('business_id', $businessFilter);
+            });
+        }
+
         if ($zonalFilter) {
             $query->byZonal($zonalFilter);
         }
@@ -53,20 +68,63 @@ class GlobalRouteController extends Controller
 
         $routes = $query->orderBy('name')->paginate($perPage);
 
-        // Cargar datos para los filtros (aplicando scope)
-        $zonales = $this->getAvailableZonals();
+        // Agregar conteo de PDVs activos y fechas de esta semana a cada ruta
+        $routes->getCollection()->transform(function ($route) {
+            // Conteo de PDVs activos
+            $route->active_pdvs_count = $route->pdvs()->where('status', 'vende')->count();
 
-        // Filtrar circuitos también aplicando scope
-        $circuitsQuery = Circuit::active()->with('zonal.business')->orderBy('name');
-        $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
-        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+            // Fechas de visita de esta semana
+            $route->thisWeekVisits = $route->visitDates()
+                ->whereBetween('visit_date', [
+                    now()->startOfWeek()->format('Y-m-d'),
+                    now()->endOfWeek()->format('Y-m-d')
+                ])
+                ->where('is_active', true)
+                ->orderBy('visit_date')
+                ->get(['visit_date']);
+
+            return $route;
+        });
+
+        // Cargar datos para los filtros (aplicando scope)
+        $businesses = $this->getAvailableBusinesses()->toArray();
+        $allZonales = $this->getAvailableZonals()->toArray(); // Todos los zonales disponibles para el formulario
+
+        // Filtrar zonales por negocio seleccionado solo para la vista
+        $zonales = $this->getAvailableZonals();
+        if ($businessFilter) {
+            $zonales = $zonales->where('business_id', $businessFilter);
+        }
+        $zonales = $zonales->toArray();
+
+        // Cargar todos los circuitos disponibles (aplicando scope)
+        $allCircuitsQuery = Circuit::active()->with('zonal.business')->orderBy('name');
+        $allCircuitsQuery = $this->applyFullScope($allCircuitsQuery, 'zonal.business', 'zonal');
+        $allCircuits = $allCircuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+
+        // Filtrar circuitos por negocio seleccionado solo para la vista
+        $circuits = $allCircuits;
+        if ($businessFilter) {
+            $circuits = $circuits->filter(function ($circuit) use ($businessFilter) {
+                return $circuit->zonal && $circuit->zonal->business_id == $businessFilter;
+            });
+        }
+
+        // Convertir a array para el frontend
+        $allCircuits = $allCircuits->toArray();
+        $circuits = $circuits->toArray();
 
         return Inertia::render('dcs/routes/global-index', [
             'routes' => $routes,
+            'businesses' => $businesses,
             'zonales' => $zonales,
+            'allZonales' => $allZonales,
+            'allCircuits' => $allCircuits,
             'circuits' => $circuits,
             'businessScope' => $this->getBusinessScope(),
             'filters' => [
+                'search' => $searchFilter,
+                'business_id' => $businessFilter,
                 'zonal_id' => $zonalFilter,
                 'circuit_id' => $circuitFilter,
             ],
@@ -173,6 +231,7 @@ class GlobalRouteController extends Controller
             // Recopilar todos los filtros aplicados
             $filters = [
                 'search' => $request->get('search'),
+                'business_id' => $request->get('business_id'),
                 'zonal_id' => $request->get('zonal_id'),
                 'circuit_id' => $request->get('circuit_id'),
             ];

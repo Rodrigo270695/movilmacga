@@ -37,6 +37,11 @@ interface Zonal {
     name: string;
 }
 
+interface Business {
+    id: number;
+    name: string;
+}
+
 interface Props {
     circuits: {
         data: Circuit[];
@@ -47,7 +52,9 @@ interface Props {
         from: number;
         to: number;
     };
+    businesses: Business[];
     zonales: Zonal[];
+    allZonales: Zonal[];
     businessScope: {
         is_admin: boolean;
         business_id?: number;
@@ -58,6 +65,7 @@ interface Props {
     };
     filters: {
         search?: string;
+        business_id?: string;
         zonal_id?: string;
     };
 }
@@ -71,12 +79,13 @@ interface PageProps {
     };
 }
 
-export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, filters }: Props) {
+export default function GlobalCircuitsIndex({ circuits, businesses, zonales, allZonales, businessScope, filters }: Props) {
     const { addToast } = useToast();
     const { auth } = usePage<PageProps>().props;
     const userPermissions = auth?.user?.permissions || [];
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedBusiness, setSelectedBusiness] = useState(filters.business_id || '');
     const [selectedZonal, setSelectedZonal] = useState(filters.zonal_id || '');
 
     // Debounce para búsqueda automática
@@ -98,6 +107,11 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
         return userPermissions.includes(permission);
     };
 
+    // Filtrar zonales por negocio seleccionado
+    const filteredZonales = selectedBusiness && Array.isArray(allZonales)
+        ? allZonales.filter(zonal => zonal.business_id?.toString() === selectedBusiness)
+        : (Array.isArray(allZonales) ? allZonales : []);
+
     // Búsqueda automática con debounce
     useEffect(() => {
         if (searchDebounce) {
@@ -107,6 +121,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
         const timeout = setTimeout(() => {
             router.get(route('dcs.circuits.index'), {
                 search: searchQuery || undefined,
+                business_id: selectedBusiness || undefined,
                 zonal_id: selectedZonal || undefined
             }, {
                 preserveState: true,
@@ -122,10 +137,39 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
         };
     }, [searchQuery]); // Solo cuando cambie searchQuery
 
+    // Limpiar filtro de zonal cuando cambie el negocio
+    useEffect(() => {
+        if (selectedBusiness && selectedZonal) {
+            // Verificar si el zonal seleccionado pertenece al nuevo negocio
+            const zonalBelongsToBusiness = Array.isArray(allZonales) &&
+                allZonales.some(zonal =>
+                    zonal.id.toString() === selectedZonal &&
+                    zonal.business_id?.toString() === selectedBusiness
+                );
+
+            if (!zonalBelongsToBusiness) {
+                setSelectedZonal('');
+            }
+        }
+    }, [selectedBusiness, allZonales, selectedZonal]);
+
+    const handleBusinessFilter = (businessId: string) => {
+        setSelectedBusiness(businessId);
+        router.get(route('dcs.circuits.index'), {
+            search: searchQuery || undefined,
+            business_id: businessId || undefined,
+            zonal_id: undefined // Reset zonal filter
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
+
     const handleZonalFilter = (zonalId: string) => {
         setSelectedZonal(zonalId);
         router.get(route('dcs.circuits.index'), {
             search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
             zonal_id: zonalId || undefined
         }, {
             preserveState: true,
@@ -135,6 +179,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
 
     const clearFilters = () => {
         setSearchQuery('');
+        setSelectedBusiness('');
         setSelectedZonal('');
         router.get(route('dcs.circuits.index'), {}, {
             preserveState: true,
@@ -176,7 +221,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
 
 
 
-    const hasActiveFilters = selectedZonal || searchQuery;
+    const hasActiveFilters = selectedBusiness || selectedZonal || searchQuery;
 
     return (
         <AppLayout breadcrumbs={breadcrumbItems}>
@@ -221,8 +266,12 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                                                 <span>{circuits.data.filter(c => c.status === true || c.status === 1).length} activos</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                                <span>{Array.isArray(businesses) ? businesses.length : 0} negocios</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                                <span>{zonales.length} zonales</span>
+                                                <span>{Array.isArray(zonales) ? zonales.length : 0} zonales</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
@@ -256,12 +305,12 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                                 <span className="text-sm font-medium text-gray-700">Filtros</span>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Búsqueda */}
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <Input
-                                        placeholder="Buscar por nombre, código o zonal..."
+                                        placeholder="Buscar por nombre, código, zonal o negocio..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="pl-10"
@@ -278,18 +327,41 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                                     )}
                                 </div>
 
+                                {/* Filtro por Negocio */}
+                                <Select
+                                    value={selectedBusiness || "all"}
+                                    onValueChange={(value) => handleBusinessFilter(value === "all" ? "" : value)}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Todos los negocios" />
+                                    </SelectTrigger>
+                                                                            <SelectContent>
+                                            <SelectItem value="all">Todos los negocios</SelectItem>
+                                            {Array.isArray(businesses) && businesses.map((business) => (
+                                                <SelectItem key={business.id} value={business.id.toString()}>
+                                                    {business.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                </Select>
+
                                 {/* Filtro por Zonal */}
                                 <div className="flex gap-2">
                                     <Select
                                         value={selectedZonal || "all"}
                                         onValueChange={(value) => handleZonalFilter(value === "all" ? "" : value)}
+                                        disabled={!selectedBusiness}
                                     >
-                                        <SelectTrigger className="flex-1">
-                                            <SelectValue placeholder="Todos los zonales" />
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue
+                                                placeholder={selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">Todos los zonales</SelectItem>
-                                            {zonales.map((zonal) => (
+                                            <SelectItem value="all">
+                                                {selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                            </SelectItem>
+                                            {Array.isArray(filteredZonales) && filteredZonales.map((zonal) => (
                                                 <SelectItem key={zonal.id} value={zonal.id.toString()}>
                                                     {zonal.name}
                                                 </SelectItem>
@@ -315,9 +387,14 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                             {hasActiveFilters && (
                                 <div className="flex items-center gap-2 pt-2 border-t">
                                     <span className="text-xs text-gray-500">Filtros activos:</span>
+                                    {selectedBusiness && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Negocio: {Array.isArray(businesses) ? businesses.find(b => b.id.toString() === selectedBusiness)?.name : ''}
+                                        </Badge>
+                                    )}
                                     {selectedZonal && (
                                         <Badge variant="outline" className="text-xs">
-                                            Zonal: {zonales.find(z => z.id.toString() === selectedZonal)?.name}
+                                            Zonal: {Array.isArray(allZonales) ? allZonales.find(z => z.id.toString() === selectedZonal)?.name : ''}
                                         </Badge>
                                     )}
                                     {searchQuery && (
@@ -345,7 +422,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                         isOpen={isFormModalOpen}
                         onClose={closeFormModal}
                         circuit={editingCircuit}
-                        zonales={zonales}
+                        zonales={allZonales}
                         isGlobalView={true}
                     />
 
@@ -355,7 +432,7 @@ export default function GlobalCircuitsIndex({ circuits, zonales, businessScope, 
                             isOpen={true}
                             onClose={closeToggleModal}
                             circuit={toggleModalData.circuit}
-                            zonal={zonales.find(z => z.id === toggleModalData.circuit.zonal_id) || zonales[0]}
+                            zonal={Array.isArray(allZonales) ? allZonales.find(z => z.id === toggleModalData.circuit.zonal_id) || allZonales[0] : null}
                             isGlobalView={true}
                         />
                     )}

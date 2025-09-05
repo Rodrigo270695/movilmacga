@@ -189,10 +189,8 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                         <p class="text-xs text-gray-500">${pdv.address}</p>
                         ${pdv.locality ? `<p class="text-xs text-gray-400">${pdv.locality}</p>` : ''}
                         <div class="mt-2">
-                            <span class="inline-block px-2 py-1 text-xs rounded ${
-                                pdv.status === 'vende' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }">
-                                ${pdv.status === 'vende' ? 'Activo' : 'Inactivo'}
+                            <span class="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                                Activo (Vende)
                             </span>
                         </div>
                         <div class="mt-1 text-xs text-blue-600 font-medium">
@@ -320,7 +318,7 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                                     Mapa de Ruta: {route?.name}
                                 </DialogTitle>
                                 <DialogDescription className="text-xs lg:text-sm text-gray-600 truncate">
-                                    {route?.circuit?.name} • {route?.code}
+                                    {route?.circuit?.name} • {route?.code} • Solo PDVs activos
                                 </DialogDescription>
                             </div>
                         </div>
@@ -341,15 +339,15 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span>{pdvs.length} PDVs</span>
+                                <span>{pdvs.length} PDVs activos</span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
-                                <span>{pdvs.filter(p => p.status === 'vende').length} activos</span>
+                                <span>Estado: Vende</span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></div>
-                                <span>{pdvs.filter(p => p.status !== 'vende').length} inactivos</span>
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
+                                <span>Mostrando solo PDVs activos</span>
                             </div>
                         </div>
 
@@ -399,8 +397,8 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                                 <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
                                     <div className="text-center">
                                         <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                        <p className="text-sm text-gray-600">No hay PDVs con coordenadas válidas</p>
-                                        <p className="text-xs text-gray-500 mt-1">Los PDVs necesitan latitud y longitud para mostrarse en el mapa</p>
+                                        <p className="text-sm text-gray-600">No hay PDVs activos con coordenadas válidas</p>
+                                        <p className="text-xs text-gray-500 mt-1">Los PDVs activos necesitan latitud y longitud para mostrarse en el mapa</p>
                                     </div>
                                 </div>
                             ) : (
@@ -416,7 +414,7 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                         <div className="w-full lg:w-80 bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 flex flex-col min-h-[180px] sm:min-h-[220px] lg:min-h-[300px] mt-1">
                             <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 flex-shrink-0 text-sm sm:text-base">
                                 <Navigation className="w-3 h-3 sm:w-4 sm:h-4" />
-                                PDVs de la Ruta
+                                PDVs Activos de la Ruta
                             </h3>
 
                             <div className="flex-1 overflow-y-auto min-h-0">
@@ -433,7 +431,8 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                             ) : pdvs.length === 0 ? (
                                 <div className="text-center py-6 sm:py-8">
                                     <Info className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
-                                    <p className="text-xs sm:text-sm text-gray-600">No hay PDVs en esta ruta</p>
+                                    <p className="text-xs sm:text-sm text-gray-600">No hay PDVs activos en esta ruta</p>
+                                    <p className="text-xs text-gray-500 mt-1">Solo se muestran PDVs con estado "vende"</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2 sm:space-y-3">
@@ -469,8 +468,8 @@ export function RouteMapModal({ isOpen, onClose, route }: RouteMapModalProps) {
                                                         </p>
                                                     )}
                                                 </div>
-                                                <Badge className={`ml-1 sm:ml-2 flex-shrink-0 text-xs ${getStatusColor(pdv.status)}`}>
-                                                    {pdv.status === 'vende' ? 'Activo' : 'Inactivo'}
+                                                <Badge className="ml-1 sm:ml-2 flex-shrink-0 text-xs bg-green-100 text-green-800 border-green-200">
+                                                    Activo
                                                 </Badge>
                                             </div>
                                         </Card>

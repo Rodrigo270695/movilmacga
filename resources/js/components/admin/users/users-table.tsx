@@ -56,6 +56,7 @@ interface UsersTableProps {
     users: PaginatedUsers;
     onEdit: (user: User) => void;
     userPermissions: string[];
+    currentUserRoles?: string[];
     filters?: {
         search?: string;
         role?: string;
@@ -64,7 +65,7 @@ interface UsersTableProps {
     };
 }
 
-export function UsersTable({ users, onEdit, userPermissions, filters = {} }: UsersTableProps) {
+export function UsersTable({ users, onEdit, userPermissions, currentUserRoles = [], filters = {} }: UsersTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedRole, setSelectedRole] = useState(filters.role || '');
@@ -74,6 +75,14 @@ export function UsersTable({ users, onEdit, userPermissions, filters = {} }: Use
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
         return userPermissions.includes(permission);
+    };
+
+    // Función para verificar si el usuario es supervisor
+    const isSupervisor = (): boolean => {
+        return currentUserRoles.some(userRole => {
+            const roleName = typeof userRole === 'string' ? userRole : userRole?.name || '';
+            return roleName.toLowerCase() === 'supervisor';
+        });
     };
 
     // Función para aplicar filtros al servidor
@@ -233,6 +242,18 @@ export function UsersTable({ users, onEdit, userPermissions, filters = {} }: Use
     return (
         <>
             <Card className="bg-white border border-gray-200 shadow-sm">
+                {/* Mensaje informativo para supervisores */}
+                {isSupervisor() && (
+                    <div className="bg-blue-50 border-b border-blue-200 px-4 sm:px-6 py-3">
+                        <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-blue-600" />
+                            <p className="text-sm text-blue-800">
+                                <span className="font-medium">Información:</span> Como supervisor, solo puedes ver y gestionar usuarios con rol de "Vendedor".
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header de la tabla - Responsive */}
                 <div className="border-b border-gray-200 bg-gray-50/50 px-4 sm:px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">

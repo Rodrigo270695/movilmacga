@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmToggleModal } from './confirm-toggle-modal';
@@ -11,15 +10,13 @@ import {
     Power,
     CheckCircle2,
     XCircle,
-    Search,
-    X,
     Calendar,
     Hash,
     MapPin,
     Map
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 interface RouteModel {
     id: number;
@@ -28,7 +25,11 @@ interface RouteModel {
     status?: boolean | number;
     circuit_id: number;
     created_at: string;
-    pdvs_count?: number; // Agregar conteo de PDVs
+    pdvs_count?: number; // Conteo total de PDVs
+    active_pdvs_count?: number; // Conteo de PDVs activos (vende)
+    thisWeekVisits?: Array<{
+        visit_date: string;
+    }>; // Fechas de visita de esta semana
     circuit?: {
         id: number;
         name: string;
@@ -73,11 +74,15 @@ interface RoutesTableProps {
 
 export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, onViewMap, isGlobalView = false }: RoutesTableProps) {
     const { addToast } = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
     const [confirmToggleRoute, setConfirmToggleRoute] = useState<RouteModel | null>(null);
 
-    // Función para navegar a PDVs con filtro de ruta
+    // Función para navegar a PDVs con filtro de ruta y estado "vende"
     const handleViewPdvs = (route: RouteModel) => {
+        router.visit(`/dcs/pdvs?route_id=${route.id}&status=vende`);
+    };
+
+    // Función para navegar a todos los PDVs de la ruta (sin filtro de estado)
+    const handleViewAllPdvs = (route: RouteModel) => {
         router.visit(`/dcs/pdvs?route_id=${route.id}`);
     };
 
@@ -87,20 +92,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
         return true;
     };
 
-    // Filtrar rutas basado en el término de búsqueda
-    const filteredRoutes = useMemo(() => {
-        if (!searchTerm) return routes.data;
 
-        return routes.data.filter((route) => {
-            const search = searchTerm.toLowerCase();
-            const matchesName = route.name.toLowerCase().includes(search);
-            const matchesCode = route.code.toLowerCase().includes(search);
-            const status = route.status === true || route.status === 1 ? 'activo' : 'inactivo';
-            const matchesStatus = status.includes(search);
-
-            return matchesName || matchesCode || matchesStatus;
-        });
-    }, [routes.data, searchTerm]);
 
     const handleToggleStatus = (route: RouteModel) => {
         if (!hasPermission('gestor-ruta-cambiar-estado')) {
@@ -192,6 +184,11 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
         });
     };
 
+    const formatWeekDay = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', { weekday: 'short' }).substring(0, 3);
+    };
+
     // Componente para las acciones de cada ruta
     const RouteActions = ({ route }: { route: RouteModel }) => {
         const actions = [];
@@ -271,24 +268,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                             </span>
                         </div>
 
-                        {/* Búsqueda */}
-                        <div className="relative w-64">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Buscar por nombre, código o estado..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-8"
-                            />
-                            {searchTerm && (
-                                <button
-                                    onClick={() => setSearchTerm('')}
-                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
+
                     </div>
                 </div>
 
@@ -307,16 +287,13 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     </th>
                                 )}
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Código
-                                </th>
-                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estado
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     PDVs
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Fecha de Creación
+                                    Esta Semana
                                 </th>
                                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Acciones
@@ -326,7 +303,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
 
                         {/* Body */}
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredRoutes.map((route) => {
+                            {routes.data.map((route) => {
                                 const statusConfig = getStatusConfig(route.status);
                                 const actions = RouteActions({ route });
 
@@ -341,6 +318,9 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                                 <div>
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {route.name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 font-mono">
+                                                        {route.code}
                                                     </div>
                                                 </div>
                                             </div>
@@ -360,15 +340,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             </td>
                                         )}
 
-                                        {/* Código */}
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <Hash className="w-3 h-3 text-gray-400" />
-                                                <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                                                    {route.code}
-                                                </span>
-                                            </div>
-                                        </td>
+
 
                                         {/* Estado */}
                                         <td className="px-6 py-4 text-center">
@@ -378,26 +350,43 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             </Badge>
                                         </td>
 
-                                        {/* PDVs */}
+                                                                                {/* PDVs */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
+                                                {/* Botón único de PDVs con indicadores visuales */}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => handleViewPdvs(route)}
-                                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
-                                                    title={`Ver ${route.pdvs_count || 0} PDVs de esta ruta`}
+                                                    onClick={() => handleViewAllPdvs(route)}
+                                                    className="flex items-center gap-2 px-3 py-1 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+                                                    title={`Ver todos los PDVs de la ruta (${route.active_pdvs_count || 0} activos, ${(route.pdvs_count || 0) - (route.active_pdvs_count || 0)} inactivos)`}
                                                 >
-                                                    <MapPin className="w-3 h-3" />
-                                                    <span className="font-medium">{route.pdvs_count || 0}</span>
+                                                    <MapPin className="w-3 h-3 text-blue-500" />
+
+                                                    {/* PDVs Activos (Verde) */}
+                                                    {(route.active_pdvs_count || 0) > 0 && (
+                                                        <span className="text-green-600 font-medium">{route.active_pdvs_count || 0}</span>
+                                                    )}
+
+                                                    {/* Separador */}
+                                                    {((route.pdvs_count || 0) - (route.active_pdvs_count || 0)) > 0 && (route.active_pdvs_count || 0) > 0 && (
+                                                        <span className="text-gray-400">/</span>
+                                                    )}
+
+                                                    {/* PDVs Inactivos (Rojo) */}
+                                                    {((route.pdvs_count || 0) - (route.active_pdvs_count || 0)) > 0 && (
+                                                        <span className="text-red-600 font-medium">{(route.pdvs_count || 0) - (route.active_pdvs_count || 0)}</span>
+                                                    )}
                                                 </Button>
+
+                                                {/* Botón del Mapa */}
                                                 {onViewMap && (
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => onViewMap(route)}
                                                         className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 cursor-pointer"
-                                                        title="Ver mapa de PDVs"
+                                                        title="Ver mapa de PDVs activos"
                                                     >
                                                         <Map className="w-3 h-3" />
                                                     </Button>
@@ -405,13 +394,30 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             </div>
                                         </td>
 
-                                        {/* Fecha de creación */}
+                                        {/* Fechas de esta semana */}
                                         <td className="px-6 py-4 text-center">
-                                            <div className="flex items-center justify-center gap-1 text-sm text-gray-900">
-                                                <Calendar className="w-3 h-3 text-gray-400" />
-                                                {formatDate(route.created_at)}
+                                            <div className="flex flex-col items-center gap-1">
+                                                {route.thisWeekVisits && route.thisWeekVisits.length > 0 ? (
+                                                    <>
+                                                        <div className="text-xs text-gray-700 font-medium">
+                                                            {route.thisWeekVisits.slice(0, 3).map(visit =>
+                                                                formatWeekDay(visit.visit_date)
+                                                            ).join(', ')}
+                                                            {route.thisWeekVisits.length > 3 && (
+                                                                <span className="text-gray-500"> +{route.thisWeekVisits.length - 3}</span>
+                                                            )}
+                                                        </div>
+                                                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                                            {route.thisWeekVisits.length} visitas
+                                                        </Badge>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">-</span>
+                                                )}
                                             </div>
                                         </td>
+
+
 
                                         {/* Acciones */}
                                         <td className="px-6 py-4 text-right">
@@ -428,7 +434,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
 
                 {/* Vista Mobile - Cards */}
                 <div className="sm:hidden space-y-4 p-4">
-                    {filteredRoutes.map((route) => {
+                    {routes.data.map((route) => {
                         const statusConfig = getStatusConfig(route.status);
                         const actions = RouteActions({ route });
 
@@ -443,6 +449,9 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             <h4 className="text-sm font-medium text-gray-900 truncate">
                                                 {route.name}
                                             </h4>
+                                            <p className="text-xs text-gray-500 font-mono">
+                                                {route.code}
+                                            </p>
                                             {isGlobalView && route.circuit && (
                                                 <p className="text-xs text-gray-500">
                                                     Circuito: {route.circuit.name}
@@ -458,33 +467,65 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     </Badge>
                                 </div>
 
-                                {/* Código */}
-                                <div className="flex items-center gap-1 text-xs">
-                                    <Hash className="w-3 h-3 text-gray-400" />
-                                    <span className="text-gray-500">Código:</span>
-                                    <span className="font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
-                                        {route.code}
-                                    </span>
-                                </div>
 
-                                {/* PDVs */}
+
+                                                                {/* PDVs */}
                                 <div className="flex items-center gap-1 text-xs">
                                     <MapPin className="w-3 h-3 text-blue-500" />
                                     <span className="text-gray-500">PDVs:</span>
+
+                                    {/* Botón único de PDVs con indicadores visuales */}
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleViewPdvs(route)}
-                                        className="h-6 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                        onClick={() => handleViewAllPdvs(route)}
+                                        className="h-6 px-2 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+                                        title={`Ver todos los PDVs de la ruta (${route.active_pdvs_count || 0} activos, ${(route.pdvs_count || 0) - (route.active_pdvs_count || 0)} inactivos)`}
                                     >
-                                        <span className="font-medium">{route.pdvs_count || 0}</span>
+                                        {/* PDVs Activos (Verde) */}
+                                        {(route.active_pdvs_count || 0) > 0 && (
+                                            <span className="text-green-600 font-medium">{route.active_pdvs_count || 0}</span>
+                                        )}
+
+                                        {/* Separador */}
+                                        {((route.pdvs_count || 0) - (route.active_pdvs_count || 0)) > 0 && (route.active_pdvs_count || 0) > 0 && (
+                                            <span className="text-gray-400 mx-1">/</span>
+                                        )}
+
+                                        {/* PDVs Inactivos (Rojo) */}
+                                        {((route.pdvs_count || 0) - (route.active_pdvs_count || 0)) > 0 && (
+                                            <span className="text-red-600 font-medium">{(route.pdvs_count || 0) - (route.active_pdvs_count || 0)}</span>
+                                        )}
                                     </Button>
+                                </div>
+
+                                {/* Fechas de esta semana */}
+                                <div className="flex items-center gap-1 text-xs">
+                                    <Calendar className="w-3 h-3 text-purple-500" />
+                                    <span className="text-gray-500">Esta semana:</span>
+                                    {route.thisWeekVisits && route.thisWeekVisits.length > 0 ? (
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-gray-700 font-medium">
+                                                {route.thisWeekVisits.slice(0, 2).map(visit =>
+                                                    formatWeekDay(visit.visit_date)
+                                                ).join(', ')}
+                                                {route.thisWeekVisits.length > 2 && (
+                                                    <span className="text-gray-500"> +{route.thisWeekVisits.length - 2}</span>
+                                                )}
+                                            </span>
+                                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                                {route.thisWeekVisits.length}
+                                            </Badge>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">Sin visitas</span>
+                                    )}
                                     {onViewMap && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => onViewMap(route)}
-                                            className="h-6 px-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 cursor-pointer"
+                                            className="h-6 px-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 cursor-pointer ml-2"
                                             title="Ver mapa"
                                         >
                                             <Map className="w-3 h-3" />
@@ -492,11 +533,7 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     )}
                                 </div>
 
-                                {/* Fecha de registro */}
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                    <Calendar className="w-3 h-3" />
-                                    Creado: {formatDate(route.created_at)}
-                                </div>
+
 
                                 {/* Acciones */}
                                 {actions.length > 0 && (
@@ -510,17 +547,14 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                 </div>
 
                 {/* Mensaje cuando no hay rutas */}
-                {filteredRoutes.length === 0 && (
+                {routes.data.length === 0 && (
                     <div className="text-center py-12">
                         <Route className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            {searchTerm ? 'No se encontraron rutas' : 'No hay rutas'}
+                            No hay rutas
                         </h3>
                         <p className="text-gray-500">
-                            {searchTerm
-                                ? `No se encontraron rutas que coincidan con "${searchTerm}"`
-                                : 'Comienza creando tu primera ruta para este circuito.'
-                            }
+                            Comienza creando tu primera ruta para este circuito.
                         </p>
                     </div>
                 )}

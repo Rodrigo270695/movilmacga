@@ -50,6 +50,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
                   ->orWhere('client_name', 'like', "%{$searchFilter}%")
                   ->orWhere('document_number', 'like', "%{$searchFilter}%")
                   ->orWhere('pos_id', 'like', "%{$searchFilter}%")
+                  ->orWhere('status', 'like', "%{$searchFilter}%")
+                  ->orWhere('classification', 'like', "%{$searchFilter}%")
                   ->orWhere('locality', 'like', "%{$searchFilter}%")
                   ->orWhereHas('route', function ($routeQuery) use ($searchFilter) {
                       $routeQuery->where('name', 'like', "%{$searchFilter}%")
@@ -58,63 +60,27 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             });
         }
 
-        // Filtros básicos
-        if (!empty($this->filters['route_id'])) {
-            $query->byRoute($this->filters['route_id']);
-        }
-
-        if (!empty($this->filters['status'])) {
-            $query->byStatus($this->filters['status']);
-        }
-
-        if (!empty($this->filters['classification'])) {
-            $query->byClassification($this->filters['classification']);
-        }
-
-        if (!empty($this->filters['district_id'])) {
-            $query->byDistrict($this->filters['district_id']);
-        }
-
-        if (!empty($this->filters['locality'])) {
-            $query->byLocalityText($this->filters['locality']);
-        }
-
-        // Filtros avanzados
-        if (!empty($this->filters['document_type'])) {
-            $query->where('document_type', $this->filters['document_type']);
-        }
-
-        if (!empty($this->filters['sells_recharge'])) {
-            $sellsRecharge = $this->filters['sells_recharge'] === 'true';
-            $query->bySellsRecharge($sellsRecharge);
-        }
-
-        if (!empty($this->filters['circuit_id'])) {
-            $query->whereHas('route', function ($routeQuery) {
-                $routeQuery->where('circuit_id', $this->filters['circuit_id']);
+        // Filtros jerárquicos
+        if (!empty($this->filters['business_id'])) {
+            $query->whereHas('route.circuit.zonal', function ($q) {
+                $q->where('business_id', $this->filters['business_id']);
             });
         }
 
         if (!empty($this->filters['zonal_id'])) {
-            $query->whereHas('route.circuit', function ($circuitQuery) {
-                $circuitQuery->where('zonal_id', $this->filters['zonal_id']);
+            $query->whereHas('route.circuit', function ($q) {
+                $q->where('zonal_id', $this->filters['zonal_id']);
             });
         }
 
-        if (!empty($this->filters['document_number'])) {
-            $query->where('document_number', 'like', "%{$this->filters['document_number']}%");
+        if (!empty($this->filters['circuit_id'])) {
+            $query->whereHas('route', function ($q) {
+                $q->where('circuit_id', $this->filters['circuit_id']);
+            });
         }
 
-        if (!empty($this->filters['client_name'])) {
-            $query->where('client_name', 'like', "%{$this->filters['client_name']}%");
-        }
-
-        if (!empty($this->filters['point_name'])) {
-            $query->where('point_name', 'like', "%{$this->filters['point_name']}%");
-        }
-
-        if (!empty($this->filters['pos_id'])) {
-            $query->where('pos_id', 'like', "%{$this->filters['pos_id']}%");
+        if (!empty($this->filters['route_id'])) {
+            $query->where('route_id', $this->filters['route_id']);
         }
 
         return $query->orderBy('point_name');

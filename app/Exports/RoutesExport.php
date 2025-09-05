@@ -42,21 +42,23 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             $query->where(function ($q) use ($searchFilter) {
                 $q->where('name', 'like', "%{$searchFilter}%")
                   ->orWhere('code', 'like', "%{$searchFilter}%")
-                  ->orWhereHas('circuit', function ($circuitQuery) use ($searchFilter) {
-                      $circuitQuery->where('name', 'like', "%{$searchFilter}%")
-                                   ->orWhere('code', 'like', "%{$searchFilter}%");
-                  });
+                  ->orWhere('status', 'like', "%{$searchFilter}%");
             });
         }
 
-        // Filtros por zonal
+        // Filtros jerárquicos
+        if (!empty($this->filters['business_id'])) {
+            $query->whereHas('circuit.zonal', function ($q) {
+                $q->where('business_id', $this->filters['business_id']);
+            });
+        }
+
         if (!empty($this->filters['zonal_id'])) {
-            $query->whereHas('circuit', function ($circuitQuery) {
-                $circuitQuery->where('zonal_id', $this->filters['zonal_id']);
+            $query->whereHas('circuit', function ($q) {
+                $q->where('zonal_id', $this->filters['zonal_id']);
             });
         }
 
-        // Filtros por circuito
         if (!empty($this->filters['circuit_id'])) {
             $query->where('circuit_id', $this->filters['circuit_id']);
         }

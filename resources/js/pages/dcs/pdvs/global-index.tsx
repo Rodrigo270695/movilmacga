@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { Pagination } from '@/components/ui/pagination';
-import { AdvancedFilters } from '@/components/ui/advanced-filters';
 import AppLayout from '@/layouts/app-layout';
 import { PdvsTable } from '@/components/dcs/pdvs/pdvs-table';
 import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
-import { Plus, Download } from 'lucide-react';
+import { Plus, Download, Search, X, Filter } from 'lucide-react';
 
 interface PdvModel {
     id: number;
@@ -79,6 +82,11 @@ interface Departamento {
     pais_id: number;
 }
 
+interface Business {
+    id: number;
+    name: string;
+}
+
 interface Zonal {
     id: number;
     name: string;
@@ -99,25 +107,22 @@ interface Props {
         from: number;
         to: number;
     };
-    zonales: Zonal[]; // NUEVO
+    businesses: Business[];
+    zonales: Zonal[];
+    allZonales: Zonal[];
+    allCircuits: Circuit[];
     circuits: Circuit[];
+    allRoutes: Route[];
     routes: Route[];
     departamentos: Departamento[];
-    // REMOVIDO: provincias, distritos, localities (se cargan dinámicamente)
     filters: {
+        search?: string;
+        business_id?: string;
+        zonal_id?: string;
+        circuit_id?: string;
         route_id?: string;
         status?: string;
         classification?: string;
-        document_type?: string;
-        sells_recharge?: string;
-        circuit_id?: string;
-        zonal_id?: string;
-        district_id?: string;
-        locality?: string;
-        document_number?: string;
-        client_name?: string;
-        point_name?: string;
-        pos_id?: string;
     };
     flash?: {
         success?: string;
@@ -125,30 +130,20 @@ interface Props {
     };
 }
 
-export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, departamentos, filters, flash }: Props) {
+export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales, allCircuits, circuits, allRoutes, routes, departamentos, filters, flash }: Props) {
     const { addToast } = useToast();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { auth } = usePage().props as any;
 
     const userPermissions = auth?.user?.permissions || [];
 
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [selectedBusiness, setSelectedBusiness] = useState(filters.business_id || '');
+    const [selectedZonal, setSelectedZonal] = useState(filters.zonal_id || '');
+    const [selectedCircuit, setSelectedCircuit] = useState(filters.circuit_id || '');
     const [selectedRoute, setSelectedRoute] = useState(filters.route_id || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedClassification, setSelectedClassification] = useState(filters.classification || '');
-
-    // Estados para filtros avanzados
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    const [selectedDocumentType, setSelectedDocumentType] = useState(filters.document_type || '');
-    const [sellsRecharge, setSellsRecharge] = useState(filters.sells_recharge || '');
-    const [selectedZonal, setSelectedZonal] = useState(filters.zonal_id || '');
-    const [selectedCircuit, setSelectedCircuit] = useState(filters.circuit_id || '');
-    const [selectedDistrict, setSelectedDistrict] = useState(filters.district_id || '');
-    const [localityText, setLocalityText] = useState(filters.locality || '');
-    const [documentNumber, setDocumentNumber] = useState(filters.document_number || '');
-    const [clientName, setClientName] = useState(filters.client_name || '');
-    const [pointName, setPointName] = useState(filters.point_name || '');
-    const [posId, setPosId] = useState(filters.pos_id || '');
 
     // Debounce para búsqueda automática
     const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
@@ -180,7 +175,7 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         { value: 'no vende', label: 'No Vende' },
         { value: 'no existe', label: 'No Existe' },
         { value: 'pdv autoactivado', label: 'PDV Autoactivado' },
-        { value: 'pdv impulsador', label: 'PDV Impulsador' }
+        { value: 'pdv impulsador', label: 'PDV Impulsador' },
     ], []);
 
     // Opciones de clasificación (memoizadas para evitar re-renders)
@@ -190,20 +185,28 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         { value: 'bodega', label: 'Bodega' },
         { value: 'otras tiendas', label: 'Otras Tiendas' },
         { value: 'desconocida', label: 'Desconocida' },
-        { value: 'pusher', label: 'Pusher' }
+        { value: 'pusher', label: 'Pusher' },
+        { value: 'minimarket', label: 'Minimarket' },
+        { value: 'botica', label: 'Bótica' },
+        { value: 'farmacia', label: 'Farmacia' },
+        { value: 'tambo', label: 'Tambo' },
+        { value: 'cencosud', label: 'Cencosud' }
     ], []);
 
-    // NUEVO: Filtrar circuitos según el zonal seleccionado
-    const filteredCircuits = useMemo(() => {
-        if (!selectedZonal) return circuits;
-        return circuits.filter(circuit => circuit.zonal_id.toString() === selectedZonal);
-    }, [circuits, selectedZonal]);
+    // Filtrar zonales por negocio seleccionado
+    const filteredZonales = selectedBusiness && Array.isArray(allZonales)
+        ? allZonales.filter(zonal => zonal.business_id?.toString() === selectedBusiness)
+        : (Array.isArray(allZonales) ? allZonales : []);
 
-    // NUEVO: Filtrar rutas según el circuito seleccionado
-    const filteredRoutes = useMemo(() => {
-        if (!selectedCircuit) return routes;
-        return routes.filter(route => route.circuit_id.toString() === selectedCircuit);
-    }, [routes, selectedCircuit]);
+    // Filtrar circuitos por zonal seleccionado
+    const filteredCircuits = selectedZonal && Array.isArray(allCircuits)
+        ? allCircuits.filter(circuit => circuit.zonal_id?.toString() === selectedZonal)
+        : (Array.isArray(allCircuits) ? allCircuits : []);
+
+    // Filtrar rutas por circuito seleccionado
+    const filteredRoutes = selectedCircuit && Array.isArray(allRoutes)
+        ? allRoutes.filter(route => route.circuit_id?.toString() === selectedCircuit)
+        : (Array.isArray(allRoutes) ? allRoutes : []);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
@@ -231,17 +234,18 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         }
     }, [flash?.success, flash?.error, addToast]);
 
-    // Búsqueda automática con debounce - SOLO para searchQuery
+    // Búsqueda automática con debounce
     useEffect(() => {
         if (searchDebounce) {
             clearTimeout(searchDebounce);
         }
 
         const timeout = setTimeout(() => {
-            // Solo ejecutar si realmente hay una búsqueda
-            if (searchQuery.trim()) {
             router.get(route('dcs.pdvs.index'), {
                 search: searchQuery || undefined,
+                business_id: selectedBusiness || undefined,
+                zonal_id: selectedZonal || undefined,
+                circuit_id: selectedCircuit || undefined,
                 route_id: selectedRoute || undefined,
                 status: selectedStatus || undefined,
                 classification: selectedClassification || undefined
@@ -250,7 +254,6 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                 preserveScroll: true,
                 replace: true
             });
-            }
         }, 500); // 500ms de delay
 
         setSearchDebounce(timeout);
@@ -258,8 +261,56 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         return () => {
             if (timeout) clearTimeout(timeout);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery]); // Solo cuando cambie searchQuery
+    }, [searchQuery, selectedBusiness, selectedZonal, selectedCircuit, selectedRoute, selectedStatus, selectedClassification]);
+
+    // Limpiar filtros cuando cambie el negocio
+    useEffect(() => {
+        if (selectedBusiness && selectedZonal) {
+            // Verificar si el zonal seleccionado pertenece al nuevo negocio
+            const zonalBelongsToBusiness = Array.isArray(allZonales) &&
+                allZonales.some(zonal =>
+                    zonal.id.toString() === selectedZonal &&
+                    zonal.business_id?.toString() === selectedBusiness
+                );
+
+            if (!zonalBelongsToBusiness) {
+                setSelectedZonal('');
+                setSelectedCircuit('');
+                setSelectedRoute('');
+            }
+        }
+    }, [selectedBusiness, allZonales, selectedZonal]);
+
+    // Limpiar filtro de circuito cuando cambie el zonal
+    useEffect(() => {
+        if (selectedZonal && selectedCircuit && Array.isArray(allCircuits)) {
+            // Verificar si el circuito seleccionado pertenece al nuevo zonal
+            const circuitBelongsToZonal = allCircuits.some(circuit =>
+                circuit.id.toString() === selectedCircuit &&
+                circuit.zonal_id.toString() === selectedZonal
+            );
+
+            if (!circuitBelongsToZonal) {
+                setSelectedCircuit('');
+                setSelectedRoute('');
+            }
+        }
+    }, [selectedZonal, allCircuits, selectedCircuit]);
+
+    // Limpiar filtro de ruta cuando cambie el circuito
+    useEffect(() => {
+        if (selectedCircuit && selectedRoute && Array.isArray(allRoutes)) {
+            // Verificar si la ruta seleccionada pertenece al nuevo circuito
+            const routeBelongsToCircuit = allRoutes.some(route =>
+                route.id.toString() === selectedRoute &&
+                route.circuit_id.toString() === selectedCircuit
+            );
+
+            if (!routeBelongsToCircuit) {
+                setSelectedRoute('');
+            }
+        }
+    }, [selectedCircuit, allRoutes, selectedRoute]);
 
     // Limpieza del debounce al desmontar el componente
     useEffect(() => {
@@ -268,144 +319,125 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                 clearTimeout(searchDebounce);
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);
-
-        // Si se vacía la búsqueda, aplicar filtros inmediatamente
-        if (!query.trim()) {
-            if (searchDebounce) {
-                clearTimeout(searchDebounce);
-                setSearchDebounce(null);
-            }
-            // Para búsqueda vacía, usar setTimeout para evitar problemas de estado
-            setTimeout(() => {
-                applyFilters();
-            }, 0);
-        }
     };
 
-    // Función helper para aplicar filtros - MEJORADA
-    const applyFilters = (overrides = {}) => {
-        const params: Record<string, string> = {};
+    const handleBusinessFilter = (businessId: string) => {
+        setSelectedBusiness(businessId);
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: businessId || undefined,
+            zonal_id: undefined, // Reset zonal filter
+            circuit_id: undefined, // Reset circuit filter
+            route_id: undefined // Reset route filter
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
 
-        // Filtros básicos
-        if (searchQuery?.trim()) params.search = searchQuery;
-        if (selectedRoute?.trim()) params.route_id = selectedRoute;
-        if (selectedStatus?.trim()) params.status = selectedStatus;
-        if (selectedClassification?.trim()) params.classification = selectedClassification;
+    const handleZonalFilter = (zonalId: string) => {
+        setSelectedZonal(zonalId);
+        // Limpiar el filtro de circuito y ruta si se cambia el zonal
+        if (zonalId !== selectedZonal) {
+            setSelectedCircuit('');
+            setSelectedRoute('');
+        }
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: zonalId || undefined,
+            circuit_id: undefined, // Reset circuit filter
+            route_id: undefined // Reset route filter
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
 
-        // Filtros avanzados
-        if (selectedDocumentType?.trim()) params.document_type = selectedDocumentType;
-        if (sellsRecharge?.trim()) params.sells_recharge = sellsRecharge;
-        if (selectedZonal?.trim()) params.zonal_id = selectedZonal;
-        if (selectedCircuit?.trim()) params.circuit_id = selectedCircuit;
-        if (selectedDistrict?.trim()) params.district_id = selectedDistrict;
-        if (localityText?.trim()) params.locality = localityText;
-        if (documentNumber?.trim()) params.document_number = documentNumber;
-        if (clientName?.trim()) params.client_name = clientName;
-        if (pointName?.trim()) params.point_name = pointName;
-        if (posId?.trim()) params.pos_id = posId;
+    const handleCircuitFilter = (circuitId: string) => {
+        setSelectedCircuit(circuitId);
+        // Limpiar el filtro de ruta si se cambia el circuito
+        if (circuitId !== selectedCircuit) {
+            setSelectedRoute('');
+        }
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: circuitId || undefined,
+            route_id: undefined // Reset route filter
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
 
-        // Aplicar overrides (como page, per_page)
-        Object.assign(params, overrides);
+    const handleRouteFilter = (routeId: string) => {
+        setSelectedRoute(routeId);
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: selectedCircuit || undefined,
+            route_id: routeId || undefined
+        }, {
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
 
-        router.get(route('dcs.pdvs.index'), params, {
+    // Función para cambiar de página
+    const handlePageChange = (page: number) => {
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: selectedCircuit || undefined,
+            route_id: selectedRoute || undefined,
+            status: selectedStatus || undefined,
+            classification: selectedClassification || undefined,
+            page: page.toString()
+        }, {
             preserveState: true,
             preserveScroll: true,
             replace: true
         });
     };
 
-    // Función para cambiar de página
-    const handlePageChange = (page: number) => {
-        applyFilters({ page: page.toString() });
-    };
-
     // Función para cambiar elementos por página
     const handlePerPageChange = (perPage: number) => {
-        applyFilters({ per_page: perPage.toString(), page: '1' });
-    };
-
-    const handleRouteFilter = (routeId: string) => {
-        const newRouteId = routeId === "all" ? "" : routeId;
-        setSelectedRoute(newRouteId);
-        setTimeout(() => applyFilters(), 0);
-    };
-
-    const handleStatusFilter = (status: string) => {
-        const newStatus = status === "all" ? "" : status;
-        setSelectedStatus(newStatus);
-        setTimeout(() => applyFilters(), 0);
-    };
-
-    const handleClassificationFilter = (classification: string) => {
-        const newClassification = classification === "all" ? "" : classification;
-        setSelectedClassification(newClassification);
-        setTimeout(() => applyFilters(), 0);
-    };
-
-    // NUEVO: Manejar cambio de zonal (filtros jerárquicos)
-    const handleZonalFilter = (zonalId: string) => {
-        const newZonalId = zonalId === "all" ? "" : zonalId;
-        setSelectedZonal(newZonalId);
-
-        // Si se cambia el zonal, limpiar circuito y ruta
-        if (newZonalId !== selectedZonal) {
-            setSelectedCircuit('');
-            setSelectedRoute('');
-        }
-
-        setTimeout(() => applyFilters(), 0);
-    };
-
-    // NUEVO: Manejar cambio de circuito (filtros jerárquicos)
-    const handleCircuitFilter = (circuitId: string) => {
-        const newCircuitId = circuitId === "all" ? "" : circuitId;
-        setSelectedCircuit(newCircuitId);
-
-        // Si se cambia el circuito, limpiar ruta
-        if (newCircuitId !== selectedCircuit) {
-            setSelectedRoute('');
-        }
-
-        setTimeout(() => applyFilters(), 0);
+        router.get(route('dcs.pdvs.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: selectedCircuit || undefined,
+            route_id: selectedRoute || undefined,
+            status: selectedStatus || undefined,
+            classification: selectedClassification || undefined,
+            per_page: perPage.toString(),
+            page: '1'
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
     };
 
 
 
     const clearFilters = () => {
-        // Limpiar debounce activo
-        if (searchDebounce) {
-            clearTimeout(searchDebounce);
-            setSearchDebounce(null);
-        }
-
-        // Resetear todos los estados básicos
         setSearchQuery('');
-        setSelectedRoute('');
-        setSelectedStatus('');
-        setSelectedClassification('');
-
-        // Resetear estados avanzados
-        setSelectedDocumentType('');
-        setSellsRecharge('');
+        setSelectedBusiness('');
         setSelectedZonal('');
         setSelectedCircuit('');
-        setSelectedDistrict('');
-        setLocalityText('');
-        setDocumentNumber('');
-        setClientName('');
-        setPointName('');
-        setPosId('');
-
-        // Aplicar filtros vacíos directamente
+        setSelectedRoute('');
         router.get(route('dcs.pdvs.index'), {}, {
             preserveState: true,
-            preserveScroll: true,
-            replace: true
+            preserveScroll: true
         });
     };
 
@@ -465,23 +497,12 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         // Construir URL con todos los filtros aplicados
         const params = new URLSearchParams();
 
-        // Filtros básicos
+        // Filtros jerárquicos
         if (searchQuery?.trim()) params.set('search', searchQuery);
-        if (selectedRoute?.trim()) params.set('route_id', selectedRoute);
-        if (selectedStatus?.trim()) params.set('status', selectedStatus);
-        if (selectedClassification?.trim()) params.set('classification', selectedClassification);
-
-        // Filtros avanzados
-        if (selectedDocumentType?.trim()) params.set('document_type', selectedDocumentType);
-        if (sellsRecharge?.trim()) params.set('sells_recharge', sellsRecharge);
+        if (selectedBusiness?.trim()) params.set('business_id', selectedBusiness);
         if (selectedZonal?.trim()) params.set('zonal_id', selectedZonal);
         if (selectedCircuit?.trim()) params.set('circuit_id', selectedCircuit);
-        if (selectedDistrict?.trim()) params.set('district_id', selectedDistrict);
-        if (localityText?.trim()) params.set('locality', localityText);
-        if (documentNumber?.trim()) params.set('document_number', documentNumber);
-        if (clientName?.trim()) params.set('client_name', clientName);
-        if (pointName?.trim()) params.set('point_name', pointName);
-        if (posId?.trim()) params.set('pos_id', posId);
+        if (selectedRoute?.trim()) params.set('route_id', selectedRoute);
 
         // Crear URL de exportación
         const exportUrl = `${route('dcs.pdvs.export')}?${params.toString()}`;
@@ -513,17 +534,7 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
         }, 1000);
     };
 
-    // Verificar si hay filtros activos
-    const hasActiveFilters = !!(searchQuery || selectedRoute || selectedStatus || selectedClassification ||
-                            selectedDocumentType || sellsRecharge || selectedZonal || selectedCircuit || selectedDistrict ||
-                            localityText || documentNumber || clientName || pointName || posId);
-
-    // Contar filtros activos
-    const activeFilterCount = [
-        searchQuery, selectedRoute, selectedStatus, selectedClassification,
-        selectedDocumentType, sellsRecharge, selectedZonal, selectedCircuit, selectedDistrict,
-        localityText, documentNumber, clientName, pointName, posId
-    ].filter(Boolean).length;
+    const hasActiveFilters = selectedBusiness || selectedZonal || selectedCircuit || selectedRoute || searchQuery;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -558,12 +569,12 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                                                 <span>{pdvs.data.filter(p => p.status === 'vende').length} vendiendo</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                                                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                                <span>{routes.length} rutas</span>
+                                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                                <span>{Array.isArray(businesses) ? businesses.length : 0} negocios</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                                <span>Búsqueda incluye localidades</span>
+                                                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                                <span>{Array.isArray(allZonales) ? allZonales.length : 0} zonales</span>
                                             </div>
                                         </div>
                                     </div>
@@ -596,44 +607,175 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                         </div>
                     </div>
 
-                    {/* Sistema de Filtros Avanzados */}
-                    <AdvancedFilters
-                        searchQuery={searchQuery}
-                        selectedRoute={selectedRoute}
-                        selectedStatus={selectedStatus}
-                        selectedClassification={selectedClassification}
-                        showAdvancedFilters={showAdvancedFilters}
-                        selectedDocumentType={selectedDocumentType}
-                        sellsRecharge={sellsRecharge}
-                        selectedZonal={selectedZonal} // NUEVO
-                        selectedCircuit={selectedCircuit}
-                        documentNumber={documentNumber}
-                        clientName={clientName}
-                        pointName={pointName}
-                        posId={posId}
-                        routes={filteredRoutes} // CAMBIO: usar rutas filtradas
-                        statusOptions={statusOptions}
-                        classificationOptions={classificationOptions}
-                        zonales={zonales} // NUEVO
-                        circuits={filteredCircuits} // CAMBIO: usar circuitos filtrados
-                        handleSearch={handleSearch}
-                        handleRouteFilter={handleRouteFilter}
-                        handleStatusFilter={handleStatusFilter}
-                        handleClassificationFilter={handleClassificationFilter}
-                        setShowAdvancedFilters={setShowAdvancedFilters}
-                        setSelectedDocumentType={setSelectedDocumentType}
-                        setSellsRecharge={setSellsRecharge}
-                        handleZonalFilter={handleZonalFilter} // NUEVO
-                        handleCircuitFilter={handleCircuitFilter} // NUEVO (cambio de setter a handler)
-                        setDocumentNumber={setDocumentNumber}
-                        setClientName={setClientName}
-                        setPointName={setPointName}
-                        setPosId={setPosId}
-                        applyFilters={applyFilters}
-                        clearFilters={clearFilters}
-                        hasActiveFilters={hasActiveFilters}
-                        activeFilterCount={activeFilterCount}
-                    />
+                    {/* Filtros */}
+                    <Card className="p-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <Filter className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm font-medium text-gray-700">Filtros</span>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Búsqueda */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Buscar por nombre, ID post, DNI, cliente, estado, clasificación..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                    {searchQuery && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Filtros Jerárquicos */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    {/* Filtro por Negocio */}
+                                    <Select
+                                        value={selectedBusiness || "all"}
+                                        onValueChange={(value) => handleBusinessFilter(value === "all" ? "" : value)}
+                                    >
+                                        <SelectTrigger className="w-full h-10">
+                                            <SelectValue placeholder="Todos los negocios" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todos los negocios</SelectItem>
+                                            {Array.isArray(businesses) && businesses.map((business) => (
+                                                <SelectItem key={business.id} value={business.id.toString()}>
+                                                    {business.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Filtro por Zonal */}
+                                    <Select
+                                        value={selectedZonal || "all"}
+                                        onValueChange={(value) => handleZonalFilter(value === "all" ? "" : value)}
+                                        disabled={!selectedBusiness}
+                                    >
+                                        <SelectTrigger className="w-full h-10">
+                                            <SelectValue
+                                                placeholder={selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">
+                                                {selectedBusiness ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                            </SelectItem>
+                                            {Array.isArray(filteredZonales) && filteredZonales.map((zonal) => (
+                                                <SelectItem key={zonal.id} value={zonal.id.toString()}>
+                                                    {zonal.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Filtro por Circuito */}
+                                    <Select
+                                        value={selectedCircuit || "all"}
+                                        onValueChange={(value) => handleCircuitFilter(value === "all" ? "" : value)}
+                                        disabled={!selectedZonal}
+                                    >
+                                        <SelectTrigger className="w-full h-10">
+                                            <SelectValue
+                                                placeholder={selectedZonal ? 'Todos los circuitos' : 'Selecciona un zonal primero'}
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">
+                                                {selectedZonal ? 'Todos los circuitos' : 'Selecciona un zonal primero'}
+                                            </SelectItem>
+                                            {Array.isArray(filteredCircuits) && filteredCircuits.map((circuit) => (
+                                                <SelectItem key={circuit.id} value={circuit.id.toString()}>
+                                                    {circuit.name} - {circuit.code}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Filtro por Ruta */}
+                                    <Select
+                                        value={selectedRoute || "all"}
+                                        onValueChange={(value) => handleRouteFilter(value === "all" ? "" : value)}
+                                        disabled={!selectedCircuit}
+                                    >
+                                        <SelectTrigger className="w-full h-10">
+                                            <SelectValue
+                                                placeholder={selectedCircuit ? 'Todas las rutas' : 'Selecciona un circuito primero'}
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">
+                                                {selectedCircuit ? 'Todas las rutas' : 'Selecciona un circuito primero'}
+                                            </SelectItem>
+                                            {Array.isArray(filteredRoutes) && filteredRoutes.map((route) => (
+                                                <SelectItem key={route.id} value={route.id.toString()}>
+                                                    {route.name} - {route.code}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Botón limpiar filtros */}
+                                    {hasActiveFilters && (
+                                        <div className="flex items-center">
+                                            <Button
+                                                variant="outline"
+                                                onClick={clearFilters}
+                                                className="w-full h-10"
+                                                title="Limpiar filtros"
+                                            >
+                                                <X className="w-4 h-4 mr-2" />
+                                                Limpiar
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Indicadores de filtros activos */}
+                            {hasActiveFilters && (
+                                <div className="flex items-center gap-2 pt-2 border-t">
+                                    <span className="text-xs text-gray-500">Filtros activos:</span>
+                                    {selectedBusiness && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Negocio: {Array.isArray(businesses) ? businesses.find(b => b.id.toString() === selectedBusiness)?.name : ''}
+                                        </Badge>
+                                    )}
+                                    {selectedZonal && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Zonal: {Array.isArray(allZonales) ? allZonales.find(z => z.id.toString() === selectedZonal)?.name : ''}
+                                        </Badge>
+                                    )}
+                                    {selectedCircuit && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Circuito: {Array.isArray(allCircuits) ? allCircuits.find(c => c.id.toString() === selectedCircuit)?.name : ''}
+                                        </Badge>
+                                    )}
+                                    {selectedRoute && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Ruta: {Array.isArray(allRoutes) ? allRoutes.find(r => r.id.toString() === selectedRoute)?.name : ''}
+                                        </Badge>
+                                    )}
+                                    {searchQuery && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Búsqueda: "{searchQuery}"
+                                        </Badge>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </Card>
 
                     {/* Tabla de PDVs */}
                     <PdvsTable
@@ -657,8 +799,8 @@ export default function GlobalPdvsIndex({ pdvs, zonales, circuits, routes, depar
                         open={isFormModalOpen}
                         onClose={closeFormModal}
                         pdv={editingPdv}
-                        zonales={zonales}
-                        circuits={circuits}
+                        zonales={allZonales}
+                        circuits={allCircuits}
                         departamentos={departamentos}
                     />
 
