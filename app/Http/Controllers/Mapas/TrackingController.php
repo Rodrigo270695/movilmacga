@@ -11,6 +11,7 @@ use App\Models\Pdv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Carbon\Carbon;
@@ -138,30 +139,35 @@ class TrackingController extends Controller
             })
         ]);
 
-        // Obtener circuitos y zonales para filtros (limitados por rol)
-        $circuitsQuery = Circuit::with('zonal')->orderBy('name');
-        $zonalesQuery = \App\Models\Zonal::with('business')->orderBy('name');
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $cacheKey = 'tracking_filter_options_' . ($user->hasRole('Supervisor') ? 'supervisor_' . $user->id : 'admin');
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($user) {
+            $circuitsQuery = Circuit::with('zonal')->orderBy('name');
+            $zonalesQuery = \App\Models\Zonal::with('business')->orderBy('name');
 
-        // Si es supervisor, limitar a sus zonales
-        if ($user->hasRole('Supervisor')) {
-            $supervisorZonals = $user->activeZonalSupervisorAssignments()->with('zonal')->get()->pluck('zonal.id');
+            // Si es supervisor, limitar a sus zonales
+            if ($user->hasRole('Supervisor')) {
+                $supervisorZonals = $user->activeZonalSupervisorAssignments()->with('zonal')->get()->pluck('zonal.id');
 
-            if ($supervisorZonals->isNotEmpty()) {
-                $circuitsQuery->whereHas('zonal', function ($q) use ($supervisorZonals) {
-                    $q->whereIn('id', $supervisorZonals);
-                });
-                $zonalesQuery->whereIn('id', $supervisorZonals);
+                if ($supervisorZonals->isNotEmpty()) {
+                    $circuitsQuery->whereHas('zonal', function ($q) use ($supervisorZonals) {
+                        $q->whereIn('id', $supervisorZonals);
+                    });
+                    $zonalesQuery->whereIn('id', $supervisorZonals);
+                }
             }
-        }
 
-        $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
-        $zonales = $zonalesQuery->get(['id', 'name', 'business_id']);
+            return [
+                'circuits' => $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']),
+                'zonales' => $zonalesQuery->get(['id', 'name', 'business_id']),
+            ];
+        });
 
-        // Obtener estadísticas detalladas por usuario
-        $userStats = [];
-        foreach ($users as $user) {
-            $userStats[$user->id] = $this->getUserDetailedStats($user, $dateFrom, $dateTo);
-        }
+        $circuits = $filterOptions['circuits'];
+        $zonales = $filterOptions['zonales'];
+
+        // OPTIMIZACIÓN: Pre-cargar todas las estadísticas en lugar de hacerlo por usuario
+        $userStats = $this->getBulkUserStats($users->pluck('id'), $dateFrom, $dateTo);
 
         // Estadísticas para el header (también limitadas por rol)
         $totalUsersQuery = User::whereHas('roles', function ($q) {
@@ -704,6 +710,63 @@ class TrackingController extends Controller
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
         return $earthRadius * $c;
+    }
+
+    /**
+     * OPTIMIZACIÓN: Obtener estadísticas de múltiples usuarios en una sola query
+     */
+    private function getBulkUserStats($userIds, string $dateFrom, string $dateTo)
+    {
+        $startDate = Carbon::parse($dateFrom)->startOfDay();
+        $endDate = Carbon::parse($dateTo)->endOfDay();
+
+        // Pre-cargar todas las sesiones de todos los usuarios
+        $sessions = WorkingSession::whereIn('user_id', $userIds)
+            ->whereBetween('started_at', [$startDate, $endDate])
+            ->get()
+            ->groupBy('user_id');
+
+        // Pre-cargar todas las visitas PDV de todos los usuarios
+        $pdvVisits = \App\Models\PdvVisit::whereIn('user_id', $userIds)
+            ->whereBetween('check_in_at', [$startDate, $endDate])
+            ->with('pdv:id,point_name')
+            ->get()
+            ->groupBy('user_id');
+
+        // Pre-cargar circuitos asignados y PDVs programados
+        $userCircuits = DB::table('user_circuits')
+            ->whereIn('user_id', $userIds)
+            ->where('is_active', true)
+            ->join('circuits', 'user_circuits.circuit_id', '=', 'circuits.id')
+            ->join('routes', 'circuits.id', '=', 'routes.circuit_id')
+            ->join('pdvs', 'routes.id', '=', 'pdvs.route_id')
+            ->selectRaw('user_circuits.user_id, COUNT(DISTINCT pdvs.id) as programmed_pdvs')
+            ->groupBy('user_circuits.user_id')
+            ->pluck('programmed_pdvs', 'user_id');
+
+        $userStats = [];
+        foreach ($userIds as $userId) {
+            $userSessions = $sessions->get($userId, collect());
+            $userVisits = $pdvVisits->get($userId, collect());
+
+            $totalWorkingHours = $userSessions->sum(function ($session) {
+                $end = $session->ended_at ?? now();
+                return $session->started_at->diffInHours($end);
+            });
+
+            $userStats[$userId] = [
+                'total_sessions' => $userSessions->count(),
+                'working_hours' => round($totalWorkingHours, 1),
+                'distance_traveled' => round($userSessions->sum('total_distance_km') ?? 0, 2),
+                'pdv_visits' => $userVisits->count(),
+                'programmed_pdvs' => $userCircuits[$userId] ?? 0,
+                'compliance_percentage' => ($userCircuits[$userId] ?? 0) > 0 
+                    ? round(($userVisits->count() / ($userCircuits[$userId] ?? 1)) * 100, 1) 
+                    : 0,
+            ];
+        }
+
+        return $userStats;
     }
 
     /**

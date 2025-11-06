@@ -43,24 +43,26 @@ class RoutePdvsController extends Controller
             ->exists();
 
         // Si se solicita filtrar por hoy y la ruta no tiene visita programada, devolver vacío
-        if ($todayOnly && !$hasVisitToday) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'route' => [
-                        'id' => $route->id,
-                        'name' => $route->name,
-                        'code' => $route->code,
-                        'has_visit_today' => false,
-                    ],
-                    'current_date' => $todayDate,
-                    'timezone' => 'America/Lima',
-                    'filter_today_only' => true,
-                    'pdvs_count' => 0,
-                    'pdvs' => []
-                ]
-            ]);
-        }
+        // NOTA: Comentado para permitir extrarutas - siempre mostrar PDVs si el usuario tiene acceso
+        // if ($todayOnly && !$hasVisitToday) {
+        //     return response()->json([
+        //         'success' => true,
+        //         'data' => [
+        //             'route' => [
+        //                 'id' => $route->id,
+        //                 'name' => $route->name,
+        //                 'code' => $route->code,
+        //                 'telegestion' => $route->telegestion ?? false,
+        //                 'has_visit_today' => false,
+        //             ],
+        //             'current_date' => $todayDate,
+        //             'timezone' => 'America/Lima',
+        //             'filter_today_only' => true,
+        //             'pdvs_count' => 0,
+        //             'pdvs' => []
+        //         ]
+        //     ]);
+        // }
 
         // Obtener PDVs de la ruta (excluyendo los que no venden)
         $pdvs = $route->pdvs()
@@ -68,13 +70,26 @@ class RoutePdvsController extends Controller
             ->with(['route:id,name,code', 'locality:id,name', 'district:id,name'])
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {
-                // Verificar si ya se visitó hoy
-                $visitedToday = DB::table('pdv_visits')
+                // Verificar visitas del PDV hoy
+                $visitToday = DB::table('pdv_visits')
                     ->where('pdv_id', $pdv->id)
                     ->where('user_id', $user->id)
                     ->whereDate('check_in_at', $todayDate)
-                    ->where('is_valid', true)
-                    ->exists();
+                    ->orderBy('check_in_at', 'desc')
+                    ->first();
+                
+                $visitedToday = false;
+                $visitInProgress = false;
+                $visitId = null;
+                
+                if ($visitToday) {
+                    if ($visitToday->visit_status === 'completed' && $visitToday->is_valid) {
+                        $visitedToday = true;
+                    } elseif ($visitToday->visit_status === 'in_progress') {
+                        $visitInProgress = true;
+                        $visitId = $visitToday->id;
+                    }
+                }
 
                 return [
                     'id' => $pdv->id,
@@ -87,6 +102,8 @@ class RoutePdvsController extends Controller
                     'locality_name' => $pdv->locality->name ?? null,
                     'district_name' => $pdv->district->name ?? null,
                     'visited_today' => $visitedToday,
+                    'visit_in_progress' => $visitInProgress,
+                    'visit_id' => $visitId,
                     // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
@@ -100,6 +117,7 @@ class RoutePdvsController extends Controller
                         'id' => $pdv->route->id,
                         'name' => $pdv->route->name,
                         'code' => $pdv->route->code,
+                        'telegestion' => (bool)($pdv->route->telegestion ?? false), // Asegurar que sea boolean
                     ]
                 ];
             });
@@ -111,6 +129,7 @@ class RoutePdvsController extends Controller
                     'id' => $route->id,
                     'name' => $route->name,
                     'code' => $route->code,
+                    'telegestion' => (bool)($route->telegestion ?? false), // Asegurar que sea boolean
                     'has_visit_today' => $hasVisitToday,
                     'visit_date' => $hasVisitToday ? $todayDate : null,
                 ],
@@ -178,13 +197,26 @@ class RoutePdvsController extends Controller
             ->with(['locality:id,name', 'district:id,name'])
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {
-                // Verificar si ya se visitó hoy
-                $visitedToday = DB::table('pdv_visits')
+                // Verificar visitas del PDV hoy
+                $visitToday = DB::table('pdv_visits')
                     ->where('pdv_id', $pdv->id)
                     ->where('user_id', $user->id)
                     ->whereDate('check_in_at', $todayDate)
-                    ->where('is_valid', true)
-                    ->exists();
+                    ->orderBy('check_in_at', 'desc')
+                    ->first();
+                
+                $visitedToday = false;
+                $visitInProgress = false;
+                $visitId = null;
+                
+                if ($visitToday) {
+                    if ($visitToday->visit_status === 'completed' && $visitToday->is_valid) {
+                        $visitedToday = true;
+                    } elseif ($visitToday->visit_status === 'in_progress') {
+                        $visitInProgress = true;
+                        $visitId = $visitToday->id;
+                    }
+                }
 
                 return [
                     'id' => $pdv->id,
@@ -197,6 +229,8 @@ class RoutePdvsController extends Controller
                     'locality_name' => $pdv->locality->name ?? null,
                     'district_name' => $pdv->district->name ?? null,
                     'visited_today' => $visitedToday,
+                    'visit_in_progress' => $visitInProgress,
+                    'visit_id' => $visitId,
                     // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
@@ -209,16 +243,17 @@ class RoutePdvsController extends Controller
                 ];
             });
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'route' => [
-                    'id' => $route->id,
-                    'name' => $route->name,
-                    'code' => $route->code,
-                    'visit_date' => $todayDate,
-                    'visit_notes' => $visitDate->notes,
-                ],
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'route' => [
+                        'id' => $route->id,
+                        'name' => $route->name,
+                        'code' => $route->code,
+                        'telegestion' => $route->telegestion ?? false,
+                        'visit_date' => $todayDate,
+                        'visit_notes' => $visitDate->notes,
+                    ],
                 'current_date' => $todayDate,
                 'timezone' => 'America/Lima',
                 'pdvs_count' => $pdvs->count(),

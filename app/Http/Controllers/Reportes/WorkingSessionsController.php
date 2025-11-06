@@ -107,78 +107,159 @@ class WorkingSessionsController extends Controller
         $perPage = $request->get('per_page', 10);
         $sessions = $query->paginate($perPage)->withQueryString();
 
-        // Transformar datos para el frontend
-        $sessions->getCollection()->transform(function ($session) {
+        // OPTIMIZACIÓN: Pre-cargar todas las rutas asignadas por fecha y circuito en una sola query
+        $sessionDates = $sessions->getCollection()->map(function ($session) {
+            return [
+                'date' => $session->started_at->format('Y-m-d'),
+                'circuit_id' => $session->user->userCircuits->first()?->circuit?->id,
+                'session_id' => $session->id,
+                'user_id' => $session->user_id,
+            ];
+        })->filter(fn($item) => $item['circuit_id'] !== null);
+
+        // Pre-cargar rutas asignadas por fecha
+        $routesByDate = collect();
+        $allRouteVisitDates = collect();
+        if ($sessionDates->isNotEmpty()) {
+            $dates = $sessionDates->pluck('date')->unique();
+            $circuitIds = $sessionDates->pluck('circuit_id')->unique()->filter();
+            
+            $allRouteVisitDates = RouteVisitDate::whereIn('visit_date', $dates)
+                ->where('is_active', true)
+                ->whereHas('route', function ($query) use ($circuitIds) {
+                    $query->whereIn('circuit_id', $circuitIds)
+                          ->where('status', true);
+                })
+                ->with(['route:id,name,code,circuit_id'])
+                ->get();
+            
+            // Agrupar por fecha_circuito
+            $routesByDate = $allRouteVisitDates->groupBy(function ($routeVisitDate) {
+                $visitDate = $routeVisitDate->visit_date instanceof \Carbon\Carbon 
+                    ? $routeVisitDate->visit_date->format('Y-m-d')
+                    : \Carbon\Carbon::parse($routeVisitDate->visit_date)->format('Y-m-d');
+                return $visitDate . '_' . $routeVisitDate->route->circuit_id;
+            });
+        }
+
+        // Pre-cargar conteos de PDVs por ruta (CORREGIDO: obtener IDs de la colección aplanada)
+        $routeIds = $allRouteVisitDates->pluck('route.id')->unique()->filter()->values();
+        $pdvsCountByRoute = collect();
+        if ($routeIds->isNotEmpty()) {
+            $pdvsCountByRoute = \App\Models\Pdv::whereIn('route_id', $routeIds)
+                ->where('status', 'vende')
+                ->selectRaw('route_id, COUNT(*) as count')
+                ->groupBy('route_id')
+                ->pluck('count', 'route_id');
+        }
+
+        // Pre-cargar conteos de PDVs visitados por usuario, fecha y ruta
+        // OPTIMIZACIÓN: Usar check_in_at para la fecha (coincide con la fecha de la jornada)
+        $visitedPdvsCount = collect();
+        if ($sessionDates->isNotEmpty() && $routeIds->isNotEmpty()) {
+            $userIds = $sessionDates->pluck('user_id')->unique();
+            $datesArray = $sessionDates->pluck('date')->unique()->toArray();
+            
+            // OPTIMIZACIÓN: Usar whereBetween con fecha inicio y fin + whereIn para múltiples fechas
+            $startDate = min($datesArray);
+            $endDate = max($datesArray);
+            
+            $visitedPdvsCount = PdvVisit::whereIn('pdv_visits.user_id', $userIds)
+                ->whereNotNull('pdv_visits.check_out_at')
+                ->whereBetween(DB::raw('DATE(pdv_visits.check_in_at)'), [$startDate, $endDate])
+                ->join('pdvs', 'pdv_visits.pdv_id', '=', 'pdvs.id')
+                ->whereIn('pdvs.route_id', $routeIds)
+                ->where('pdvs.status', 'vende')
+                ->selectRaw('pdv_visits.user_id, DATE(pdv_visits.check_in_at) as visit_date, pdvs.route_id')
+                ->get()
+                ->filter(function ($visit) use ($datesArray) {
+                    return in_array($visit->visit_date, $datesArray);
+                })
+                ->groupBy(function ($visit) {
+                    return $visit->user_id . '_' . $visit->visit_date;
+                })
+                ->map(function ($visits) {
+                    return $visits->groupBy('route_id')->map->count();
+                });
+        }
+
+        // Transformar datos para el frontend (sin queries adicionales)
+        $sessions->getCollection()->transform(function ($session) use ($routesByDate, $pdvsCountByRoute, $visitedPdvsCount) {
             $session->formatted_start_time = $session->started_at->format('H:i');
             $session->formatted_start_date = $session->started_at->format('d/m/Y');
             $session->formatted_end_time = $session->ended_at ? $session->ended_at->format('H:i') : null;
             $session->duration_formatted = $session->getDurationFormattedAttribute();
             $session->status_label = $session->getStatusLabelAttribute();
 
-            // Obtener circuito activo del usuario
+            // Obtener circuito activo del usuario (ya cargado con eager loading)
             $session->active_circuit = $session->user->userCircuits->first()?->circuit;
 
-            // Obtener la ruta específica que le tocó en la fecha de la jornada
+            // Obtener la ruta específica desde datos pre-cargados
             $session->assigned_route = null;
             $session->route_pdvs_count = 0;
             $session->visited_pdvs_count = 0;
 
             if ($session->active_circuit) {
                 $visitDate = $session->started_at->format('Y-m-d');
-                $session->assigned_route = RouteVisitDate::where('visit_date', $visitDate)
-                    ->where('is_active', true)
-                    ->whereHas('route', function ($query) use ($session) {
-                        $query->where('circuit_id', $session->active_circuit->id)
-                              ->where('status', true);
-                    })
-                    ->with('route:id,name,code')
-                    ->first()?->route;
-
-                                // Obtener conteo de PDVs de la ruta y PDVs visitados
-                if ($session->assigned_route) {
-                    // Total de PDVs en la ruta con estado "vende"
-                    $session->route_pdvs_count = $session->assigned_route->pdvs()->where('status', 'vende')->count();
-
-                    // PDVs visitados en la fecha de la jornada (solo los que tienen check_out)
-                    $session->visited_pdvs_count = PdvVisit::where('user_id', $session->user_id)
-                        ->whereDate('check_out_at', $visitDate)
-                        ->whereNotNull('check_out_at')
-                        ->whereHas('pdv', function ($query) use ($session) {
-                            $query->where('route_id', $session->assigned_route->id);
-                        })
-                        ->count();
+                $key = $visitDate . '_' . $session->active_circuit->id;
+                
+                $routeVisitDateGroup = $routesByDate->get($key);
+                if ($routeVisitDateGroup && $routeVisitDateGroup->isNotEmpty()) {
+                    $routeVisitDate = $routeVisitDateGroup->first();
+                    if ($routeVisitDate && $routeVisitDate->route) {
+                        $session->assigned_route = $routeVisitDate->route;
+                        $routeId = $routeVisitDate->route->id;
+                        $session->route_pdvs_count = $pdvsCountByRoute->get($routeId, 0);
+                        
+                        // Obtener conteo de PDVs visitados desde datos pre-cargados
+                        $visitKey = $session->user_id . '_' . $visitDate;
+                        $userVisits = $visitedPdvsCount->get($visitKey);
+                        if ($userVisits && $userVisits->has($routeId)) {
+                            $session->visited_pdvs_count = $userVisits->get($routeId, 0);
+                        }
+                    }
                 }
             }
 
             return $session;
         });
 
-        // Datos para filtros jerárquicos (respetando el scope del usuario)
-        $businessesQuery = Business::where('status', true);
-        $zonalesQuery = Zonal::with('business:id,name')->where('status', true);
-        $circuitsQuery = Circuit::with('zonal:id,name')->where('status', true);
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $cacheKey = 'filter_options_' . md5(json_encode($businessScope));
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($businessScope) {
+            $businessesQuery = Business::where('status', true);
+            $zonalesQuery = Zonal::with('business:id,name')->where('status', true);
+            $circuitsQuery = Circuit::with('zonal:id,name')->where('status', true);
 
-        // Aplicar filtros automáticos basados en el scope del usuario
-        if (!$businessScope['is_admin']) {
-            // Si el usuario tiene restricción de negocio
-            if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
-                $businessesQuery->whereIn('id', $businessScope['business_ids']);
-                $zonalesQuery->whereIn('business_id', $businessScope['business_ids']);
-                $circuitsQuery->whereHas('zonal', function ($q) use ($businessScope) {
-                    $q->whereIn('business_id', $businessScope['business_ids']);
-                });
+            // Aplicar filtros automáticos basados en el scope del usuario
+            if (!$businessScope['is_admin']) {
+                // Si el usuario tiene restricción de negocio
+                if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                    $businessesQuery->whereIn('id', $businessScope['business_ids']);
+                    $zonalesQuery->whereIn('business_id', $businessScope['business_ids']);
+                    $circuitsQuery->whereHas('zonal', function ($q) use ($businessScope) {
+                        $q->whereIn('business_id', $businessScope['business_ids']);
+                    });
+                }
+
+                // Si el usuario tiene restricción de zonal
+                if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+                    $zonalesQuery->whereIn('id', $businessScope['zonal_ids']);
+                    $circuitsQuery->whereIn('zonal_id', $businessScope['zonal_ids']);
+                }
             }
 
-            // Si el usuario tiene restricción de zonal
-            if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
-                $zonalesQuery->whereIn('id', $businessScope['zonal_ids']);
-                $circuitsQuery->whereIn('zonal_id', $businessScope['zonal_ids']);
-            }
-        }
+            return [
+                'businesses' => $businessesQuery->orderBy('name')->get(['id', 'name']),
+                'allZonales' => $zonalesQuery->orderBy('name')->get(['id', 'name', 'business_id']),
+                'allCircuits' => $circuitsQuery->orderBy('name')->get(['id', 'name', 'code', 'zonal_id']),
+            ];
+        });
 
-        $businesses = $businessesQuery->orderBy('name')->get(['id', 'name']);
-        $allZonales = $zonalesQuery->orderBy('name')->get(['id', 'name', 'business_id']);
-        $allCircuits = $circuitsQuery->orderBy('name')->get(['id', 'name', 'code', 'zonal_id']);
+        // Datos para filtros jerárquicos (desde caché)
+        $businesses = $filterOptions['businesses'];
+        $allZonales = $filterOptions['allZonales'];
+        $allCircuits = $filterOptions['allCircuits'];
 
         // Filtrar zonales y circuitos según los filtros aplicados
         $zonales = $allZonales;
@@ -453,6 +534,82 @@ class WorkingSessionsController extends Controller
         // Obtener todas las sesiones (sin paginación para exportar)
         $sessions = $query->orderBy('started_at', 'desc')->get();
 
+        // OPTIMIZACIÓN: Pre-cargar todos los datos necesarios antes de transformar
+        $sessionDates = $sessions->map(function ($session) {
+            return [
+                'date' => $session->started_at->format('Y-m-d'),
+                'circuit_id' => $session->user->userCircuits->first()?->circuit?->id,
+                'session_id' => $session->id,
+                'user_id' => $session->user_id,
+            ];
+        })->filter(fn($item) => $item['circuit_id'] !== null);
+
+        // Pre-cargar rutas asignadas
+        $routesByDate = collect();
+        $allRouteVisitDates = collect();
+        if ($sessionDates->isNotEmpty()) {
+            $dates = $sessionDates->pluck('date')->unique();
+            $circuitIds = $sessionDates->pluck('circuit_id')->unique()->filter();
+            
+            $allRouteVisitDates = RouteVisitDate::whereIn('visit_date', $dates)
+                ->where('is_active', true)
+                ->whereHas('route', function ($query) use ($circuitIds) {
+                    $query->whereIn('circuit_id', $circuitIds)
+                          ->where('status', true);
+                })
+                ->with(['route:id,name,code,circuit_id'])
+                ->get();
+            
+            // Agrupar por fecha_circuito
+            $routesByDate = $allRouteVisitDates->groupBy(function ($routeVisitDate) {
+                $visitDate = $routeVisitDate->visit_date instanceof \Carbon\Carbon 
+                    ? $routeVisitDate->visit_date->format('Y-m-d')
+                    : \Carbon\Carbon::parse($routeVisitDate->visit_date)->format('Y-m-d');
+                return $visitDate . '_' . $routeVisitDate->route->circuit_id;
+            });
+        }
+
+        // Pre-cargar conteos de PDVs por ruta (CORREGIDO: obtener IDs de la colección aplanada)
+        $routeIds = $allRouteVisitDates->pluck('route.id')->unique()->filter()->values();
+        $pdvsCountByRoute = collect();
+        if ($routeIds->isNotEmpty()) {
+            $pdvsCountByRoute = \App\Models\Pdv::whereIn('route_id', $routeIds)
+                ->where('status', 'vende')
+                ->selectRaw('route_id, COUNT(*) as count')
+                ->groupBy('route_id')
+                ->pluck('count', 'route_id');
+        }
+
+        // Pre-cargar conteos de PDVs visitados
+        // OPTIMIZACIÓN: Usar check_in_at para la fecha (coincide con la fecha de la jornada)
+        $visitedPdvsCount = collect();
+        if ($sessionDates->isNotEmpty() && $routeIds->isNotEmpty()) {
+            $userIds = $sessionDates->pluck('user_id')->unique();
+            $datesArray = $sessionDates->pluck('date')->unique()->toArray();
+            
+            // OPTIMIZACIÓN: Usar whereBetween con fecha inicio y fin + whereIn para múltiples fechas
+            $startDate = min($datesArray);
+            $endDate = max($datesArray);
+            
+            $visitedPdvsCount = PdvVisit::whereIn('pdv_visits.user_id', $userIds)
+                ->whereNotNull('pdv_visits.check_out_at')
+                ->whereBetween(DB::raw('DATE(pdv_visits.check_in_at)'), [$startDate, $endDate])
+                ->join('pdvs', 'pdv_visits.pdv_id', '=', 'pdvs.id')
+                ->whereIn('pdvs.route_id', $routeIds)
+                ->where('pdvs.status', 'vende')
+                ->selectRaw('pdv_visits.user_id, DATE(pdv_visits.check_in_at) as visit_date, pdvs.route_id')
+                ->get()
+                ->filter(function ($visit) use ($datesArray) {
+                    return in_array($visit->visit_date, $datesArray);
+                })
+                ->groupBy(function ($visit) {
+                    return $visit->user_id . '_' . $visit->visit_date;
+                })
+                ->map(function ($visits) {
+                    return $visits->groupBy('route_id')->map->count();
+                });
+        }
+
         // Log para verificar filtros aplicados
         Log::info('Exportación de jornadas laborales', [
             'filtros_aplicados' => [
@@ -465,50 +622,40 @@ class WorkingSessionsController extends Controller
                 'status' => $request->status,
             ],
             'total_registros' => $sessions->count(),
-            'sql_query' => $query->toSql(),
-            'sql_bindings' => $query->getBindings(),
         ]);
 
-        // Transformar datos para la exportación
-        $sessions->transform(function ($session) {
+        // Transformar datos para la exportación (sin queries adicionales)
+        $sessions->transform(function ($session) use ($routesByDate, $pdvsCountByRoute, $visitedPdvsCount) {
             $session->formatted_start_time = $session->started_at->format('H:i');
             $session->formatted_start_date = $session->started_at->format('d/m/Y');
             $session->formatted_end_time = $session->ended_at ? $session->ended_at->format('H:i') : null;
             $session->duration_formatted = $session->getDurationFormattedAttribute();
             $session->status_label = $session->getStatusLabelAttribute();
 
-            // Obtener circuito activo del usuario
             $session->active_circuit = $session->user->userCircuits->first()?->circuit;
 
-            // Obtener la ruta específica que le tocó en la fecha de la jornada
             $session->assigned_route = null;
             $session->route_pdvs_count = 0;
             $session->visited_pdvs_count = 0;
 
             if ($session->active_circuit) {
                 $visitDate = $session->started_at->format('Y-m-d');
-                $session->assigned_route = RouteVisitDate::where('visit_date', $visitDate)
-                    ->where('is_active', true)
-                    ->whereHas('route', function ($query) use ($session) {
-                        $query->where('circuit_id', $session->active_circuit->id)
-                              ->where('status', true);
-                    })
-                    ->with('route:id,name,code')
-                    ->first()?->route;
-
-                // Obtener conteo de PDVs de la ruta y PDVs visitados
-                if ($session->assigned_route) {
-                    // Total de PDVs en la ruta con estado "vende"
-                    $session->route_pdvs_count = $session->assigned_route->pdvs()->where('status', 'vende')->count();
-
-                    // PDVs visitados en la fecha de la jornada (solo los que tienen check_out)
-                    $session->visited_pdvs_count = PdvVisit::where('user_id', $session->user_id)
-                        ->whereDate('check_out_at', $visitDate)
-                        ->whereNotNull('check_out_at')
-                        ->whereHas('pdv', function ($query) use ($session) {
-                            $query->where('route_id', $session->assigned_route->id);
-                        })
-                        ->count();
+                $key = $visitDate . '_' . $session->active_circuit->id;
+                
+                $routeVisitDateGroup = $routesByDate->get($key);
+                if ($routeVisitDateGroup && $routeVisitDateGroup->isNotEmpty()) {
+                    $routeVisitDate = $routeVisitDateGroup->first();
+                    if ($routeVisitDate && $routeVisitDate->route) {
+                        $session->assigned_route = $routeVisitDate->route;
+                        $routeId = $routeVisitDate->route->id;
+                        $session->route_pdvs_count = $pdvsCountByRoute->get($routeId, 0);
+                        
+                        $visitKey = $session->user_id . '_' . $visitDate;
+                        $userVisits = $visitedPdvsCount->get($visitKey);
+                        if ($userVisits && $userVisits->has($routeId)) {
+                            $session->visited_pdvs_count = $userVisits->get($routeId, 0);
+                        }
+                    }
                 }
             }
 
@@ -638,18 +785,49 @@ class WorkingSessionsController extends Controller
         ]);
 
         try {
-            $visits = PdvVisit::where('user_id', $request->user_id)
-                ->whereDate('check_out_at', $request->visit_date)
-                ->whereNotNull('check_out_at')
-                ->whereHas('pdv', function ($query) use ($request) {
-                    $query->where('route_id', $request->route_id);
-                })
-                ->with('pdv:id,point_name,client_name,address,latitude,longitude')
-                ->get(['id', 'pdv_id', 'check_in_at', 'check_out_at']);
+            // OPTIMIZACIÓN: Usar join en lugar de whereHas para mejor rendimiento
+            // Usar check_in_at para la fecha (coincide con la fecha de la jornada)
+            $visits = PdvVisit::where('pdv_visits.user_id', $request->user_id)
+                ->whereDate('pdv_visits.check_in_at', $request->visit_date)
+                ->whereNotNull('pdv_visits.check_out_at')
+                ->join('pdvs', 'pdv_visits.pdv_id', '=', 'pdvs.id')
+                ->where('pdvs.route_id', $request->route_id)
+                ->where('pdvs.status', 'vende')
+                ->select([
+                    'pdv_visits.id',
+                    'pdv_visits.pdv_id',
+                    'pdv_visits.check_in_at',
+                    'pdv_visits.check_out_at',
+                    'pdvs.point_name',
+                    'pdvs.client_name',
+                    'pdvs.address',
+                    'pdvs.latitude',
+                    'pdvs.longitude'
+                ])
+                ->orderBy('pdv_visits.check_in_at')
+                ->get();
+
+            // Formatear respuesta
+            $formattedVisits = $visits->map(function ($visit) {
+                return [
+                    'id' => $visit->id,
+                    'pdv_id' => $visit->pdv_id,
+                    'check_in_at' => $visit->check_in_at,
+                    'check_out_at' => $visit->check_out_at,
+                    'pdv' => [
+                        'id' => $visit->pdv_id,
+                        'point_name' => $visit->point_name,
+                        'client_name' => $visit->client_name,
+                        'address' => $visit->address,
+                        'latitude' => $visit->latitude,
+                        'longitude' => $visit->longitude,
+                    ]
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'visits' => $visits
+                'visits' => $formattedVisits
             ]);
         } catch (\Exception $e) {
             return response()->json([

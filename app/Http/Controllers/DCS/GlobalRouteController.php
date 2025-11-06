@@ -66,29 +66,50 @@ class GlobalRouteController extends Controller
             $query->byCircuit($circuitFilter);
         }
 
+        // OPTIMIZACIÓN: Pre-cargar conteos de PDVs activos con withCount
+        $query->withCount(['pdvs as active_pdvs_count' => function ($query) {
+            $query->where('status', 'vende');
+        }]);
+
         $routes = $query->orderBy('name')->paginate($perPage);
 
-        // Agregar conteo de PDVs activos y fechas de esta semana a cada ruta
-        $routes->getCollection()->transform(function ($route) {
-            // Conteo de PDVs activos
-            $route->active_pdvs_count = $route->pdvs()->where('status', 'vende')->count();
+        // Pre-cargar fechas de visita de esta semana para todas las rutas en una sola query
+        $routeIds = $routes->pluck('id');
+        $weekStart = now()->startOfWeek()->format('Y-m-d');
+        $weekEnd = now()->endOfWeek()->format('Y-m-d');
+        
+        $thisWeekVisits = \App\Models\RouteVisitDate::whereIn('route_id', $routeIds)
+            ->whereBetween('visit_date', [$weekStart, $weekEnd])
+            ->where('is_active', true)
+            ->select('route_id', 'visit_date')
+            ->orderBy('visit_date')
+            ->get()
+            ->groupBy('route_id');
 
-            // Fechas de visita de esta semana
-            $route->thisWeekVisits = $route->visitDates()
-                ->whereBetween('visit_date', [
-                    now()->startOfWeek()->format('Y-m-d'),
-                    now()->endOfWeek()->format('Y-m-d')
-                ])
-                ->where('is_active', true)
-                ->orderBy('visit_date')
-                ->get(['visit_date']);
+        // Agregar datos pre-cargados a cada ruta
+        $routes->getCollection()->transform(function ($route) use ($thisWeekVisits) {
+            // active_pdvs_count ya está cargado con withCount
+            // Fechas de visita de esta semana desde datos pre-cargados
+            $route->thisWeekVisits = $thisWeekVisits->get($route->id, collect())->map(function ($visit) {
+                return ['visit_date' => $visit->visit_date];
+            });
 
             return $route;
         });
 
-        // Cargar datos para los filtros (aplicando scope)
-        $businesses = $this->getAvailableBusinesses()->toArray();
-        $allZonales = $this->getAvailableZonals()->toArray(); // Todos los zonales disponibles para el formulario
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $businessScope = $this->getBusinessScope();
+        $cacheKey = 'route_filter_options_' . md5(json_encode($businessScope));
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () {
+            return [
+                'businesses' => $this->getAvailableBusinesses()->toArray(),
+                'allZonales' => $this->getAvailableZonals()->toArray(),
+            ];
+        });
+
+        // Cargar datos para los filtros (desde caché)
+        $businesses = $filterOptions['businesses'];
+        $allZonales = $filterOptions['allZonales'];
 
         // Filtrar zonales por negocio seleccionado solo para la vista
         $zonales = $this->getAvailableZonals();
@@ -146,6 +167,7 @@ class GlobalRouteController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'status' => true,
+            'telegestion' => $request->boolean('telegestion', false),
         ]);
 
         return redirect()->route('dcs.routes.index')
@@ -166,6 +188,7 @@ class GlobalRouteController extends Controller
             'circuit_id' => $request->circuit_id,
             'name' => $request->name,
             'code' => $request->code,
+            'telegestion' => $request->boolean('telegestion', false),
         ]);
 
         return redirect()->route('dcs.routes.index')

@@ -53,9 +53,11 @@ interface CircuitsTableProps {
     userPermissions?: string[];
     onToggleStatus?: (circuit: Circuit) => void;
     isGlobalView?: boolean;
+    onPageChange?: (page: number) => void;
+    onPerPageChange?: (perPage: number) => void;
 }
 
-export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, isGlobalView = false }: CircuitsTableProps) {
+export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], onToggleStatus, isGlobalView = false, onPageChange: parentPageChange, onPerPageChange: parentPerPageChange }: CircuitsTableProps) {
     const { addToast } = useToast();
     const [confirmToggleCircuit, setConfirmToggleCircuit] = useState<Circuit | null>(null);
 
@@ -89,6 +91,13 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
     };
 
     const handlePageChange = (page: number) => {
+        // Si el padre provee manejador, usarlo (para vista global con filtros)
+        if (parentPageChange) {
+            parentPageChange(page);
+            return;
+        }
+
+        // Fallback para vista jerárquica
         const routeName = isGlobalView ? 'dcs.circuits.index' : 'dcs.zonales.circuits.index';
         const routeParams = isGlobalView ? {} : { zonal: zonal?.id };
 
@@ -110,6 +119,13 @@ export function CircuitsTable({ circuits, zonal, onEdit, userPermissions = [], o
     };
 
     const handlePerPageChange = (perPage: number) => {
+        // Si el padre provee manejador, usarlo (para vista global con filtros)
+        if (parentPerPageChange) {
+            parentPerPageChange(perPage);
+            return;
+        }
+
+        // Fallback para vista jerárquica
         const routeName = isGlobalView ? 'dcs.circuits.index' : 'dcs.zonales.circuits.index';
         const routeParams = isGlobalView ? {} : { zonal: zonal?.id };
 

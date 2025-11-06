@@ -237,7 +237,7 @@ export function UserForm({ isOpen, onClose, user, roles, currentUserRoles = [] }
                                 id="first_name"
                                 type="text"
                                 value={formData.first_name}
-                                onChange={(e) => handleInputChange('first_name', e.target.value)}
+                                onChange={(e) => handleInputChange('first_name', e.target.value.toUpperCase())}
                                 placeholder="Ej: Juan Carlos"
                                 className={`${errors.first_name
                                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
@@ -259,7 +259,7 @@ export function UserForm({ isOpen, onClose, user, roles, currentUserRoles = [] }
                                 id="last_name"
                                 type="text"
                                 value={formData.last_name}
-                                onChange={(e) => handleInputChange('last_name', e.target.value)}
+                                onChange={(e) => handleInputChange('last_name', e.target.value.toUpperCase())}
                                 placeholder="Ej: Pérez García"
                                 className={`${errors.last_name
                                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500'

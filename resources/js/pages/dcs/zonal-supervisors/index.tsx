@@ -35,7 +35,7 @@ interface Zonal {
     name: string;
     status: boolean;
     business: Business;
-    active_zonal_supervisor?: ZonalSupervisorAssignment;
+    active_zonal_supervisors?: ZonalSupervisorAssignment[]; // Cambiado a array para múltiples supervisores
 }
 
 interface PaginatedZonals {
@@ -107,9 +107,19 @@ export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses,
         return userPermissions.includes(permission);
     };
 
-    // Calcular estadísticas
-    const totalAssigned = zonals.data.filter(zonal => zonal.active_zonal_supervisor).length;
-    const totalUnassigned = zonals.data.filter(zonal => !zonal.active_zonal_supervisor).length;
+    // Calcular estadísticas (máximo 5 supervisores por zonal)
+    const totalComplete = zonals.data.filter(zonal =>
+        zonal.active_zonal_supervisors && zonal.active_zonal_supervisors.length === 5
+    ).length;
+    const totalPartial = zonals.data.filter(zonal =>
+        zonal.active_zonal_supervisors && zonal.active_zonal_supervisors.length > 0 && zonal.active_zonal_supervisors.length < 5
+    ).length;
+    const totalUnassigned = zonals.data.filter(zonal =>
+        !zonal.active_zonal_supervisors || zonal.active_zonal_supervisors.length === 0
+    ).length;
+    const totalSupervisorAssignments = zonals.data.reduce((total, zonal) =>
+        total + (zonal.active_zonal_supervisors?.length || 0), 0
+    );
     const activeSupervisors = supervisors.filter(supervisor => supervisor.status).length;
 
     // Mostrar toasts para mensajes flash
@@ -217,7 +227,7 @@ export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses,
                                     )}
                                 </p>
 
-                                {/* Estadísticas mejoradas */}
+                                {/* Estadísticas mejoradas - Similar a vendor-circuits */}
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3">
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -225,14 +235,22 @@ export default function ZonalSupervisorsIndex({ zonals, supervisors, businesses,
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        <span>{totalAssigned} asignados</span>
+                                        <span>{totalComplete} completos (5/5)</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                        <span>{totalUnassigned} sin asignar</span>
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                        <span>{totalPartial} parciales (1-4)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                        <span>{totalUnassigned} sin supervisores</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                         <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                        <span>{totalSupervisorAssignments} asignaciones totales</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                                         <span>{activeSupervisors} supervisores activos</span>
                                     </div>
                                     {zonals.last_page > 1 && (

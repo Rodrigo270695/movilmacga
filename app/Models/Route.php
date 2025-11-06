@@ -21,6 +21,7 @@ class Route extends Model
         'name',
         'code',
         'status',
+        'telegestion',
     ];
 
     /**
@@ -30,6 +31,7 @@ class Route extends Model
      */
     protected $casts = [
         'status' => 'boolean',
+        'telegestion' => 'boolean',
     ];
 
     /**

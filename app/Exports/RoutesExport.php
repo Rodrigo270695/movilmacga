@@ -73,11 +73,13 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             'Nombre de la Ruta',
             'Código de la Ruta',
             'Estado',
+            'Telegestión',
             'Circuito',
             'Código del Circuito',
             'Zonal',
             'Negocio',
             'Número de PDVs',
+            'Frecuencia',
             'Fechas de Visita',
             'Notas de Visita',
             'Fecha de Creación',
@@ -93,6 +95,31 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             return $date->format('d/m/Y');
         })->implode(', ');
 
+        // Obtener frecuencia (días de la semana únicos)
+        $frequencyDays = $visitDates->pluck('visit_date')
+            ->map(function($date) {
+                // Carbon devuelve: 1=lunes, 2=martes, ..., 7=domingo
+                return $date->dayOfWeekIso; // ISO 8601: 1=Lunes, 7=Domingo
+            })
+            ->unique()
+            ->sort()
+            ->map(function($dayNumber) {
+                $daysSpanish = [
+                    1 => 'Lunes',
+                    2 => 'Martes',
+                    3 => 'Miércoles',
+                    4 => 'Jueves',
+                    5 => 'Viernes',
+                    6 => 'Sábado',
+                    7 => 'Domingo',
+                ];
+                return $daysSpanish[$dayNumber] ?? '';
+            })
+            ->filter()
+            ->implode(', ');
+        
+        $frequencyText = $frequencyDays ?: 'Sin frecuencia definida';
+
         // Obtener notas de visita
         $visitNotes = $visitDates->pluck('notes')->filter()->implode('; ');
 
@@ -101,11 +128,13 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             $route->name,
             $route->code,
             $route->status ? 'Activo' : 'Inactivo',
+            $route->telegestion ? 'Sí' : 'No',
             $route->circuit?->name ?? 'Sin circuito',
             $route->circuit?->code ?? 'Sin código',
             $route->circuit?->zonal?->name ?? 'Sin zonal',
             $route->circuit?->zonal?->business?->name ?? 'Sin negocio',
             $route->pdvs_count ?? 0,
+            $frequencyText,
             $visitDatesText ?: 'Sin fechas programadas',
             $visitNotes ?: 'Sin notas',
             $route->created_at?->format('d/m/Y H:i:s'),
@@ -116,7 +145,7 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
     public function styles(Worksheet $sheet)
     {
         // Estilo para el encabezado
-        $sheet->getStyle('A1:M1')->applyFromArray([
+        $sheet->getStyle('A1:O1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -150,8 +179,10 @@ class RoutesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
         // Centrar columnas específicas
         $sheet->getStyle("A:A")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // ID
         $sheet->getStyle("D:D")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado
-        $sheet->getStyle("I:I")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Número de PDVs
-        $sheet->getStyle("L:M")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fechas
+        $sheet->getStyle("E:E")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Telegestión
+        $sheet->getStyle("J:J")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Número de PDVs
+        $sheet->getStyle("K:K")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Frecuencia
+        $sheet->getStyle("N:O")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fechas
 
         return $sheet;
     }

@@ -118,7 +118,41 @@ Route::get('/clear-permissions', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        $user = auth()->user();
+        $todayRequests = [];
+        $totalPending = 0;
+
+        // Solo cargar si el usuario tiene permisos para ver aprobaciones
+        if ($user && $user->can('gestor-pdv-aprobaciones-ver')) {
+            $todayStart = now('America/Lima')->startOfDay();
+            $todayEnd = now('America/Lima')->copy()->endOfDay();
+
+            $query = \App\Models\PdvChangeRequest::where('status', 'pending')
+                ->whereBetween('created_at', [$todayStart, $todayEnd])
+                ->with([
+                    'pdv:id,point_name,client_name',
+                    'user:id,first_name,last_name',
+                    'zonal:id,name,business_id',
+                    'zonal.business:id,name'
+                ])
+                ->orderBy('created_at', 'desc');
+
+            // Aplicar filtros de scope si es supervisor
+            if (!$user->hasRole('Administrador')) {
+                $businessScope = app('business.scope') ?? [];
+                if (isset($businessScope['zonal_ids']) && !empty($businessScope['zonal_ids'])) {
+                    $query->whereIn('zonal_id', $businessScope['zonal_ids']);
+                }
+            }
+
+            $todayRequests = $query->limit(5)->get();
+            $totalPending = $query->count();
+        }
+
+        return Inertia::render('dashboard', [
+            'todayChangeRequests' => $todayRequests,
+            'totalPendingChangeRequests' => $totalPending,
+        ]);
     })->name('dashboard');
 });
 

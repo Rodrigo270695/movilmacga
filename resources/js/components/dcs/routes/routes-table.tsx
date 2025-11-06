@@ -13,7 +13,8 @@ import {
     Calendar,
     Hash,
     MapPin,
-    Map
+    Map,
+    Radio
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -23,6 +24,7 @@ interface RouteModel {
     name: string;
     code: string;
     status?: boolean | number;
+    telegestion?: boolean;
     circuit_id: number;
     created_at: string;
     pdvs_count?: number; // Conteo total de PDVs
@@ -70,9 +72,11 @@ interface RoutesTableProps {
     onViewVisitDates?: (route: RouteModel) => void;
     onViewMap?: (route: RouteModel) => void;
     isGlobalView?: boolean;
+    onPageChange?: (page: number) => void;
+    onPerPageChange?: (perPage: number) => void;
 }
 
-export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, onViewMap, isGlobalView = false }: RoutesTableProps) {
+export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageVisitDates, onViewVisitDates, onViewMap, isGlobalView = false, onPageChange: parentPageChange, onPerPageChange: parentPerPageChange }: RoutesTableProps) {
     const { addToast } = useToast();
     const [confirmToggleRoute, setConfirmToggleRoute] = useState<RouteModel | null>(null);
 
@@ -116,7 +120,14 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
         setConfirmToggleRoute(null);
     };
 
-        const handlePageChange = (page: number) => {
+    const handlePageChange = (page: number) => {
+        // Si el padre provee manejador, usarlo (para vista global con filtros)
+        if (parentPageChange) {
+            parentPageChange(page);
+            return;
+        }
+
+        // Fallback para vista jerárquica
         const routeName = isGlobalView ? 'dcs.routes.index' : 'dcs.zonales.circuits.routes.index';
         const routeParams = isGlobalView ? {} : [circuit?.zonal?.id, circuit?.id];
 
@@ -137,7 +148,14 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
         });
     };
 
-        const handlePerPageChange = (perPage: number) => {
+    const handlePerPageChange = (perPage: number) => {
+        // Si el padre provee manejador, usarlo (para vista global con filtros)
+        if (parentPerPageChange) {
+            parentPerPageChange(perPage);
+            return;
+        }
+
+        // Fallback para vista jerárquica
         const routeName = isGlobalView ? 'dcs.routes.index' : 'dcs.zonales.circuits.routes.index';
         const routeParams = isGlobalView ? {} : [circuit?.zonal?.id, circuit?.id];
 
@@ -290,6 +308,9 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                     Estado
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Telegestión
+                                </th>
+                                <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     PDVs
                                 </th>
                                 <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -350,7 +371,22 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                             </Badge>
                                         </td>
 
-                                                                                {/* PDVs */}
+                                        {/* Telegestión */}
+                                        <td className="px-6 py-4 text-center">
+                                            {route.telegestion ? (
+                                                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                                    <Radio className="w-3 h-3 mr-1" />
+                                                    Sí
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-gray-500 border-gray-300">
+                                                    <Radio className="w-3 h-3 mr-1 opacity-50" />
+                                                    No
+                                                </Badge>
+                                            )}
+                                        </td>
+
+                                        {/* PDVs */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 {/* Botón único de PDVs con indicadores visuales */}
@@ -465,6 +501,21 @@ export function RoutesTable({ routes, circuit, onEdit, onToggleStatus, onManageV
                                         <statusConfig.icon className="w-3 h-3 mr-1" />
                                         {statusConfig.text}
                                     </Badge>
+                                </div>
+
+                                {/* Telegestión (móvil) */}
+                                <div className="flex items-center gap-2">
+                                    <Radio className="w-3 h-3 text-gray-400" />
+                                    <span className="text-xs text-gray-500">Telegestión:</span>
+                                    {route.telegestion ? (
+                                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                                            Sí
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs">
+                                            No
+                                        </Badge>
+                                    )}
                                 </div>
 
 

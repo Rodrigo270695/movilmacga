@@ -101,6 +101,22 @@ class UserDataController extends Controller
             ]);
         }
 
+        // OPTIMIZACIÓN: Pre-cargar visitas de hoy en una sola query
+        $pdvIds = Pdv::whereIn('route_id', $routeIds)
+            ->where('status', 'vende')
+            ->pluck('id');
+
+        $visitedTodayPdvs = collect();
+        if ($pdvIds->isNotEmpty()) {
+            $visitedTodayPdvs = DB::table('pdv_visits')
+                ->where('user_id', $user->id)
+                ->whereDate('check_in_at', today())
+                ->where('is_valid', true)
+                ->whereIn('pdv_id', $pdvIds)
+                ->pluck('pdv_id')
+                ->toArray();
+        }
+
         // Obtener PDVs de esas rutas
         $pdvs = Pdv::with([
             'route.circuit:id,name,code',
@@ -110,14 +126,7 @@ class UserDataController extends Controller
         ->where('status', 'vende') // Solo PDVs que venden
         ->orderBy('route_id')
         ->get()
-        ->map(function ($pdv) use ($user) {
-            // Verificar si ya fue visitado hoy
-            $visitedToday = $pdv->pdvVisits()
-                ->where('user_id', $user->id)
-                ->whereDate('check_in_at', today())
-                ->where('is_valid', true)
-                ->exists();
-
+        ->map(function ($pdv) use ($visitedTodayPdvs) {
             return [
                 'id' => $pdv->id,
                 'point_name' => $pdv->point_name,
@@ -139,7 +148,7 @@ class UserDataController extends Controller
                     'id' => $pdv->locality->id,
                     'name' => $pdv->locality->name,
                 ],
-                'visited_today' => $visitedToday,
+                'visited_today' => in_array($pdv->id, $visitedTodayPdvs),
                 'sells_recharge' => $pdv->sells_recharge,
             ];
         });
@@ -177,6 +186,34 @@ class UserDataController extends Controller
             ], 403);
         }
 
+        // OPTIMIZACIÓN: Pre-cargar todas las visitas del usuario en una sola query
+        $routeIds = $circuit->routes()->where('status', true)->pluck('id');
+        $pdvIds = Pdv::whereHas('route', function ($query) use ($circuit) {
+            $query->where('circuit_id', $circuit->id)
+                  ->where('status', true);
+        })->pluck('id');
+
+        $monthAgo = now()->subMonth();
+        $visitsData = DB::table('pdv_visits')
+            ->where('user_id', $user->id)
+            ->where('is_valid', true)
+            ->whereIn('pdv_id', $pdvIds)
+            ->select('pdv_id', 'check_in_at')
+            ->get()
+            ->groupBy('pdv_id')
+            ->map(function ($visits) use ($monthAgo) {
+                $recentVisits = $visits->filter(function ($visit) use ($monthAgo) {
+                    return \Carbon\Carbon::parse($visit->check_in_at)->gte($monthAgo);
+                });
+                
+                $lastVisit = $visits->sortByDesc('check_in_at')->first();
+                
+                return [
+                    'recent_count' => $recentVisits->count(),
+                    'last_visit' => $lastVisit ? \Carbon\Carbon::parse($lastVisit->check_in_at)->format('Y-m-d') : null,
+                ];
+            });
+
         $pdvs = Pdv::with([
             'route:id,name,code',
             'locality:id,name'
@@ -187,20 +224,8 @@ class UserDataController extends Controller
         })
         ->orderBy('route_id')
         ->get()
-        ->map(function ($pdv) use ($user) {
-            // Contar visitas del último mes
-            $recentVisits = $pdv->pdvVisits()
-                ->where('user_id', $user->id)
-                ->where('check_in_at', '>=', now()->subMonth())
-                ->where('is_valid', true)
-                ->count();
-
-            // Última visita
-            $lastVisit = $pdv->pdvVisits()
-                ->where('user_id', $user->id)
-                ->where('is_valid', true)
-                ->latest('check_in_at')
-                ->first();
+        ->map(function ($pdv) use ($visitsData) {
+            $visitInfo = $visitsData->get($pdv->id, ['recent_count' => 0, 'last_visit' => null]);
 
             return [
                 'id' => $pdv->id,
@@ -222,8 +247,8 @@ class UserDataController extends Controller
                     'id' => $pdv->locality->id,
                     'name' => $pdv->locality->name,
                 ],
-                'recent_visits_count' => $recentVisits,
-                'last_visit_date' => $lastVisit?->check_in_at?->format('Y-m-d'),
+                'recent_visits_count' => $visitInfo['recent_count'],
+                'last_visit_date' => $visitInfo['last_visit'],
                 'sells_recharge' => $pdv->sells_recharge,
             ];
         });
@@ -254,26 +279,30 @@ class UserDataController extends Controller
         $user = $request->user();
         $period = $request->get('period', 'today');
 
-        // Definir rango de fechas según el período
+        // Definir rango de fechas según el período (usar zona horaria de Perú)
+        $peruDate = now('America/Lima');
         switch ($period) {
             case 'week':
-                $dateFrom = now()->startOfWeek();
-                $dateTo = now()->endOfWeek();
+                $dateFrom = $peruDate->copy()->startOfWeek();
+                $dateTo = $peruDate->copy()->endOfWeek();
                 break;
             case 'month':
-                $dateFrom = now()->startOfMonth();
-                $dateTo = now()->endOfMonth();
+                $dateFrom = $peruDate->copy()->startOfMonth();
+                $dateTo = $peruDate->copy()->endOfMonth();
                 break;
             default: // today
-                $dateFrom = today();
-                $dateTo = today();
+                $dateFrom = $peruDate->copy()->startOfDay();
+                $dateTo = $peruDate->copy()->endOfDay();
                 break;
         }
 
-        // Estadísticas de visitas
+        // Estadísticas de visitas (filtrar por zona horaria de Perú)
+        // Usar whereBetween con timestamps completos para mayor precisión
         $visitsQuery = $user->pdvVisits()
-            ->whereDate('check_in_at', '>=', $dateFrom)
-            ->whereDate('check_in_at', '<=', $dateTo);
+            ->whereBetween('check_in_at', [
+                $dateFrom->copy()->startOfDay(),
+                $dateTo->copy()->endOfDay()
+            ]);
 
         $totalVisits = $visitsQuery->count();
         $validVisits = $visitsQuery->where('is_valid', true)->count();
@@ -281,10 +310,13 @@ class UserDataController extends Controller
         $averageDuration = $visitsQuery->where('visit_status', 'completed')
             ->avg('duration_minutes');
 
-        // Estadísticas de sesiones de trabajo
+        // Estadísticas de sesiones de trabajo (filtrar por zona horaria de Perú)
+        // Usar whereBetween con timestamps completos para mayor precisión
         $sessionsQuery = $user->workingSessions()
-            ->whereDate('started_at', '>=', $dateFrom)
-            ->whereDate('started_at', '<=', $dateTo);
+            ->whereBetween('started_at', [
+                $dateFrom->copy()->startOfDay(),
+                $dateTo->copy()->endOfDay()
+            ]);
 
         $totalSessions = $sessionsQuery->count();
         $completedSessions = $sessionsQuery->where('status', 'completed')->count();
@@ -293,30 +325,42 @@ class UserDataController extends Controller
         $totalDistance = $sessionsQuery->where('status', 'completed')
             ->sum('total_distance_km');
 
-        // PDVs programados para el período
+        // PDVs programados para el período (usar route_visit_dates)
         $scheduledPdvsCount = 0;
         if ($period === 'today') {
-            $today = now()->format('l');
-            $circuitIds = DB::table('user_circuits as uc')
-                ->join('circuit_frequencies as cf', 'uc.circuit_id', '=', 'cf.circuit_id')
+            // Obtener fecha actual en zona horaria de Perú
+            $peruDate = now()->setTimezone('America/Lima');
+            $todayDate = $peruDate->format('Y-m-d');
+            
+            // Obtener rutas que tienen visitas programadas para hoy
+            $routeIds = DB::table('route_visit_dates as rvd')
+                ->join('routes as r', 'rvd.route_id', '=', 'r.id')
+                ->join('user_circuits as uc', 'r.circuit_id', '=', 'uc.circuit_id')
                 ->where('uc.user_id', $user->id)
                 ->where('uc.is_active', true)
-                ->where('cf.day_of_week', strtolower($today))
-                ->pluck('uc.circuit_id');
+                ->where('rvd.visit_date', $todayDate)
+                ->where('rvd.is_active', true)
+                ->where('r.status', true)
+                ->pluck('rvd.route_id');
 
-            if ($circuitIds->isNotEmpty()) {
-                $scheduledPdvsCount = Pdv::whereHas('route', function ($query) use ($circuitIds) {
-                    $query->whereIn('circuit_id', $circuitIds)
-                          ->where('status', true);
-                })
-                ->where('status', 'vende')
-                ->count();
+            if ($routeIds->isNotEmpty()) {
+                $scheduledPdvsCount = Pdv::whereIn('route_id', $routeIds)
+                    ->where('status', '!=', 'no vende')
+                    ->count();
             }
         }
 
         // Calcular porcentaje de cumplimiento
         $compliancePercentage = $scheduledPdvsCount > 0 ?
             round(($validVisits / $scheduledPdvsCount) * 100, 1) : 0;
+        
+        // Calcular promedio de tiempo por visita (en minutos)
+        $averageMinutesPerVisit = $completedVisits > 0 && $averageDuration ? 
+            round($averageDuration, 0) : 0;
+        
+        // Calcular eficiencia (porcentaje de visitas completadas vs programadas)
+        $efficiencyPercentage = $scheduledPdvsCount > 0 ?
+            round(($completedVisits / $scheduledPdvsCount) * 100, 0) : 0;
 
         return response()->json([
             'success' => true,
@@ -324,6 +368,7 @@ class UserDataController extends Controller
                 'period' => $period,
                 'date_from' => $dateFrom->format('Y-m-d'),
                 'date_to' => $dateTo->format('Y-m-d'),
+                'timezone' => 'America/Lima',
                 'visits' => [
                     'total' => $totalVisits,
                     'valid' => $validVisits,
@@ -341,6 +386,8 @@ class UserDataController extends Controller
                 'performance' => [
                     'visits_per_session' => $completedSessions > 0 ? round($validVisits / $completedSessions, 1) : 0,
                     'km_per_visit' => $validVisits > 0 && $totalDistance > 0 ? round($totalDistance / $validVisits, 1) : 0,
+                    'average_minutes_per_visit' => $averageMinutesPerVisit,
+                    'efficiency_percentage' => $efficiencyPercentage,
                 ]
             ]
         ]);
@@ -419,13 +466,20 @@ class UserDataController extends Controller
         ->role('Vendedor')
         ->where('status', true)
         ->whereHas('activeWorkingSessions')
-        ->get()
-        ->map(function ($user) {
+        ->get();
+
+        // OPTIMIZACIÓN: Pre-cargar conteos de visitas de hoy en una sola query
+        $userIds = $activeVendors->pluck('id');
+        $todayVisitsCount = DB::table('pdv_visits')
+            ->whereIn('user_id', $userIds)
+            ->whereDate('check_in_at', today())
+            ->where('is_valid', true)
+            ->selectRaw('user_id, COUNT(*) as count')
+            ->groupBy('user_id')
+            ->pluck('count', 'user_id');
+
+        $activeVendors = $activeVendors->map(function ($user) use ($todayVisitsCount) {
             $session = $user->activeWorkingSessions->first();
-            $todayVisits = $user->pdvVisits()
-                ->whereDate('check_in_at', today())
-                ->where('is_valid', true)
-                ->count();
 
             return [
                 'user_id' => $user->id,
@@ -440,7 +494,7 @@ class UserDataController extends Controller
                     'duration_minutes' => now()->diffInMinutes($session->started_at),
                     'status' => $session->status,
                 ],
-                'today_visits' => $todayVisits,
+                'today_visits' => $todayVisitsCount[$user->id] ?? 0,
             ];
         });
 
@@ -483,30 +537,40 @@ class UserDataController extends Controller
                       ->orderBy('visit_date');
             }])
             ->where('status', true)
-            ->get()
-            ->map(function ($route) use ($todayDate) {
-                $todayVisit = $route->visitDates
-                    ->where('visit_date', $todayDate)
-                    ->first();
+            ->get();
 
-                return [
-                    'id' => $route->id,
-                    'name' => $route->name,
-                    'code' => $route->code,
-                    'status' => $route->status,
-                    'has_visit_today' => $todayVisit ? true : false,
-                    'today_visit_date' => $todayVisit ? $todayVisit->visit_date : null,
-                    'today_visit_notes' => $todayVisit ? $todayVisit->notes : null,
-                    'all_visit_dates' => $route->visitDates->map(function ($visitDate) {
-                        return [
-                            'date' => $visitDate->visit_date,
-                            'notes' => $visitDate->notes,
-                            'is_active' => $visitDate->is_active,
-                        ];
-                    }),
-                    'pdvs_count' => $route->pdvs()->where('status', 'vende')->count(),
-                ];
-            });
+        // OPTIMIZACIÓN: Pre-cargar conteos de PDVs en una sola query
+        $routeIds = $routes->pluck('id');
+        $pdvsCountByRoute = DB::table('pdvs')
+            ->whereIn('route_id', $routeIds)
+            ->where('status', 'vende')
+            ->selectRaw('route_id, COUNT(*) as count')
+            ->groupBy('route_id')
+            ->pluck('count', 'route_id');
+
+        $routes = $routes->map(function ($route) use ($todayDate, $pdvsCountByRoute) {
+            $todayVisit = $route->visitDates
+                ->where('visit_date', $todayDate)
+                ->first();
+
+            return [
+                'id' => $route->id,
+                'name' => $route->name,
+                'code' => $route->code,
+                'status' => $route->status,
+                'has_visit_today' => $todayVisit ? true : false,
+                'today_visit_date' => $todayVisit ? $todayVisit->visit_date : null,
+                'today_visit_notes' => $todayVisit ? $todayVisit->notes : null,
+                'all_visit_dates' => $route->visitDates->map(function ($visitDate) {
+                    return [
+                        'date' => $visitDate->visit_date,
+                        'notes' => $visitDate->notes,
+                        'is_active' => $visitDate->is_active,
+                    ];
+                }),
+                'pdvs_count' => $pdvsCountByRoute[$route->id] ?? 0,
+            ];
+        });
 
         return response()->json([
             'success' => true,

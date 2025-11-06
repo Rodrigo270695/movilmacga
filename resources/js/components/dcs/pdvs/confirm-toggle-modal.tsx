@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -92,18 +93,26 @@ export function ConfirmToggleModal({ open, onClose, pdv, isGlobalView = false }:
     const handleConfirm = () => {
         setIsSubmitting(true);
 
+        // Capturar los query parameters actuales ANTES de enviar la petición
+        const currentUrl = new URL(window.location.href);
+        const preservedQueryParams = currentUrl.search;
+
         const routeName = isGlobalView ? 'dcs.pdvs' : 'dcs.pdvs';
 
         router.patch(route(`${routeName}.toggle-status`, pdv.id), {}, {
+            preserveState: true,
             preserveScroll: true,
             onSuccess: () => {
-                addToast({
-                    type: 'success',
-                    title: '¡Estado actualizado!',
-                    message: `El estado del PDV "${pdv.point_name}" ha sido cambiado exitosamente.`,
-                    duration: 4000
-                });
+                // El backend ya envía el mensaje de éxito, no necesitamos duplicarlo
                 onClose();
+                
+                // Recargar la página preservando los query parameters guardados
+                const targetUrl = route('dcs.pdvs.index') + preservedQueryParams;
+                router.get(targetUrl, {}, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: ['pdvs', 'businesses', 'zonales', 'allZonales', 'allCircuits', 'circuits', 'allRoutes', 'routes', 'departamentos', 'filters']
+                });
             },
             onError: (errors) => {
                 console.error('Error al cambiar estado:', errors);

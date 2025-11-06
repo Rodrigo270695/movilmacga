@@ -2,9 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import { Calendar, Search, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Calendar, Filter, X, User, CircuitBoard, Building2, MapPin, Navigation } from 'lucide-react';
 
 interface User {
     id: number;
@@ -33,6 +34,8 @@ interface Filtros {
 
 interface Opciones {
     businesses: Array<{ id: number; name: string }>;
+    allZonales: Array<{ id: number; name: string; business_id?: number }>;
+    allCircuits: Array<{ id: number; name: string; code: string; zonal_id?: number }>;
     zonales: Array<{ id: number; name: string }>;
     circuits: Array<{ id: number; name: string; code: string }>;
     routes: Array<{ id: number; name: string }>;
@@ -47,164 +50,225 @@ interface PdvVisitadosFiltersProps {
 }
 
 export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersProps) {
-    const [formData, setFormData] = useState<Filtros>(filtros);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Actualizar formData cuando cambien los filtros
-    useEffect(() => {
-        setFormData(filtros);
-    }, [filtros]);
-
-    const handleInputChange = (field: keyof Filtros, value: string | number | undefined) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
+    // Validar que filtros y opciones existan
+    const safeFiltros = filtros || {
+        fecha_desde: '',
+        fecha_hasta: ''
+    };
+    const safeOpciones = opciones || {
+        businesses: [],
+        allZonales: [],
+        allCircuits: [],
+        zonales: [],
+        circuits: [],
+        routes: [],
+        vendedores: [],
+        pdvs: [],
+        estados: []
     };
 
-    const handleSubmit = () => {
-        setIsSubmitting(true);
+    const [localFilters, setLocalFilters] = useState<Filtros>(safeFiltros);
+    const [hasActiveFilters, setHasActiveFilters] = useState(false);
 
-        // Construir parámetros de búsqueda
+    // Filtrar zonales por negocio seleccionado (en memoria desde allZonales)
+    const filteredZonales = localFilters.business_id && localFilters.business_id !== 'todos' && Array.isArray(safeOpciones.allZonales)
+        ? safeOpciones.allZonales.filter(zonal => zonal.business_id?.toString() === localFilters.business_id)
+        : (Array.isArray(safeOpciones.allZonales) ? safeOpciones.allZonales : []);
+
+    // Filtrar circuitos por zonal seleccionado (en memoria desde allCircuits)
+    const filteredCircuits = localFilters.zonal_id && localFilters.zonal_id !== 'todos' && Array.isArray(safeOpciones.allCircuits)
+        ? safeOpciones.allCircuits.filter(circuit => circuit.zonal_id?.toString() === localFilters.zonal_id)
+        : (Array.isArray(safeOpciones.allCircuits) ? safeOpciones.allCircuits : []);
+
+    // Filtrar rutas por circuito seleccionado (en memoria desde routes)
+    const filteredRoutes = localFilters.circuit_id && localFilters.circuit_id !== 'todos' && Array.isArray(safeOpciones.routes)
+        ? safeOpciones.routes.filter(route => route.circuit_id?.toString() === localFilters.circuit_id)
+        : (Array.isArray(safeOpciones.routes) ? safeOpciones.routes : []);
+
+    // Detectar si hay filtros activos
+    useEffect(() => {
+        const active = Object.entries(safeFiltros).some(([key, value]) => {
+            if (key === 'fecha_desde' || key === 'fecha_hasta') {
+                return false; // Las fechas no cuentan como filtros activos
+            }
+            return value && value !== 'todos' && value !== '';
+        });
+        setHasActiveFilters(active);
+    }, [safeFiltros]);
+
+    // Sincronizar filtros locales con los del servidor
+    // CORREGIDO: Usar useRef para evitar loops infinitos
+    const prevFiltersRef = useRef<string>('');
+    
+    useEffect(() => {
+        // Crear objeto de filtros desde el servidor
+        const newFilters: Filtros = {
+            fecha_desde: safeFiltros.fecha_desde ?? '',
+            fecha_hasta: safeFiltros.fecha_hasta ?? '',
+            vendedor_id: safeFiltros.vendedor_id,
+            pdv_id: safeFiltros.pdv_id,
+            estado: safeFiltros.estado,
+            business_id: safeFiltros.business_id,
+            zonal_id: safeFiltros.zonal_id,
+            circuit_id: safeFiltros.circuit_id,
+            route_id: safeFiltros.route_id,
+        };
+        
+        // Serializar para comparar
+        const newFiltersString = JSON.stringify(newFilters);
+        
+        // Solo actualizar si los filtros realmente cambiaron (evitar loops infinitos)
+        if (newFiltersString !== prevFiltersRef.current) {
+            prevFiltersRef.current = newFiltersString;
+            setLocalFilters(newFilters);
+        }
+    }, [safeFiltros]);
+
+    const handleFilterChange = (key: keyof Filtros, value: string) => {
+        const newFilters = {
+            ...localFilters,
+            [key]: value === 'todos' || value === '' ? undefined : value
+        };
+
+        // Limpiar filtros dependientes cuando cambie la jerarquía
+        if (key === 'business_id') {
+            newFilters.zonal_id = undefined;
+            newFilters.circuit_id = undefined;
+            newFilters.route_id = undefined;
+            newFilters.vendedor_id = undefined;
+            newFilters.pdv_id = undefined;
+        } else if (key === 'zonal_id') {
+            newFilters.circuit_id = undefined;
+            newFilters.route_id = undefined;
+            newFilters.vendedor_id = undefined;
+            newFilters.pdv_id = undefined;
+        } else if (key === 'circuit_id') {
+            newFilters.route_id = undefined;
+            newFilters.vendedor_id = undefined;
+            newFilters.pdv_id = undefined;
+        } else if (key === 'route_id') {
+            newFilters.pdv_id = undefined;
+        }
+
+        setLocalFilters(newFilters);
+
+        // Aplicar filtros inmediatamente
         const params = new URLSearchParams();
-        if (formData.fecha_desde) params.set('fecha_desde', formData.fecha_desde);
-        if (formData.fecha_hasta) params.set('fecha_hasta', formData.fecha_hasta);
-        if (formData.vendedor_id && formData.vendedor_id !== 'todos') params.set('vendedor_id', formData.vendedor_id);
-        if (formData.pdv_id && formData.pdv_id !== 'todos') params.set('pdv_id', formData.pdv_id);
-        if (formData.estado && formData.estado !== 'todos') params.set('estado', formData.estado);
-        if (formData.business_id && formData.business_id !== 'todos') params.set('business_id', formData.business_id);
-        if (formData.zonal_id && formData.zonal_id !== 'todos') params.set('zonal_id', formData.zonal_id);
-        if (formData.circuit_id && formData.circuit_id !== 'todos') params.set('circuit_id', formData.circuit_id);
-        if (formData.route_id && formData.route_id !== 'todos') params.set('route_id', formData.route_id);
-
-        router.get('/reportes/pdvs-visitados', Object.fromEntries(params), {
-            preserveState: true,
-            preserveScroll: true,
-            onFinish: () => {
-                setIsSubmitting(false);
+        Object.entries(newFilters).forEach(([filterKey, filterValue]) => {
+            if (filterValue && filterValue !== 'todos' && filterValue !== '') {
+                params.set(filterKey, filterValue);
             }
         });
-    };
 
-    const handleClearFilters = () => {
-        setFormData({
-            fecha_desde: '',
-            fecha_hasta: '',
-            vendedor_id: undefined,
-            pdv_id: undefined,
-            estado: undefined,
-            business_id: undefined,
-            zonal_id: undefined,
-            circuit_id: undefined,
-            route_id: undefined
+        params.set('page', '1'); // Resetear a primera página
+
+        router.visit(`/reportes/pdvs-visitados?${params.toString()}`, {
+            preserveState: true,
+            preserveScroll: true
         });
     };
 
-    const hasActiveFilters = () => {
-        return formData.vendedor_id || formData.pdv_id || formData.estado ||
-               formData.fecha_desde !== filtros.fecha_desde ||
-               formData.fecha_hasta !== filtros.fecha_hasta;
+    const clearFilters = () => {
+        setLocalFilters({
+            fecha_desde: localFilters.fecha_desde || '',
+            fecha_hasta: localFilters.fecha_hasta || ''
+        });
+        const params = new URLSearchParams();
+        if (localFilters.fecha_desde) params.set('fecha_desde', localFilters.fecha_desde);
+        if (localFilters.fecha_hasta) params.set('fecha_hasta', localFilters.fecha_hasta);
+        
+        router.visit(`/reportes/pdvs-visitados?${params.toString()}`, {
+            preserveState: false,
+            preserveScroll: false
+        });
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            <div className="px-4 sm:px-6 py-4">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div className="flex-1">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Filtros Avanzados</h3>
-                        <p className="text-sm text-gray-600">Configura los filtros para personalizar el reporte</p>
+        <Card className="border border-gray-200 shadow-sm">
+            <div className="p-4 sm:p-6">
+                {/* Header de filtros */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Filter className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-900">Filtros de Búsqueda</h3>
+                            <p className="text-xs text-gray-500">Filtra las visitas por diferentes criterios</p>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {hasActiveFilters && (
                         <Button
-                            type="button"
                             variant="outline"
-                            onClick={handleClearFilters}
                             size="sm"
+                            onClick={clearFilters}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         >
-                            <RotateCcw className="w-4 h-4 mr-2" />
+                            <X className="w-3 h-3 mr-1" />
                             Limpiar
                         </Button>
-
-                        <Button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                            <Search className="w-4 h-4 mr-2" />
-                            {isSubmitting ? 'Aplicando...' : 'Aplicar'}
-                        </Button>
-                    </div>
+                    )}
                 </div>
 
-                <div className="mt-6 space-y-6">
+                {/* Filtros */}
+                <div className="space-y-6">
                     {/* Filtros de Fechas */}
                     <div className="space-y-4">
-                        <Label className="text-sm font-medium text-gray-700">
-                            Rango de Fechas
-                        </Label>
-
+                        <Label className="text-xs font-medium text-gray-700">Rango de Fechas</Label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {/* Fecha Desde */}
                             <div className="space-y-2">
-                                <Label htmlFor="fecha_desde" className="text-xs text-gray-600">
+                                <Label htmlFor="fecha_desde" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
                                     Fecha Desde
                                 </Label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        id="fecha_desde"
-                                        type="date"
-                                        value={formData.fecha_desde}
-                                        onChange={(e) => handleInputChange('fecha_desde', e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
+                                <Input
+                                    id="fecha_desde"
+                                    type="date"
+                                    value={localFilters.fecha_desde || ''}
+                                    onChange={(e) => handleFilterChange('fecha_desde', e.target.value)}
+                                    className="text-sm"
+                                />
                             </div>
 
                             {/* Fecha Hasta */}
                             <div className="space-y-2">
-                                <Label htmlFor="fecha_hasta" className="text-xs text-gray-600">
+                                <Label htmlFor="fecha_hasta" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
                                     Fecha Hasta
                                 </Label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        id="fecha_hasta"
-                                        type="date"
-                                        value={formData.fecha_hasta}
-                                        onChange={(e) => handleInputChange('fecha_hasta', e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
+                                <Input
+                                    id="fecha_hasta"
+                                    type="date"
+                                    value={localFilters.fecha_hasta || ''}
+                                    onChange={(e) => handleFilterChange('fecha_hasta', e.target.value)}
+                                    className="text-sm"
+                                />
                             </div>
                         </div>
                     </div>
 
                     {/* Jerarquía Organizacional */}
                     <div className="space-y-4">
-                        <Label className="text-sm font-medium text-gray-700">
-                            Jerarquía Organizacional
-                        </Label>
-
+                        <Label className="text-xs font-medium text-gray-700">Jerarquía Organizacional</Label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Negocio */}
                             <div className="space-y-2">
-                                <Label htmlFor="business_id" className="text-xs text-gray-600">
+                                <Label htmlFor="business_id" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Building2 className="w-3 h-3" />
                                     Negocio
                                 </Label>
                                 <Select
-                                    value={formData.business_id || ''}
-                                    onValueChange={(value) => handleInputChange('business_id', value || undefined)}
+                                    value={localFilters.business_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('business_id', value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="text-sm">
                                         <SelectValue placeholder="Seleccionar negocio" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="todos">Todos los negocios</SelectItem>
-                                        {opciones.businesses.map((business) => (
+                                        {Array.isArray(safeOpciones.businesses) && safeOpciones.businesses.map((business) => (
                                             <SelectItem key={business.id} value={business.id.toString()}>
                                                 {business.name}
                                             </SelectItem>
@@ -215,19 +279,23 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
 
                             {/* Zonal */}
                             <div className="space-y-2">
-                                <Label htmlFor="zonal_id" className="text-xs text-gray-600">
+                                <Label htmlFor="zonal_id" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
                                     Zonal
                                 </Label>
                                 <Select
-                                    value={formData.zonal_id || ''}
-                                    onValueChange={(value) => handleInputChange('zonal_id', value || undefined)}
+                                    value={localFilters.zonal_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('zonal_id', value)}
+                                    disabled={!localFilters.business_id || localFilters.business_id === 'todos'}
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar zonal" />
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder={localFilters.business_id && localFilters.business_id !== 'todos' ? 'Seleccionar zonal' : 'Selecciona un negocio primero'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todos">Todos los zonales</SelectItem>
-                                        {opciones.zonales.map((zonal) => (
+                                        <SelectItem value="todos">
+                                            {localFilters.business_id && localFilters.business_id !== 'todos' ? 'Todos los zonales' : 'Selecciona un negocio primero'}
+                                        </SelectItem>
+                                        {filteredZonales.map((zonal) => (
                                             <SelectItem key={zonal.id} value={zonal.id.toString()}>
                                                 {zonal.name}
                                             </SelectItem>
@@ -238,19 +306,23 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
 
                             {/* Circuito */}
                             <div className="space-y-2">
-                                <Label htmlFor="circuit_id" className="text-xs text-gray-600">
+                                <Label htmlFor="circuit_id" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <CircuitBoard className="w-3 h-3" />
                                     Circuito
                                 </Label>
                                 <Select
-                                    value={formData.circuit_id || ''}
-                                    onValueChange={(value) => handleInputChange('circuit_id', value || undefined)}
+                                    value={localFilters.circuit_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('circuit_id', value)}
+                                    disabled={!localFilters.zonal_id || localFilters.zonal_id === 'todos'}
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar circuito" />
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder={localFilters.zonal_id && localFilters.zonal_id !== 'todos' ? 'Seleccionar circuito' : 'Selecciona un zonal primero'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todos">Todos los circuitos</SelectItem>
-                                        {opciones.circuits.map((circuit) => (
+                                        <SelectItem value="todos">
+                                            {localFilters.zonal_id && localFilters.zonal_id !== 'todos' ? 'Todos los circuitos' : 'Selecciona un zonal primero'}
+                                        </SelectItem>
+                                        {filteredCircuits.map((circuit) => (
                                             <SelectItem key={circuit.id} value={circuit.id.toString()}>
                                                 {circuit.name} ({circuit.code})
                                             </SelectItem>
@@ -261,19 +333,23 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
 
                             {/* Ruta */}
                             <div className="space-y-2">
-                                <Label htmlFor="route_id" className="text-xs text-gray-600">
+                                <Label htmlFor="route_id" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Navigation className="w-3 h-3" />
                                     Ruta
                                 </Label>
                                 <Select
-                                    value={formData.route_id || ''}
-                                    onValueChange={(value) => handleInputChange('route_id', value || undefined)}
+                                    value={localFilters.route_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('route_id', value)}
+                                    disabled={!localFilters.circuit_id || localFilters.circuit_id === 'todos'}
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar ruta" />
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder={localFilters.circuit_id && localFilters.circuit_id !== 'todos' ? 'Seleccionar ruta' : 'Selecciona un circuito primero'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todos">Todas las rutas</SelectItem>
-                                        {opciones.routes.map((route) => (
+                                        <SelectItem value="todos">
+                                            {localFilters.circuit_id && localFilters.circuit_id !== 'todos' ? 'Todas las rutas' : 'Selecciona un circuito primero'}
+                                        </SelectItem>
+                                        {filteredRoutes.map((route) => (
                                             <SelectItem key={route.id} value={route.id.toString()}>
                                                 {route.name}
                                             </SelectItem>
@@ -286,26 +362,24 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
 
                     {/* Filtros Específicos */}
                     <div className="space-y-4">
-                        <Label className="text-sm font-medium text-gray-700">
-                            Filtros Específicos
-                        </Label>
-
+                        <Label className="text-xs font-medium text-gray-700">Filtros Específicos</Label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {/* Vendedor */}
                             <div className="space-y-2">
-                                <Label htmlFor="vendedor_id" className="text-xs text-gray-600">
+                                <Label htmlFor="vendedor_id" className="text-xs text-gray-600 flex items-center gap-1">
+                                    <User className="w-3 h-3" />
                                     Vendedor
                                 </Label>
                                 <Select
-                                    value={formData.vendedor_id || ''}
-                                    onValueChange={(value) => handleInputChange('vendedor_id', value || undefined)}
+                                    value={localFilters.vendedor_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('vendedor_id', value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="text-sm">
                                         <SelectValue placeholder="Seleccionar vendedor" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="todos">Todos los vendedores</SelectItem>
-                                        {opciones.vendedores.map((vendedor) => (
+                                        {Array.isArray(safeOpciones.vendedores) && safeOpciones.vendedores.map((vendedor) => (
                                             <SelectItem key={vendedor.id} value={vendedor.id.toString()}>
                                                 {vendedor.first_name} {vendedor.last_name} ({vendedor.username})
                                             </SelectItem>
@@ -320,15 +394,18 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
                                     PDV
                                 </Label>
                                 <Select
-                                    value={formData.pdv_id || ''}
-                                    onValueChange={(value) => handleInputChange('pdv_id', value || undefined)}
+                                    value={localFilters.pdv_id || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('pdv_id', value)}
+                                    disabled={!localFilters.route_id || localFilters.route_id === 'todos'}
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar PDV" />
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder={localFilters.route_id && localFilters.route_id !== 'todos' ? 'Seleccionar PDV' : 'Selecciona una ruta primero'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todos">Todos los PDVs</SelectItem>
-                                        {opciones.pdvs.map((pdv) => (
+                                        <SelectItem value="todos">
+                                            {localFilters.route_id && localFilters.route_id !== 'todos' ? 'Todos los PDVs' : 'Selecciona una ruta primero'}
+                                        </SelectItem>
+                                        {Array.isArray(safeOpciones.pdvs) && safeOpciones.pdvs.map((pdv) => (
                                             <SelectItem key={pdv.id} value={pdv.id.toString()}>
                                                 {pdv.point_name} - {pdv.client_name}
                                             </SelectItem>
@@ -343,15 +420,15 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
                                     Estado de Visita
                                 </Label>
                                 <Select
-                                    value={formData.estado || ''}
-                                    onValueChange={(value) => handleInputChange('estado', value || undefined)}
+                                    value={localFilters.estado || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('estado', value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="text-sm">
                                         <SelectValue placeholder="Seleccionar estado" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="todos">Todos los estados</SelectItem>
-                                        {opciones.estados.map((estado) => (
+                                        {Array.isArray(safeOpciones.estados) && safeOpciones.estados.map((estado) => (
                                             <SelectItem key={estado.value} value={estado.value}>
                                                 {estado.label}
                                             </SelectItem>
@@ -363,6 +440,6 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
                     </div>
                 </div>
             </div>
-        </div>
+        </Card>
     );
 }

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { router, useForm } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { CircuitBoard, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -75,6 +76,10 @@ export function CircuitForm({ isOpen, onClose, circuit, zonal, zonales, isGlobal
             return;
         }
 
+        // Capturar los query parameters actuales ANTES de enviar la petición
+        const currentUrl = new URL(window.location.href);
+        const preservedQueryParams = currentUrl.search;
+
         const onSuccess = () => {
             addToast({
                 type: 'success',
@@ -86,6 +91,14 @@ export function CircuitForm({ isOpen, onClose, circuit, zonal, zonales, isGlobal
             });
             onClose();
             reset();
+            
+            // Recargar la página preservando los query parameters guardados
+            const targetUrl = route('dcs.circuits.index') + preservedQueryParams;
+            router.get(targetUrl, {}, {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['circuits', 'businesses', 'zonales', 'allZonales', 'businessScope', 'filters']
+            });
         };
 
         const onError = () => {
@@ -221,7 +234,7 @@ export function CircuitForm({ isOpen, onClose, circuit, zonal, zonales, isGlobal
                             id="name"
                             type="text"
                             value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
+                            onChange={(e) => setData('name', e.target.value.toUpperCase())}
                             className={`w-full ${errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                             placeholder="Ej: Circuito Centro, Circuito Norte"
                             maxLength={25}

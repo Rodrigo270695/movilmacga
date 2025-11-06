@@ -81,7 +81,7 @@ export function VendorAssignmentModal({
 
     // Todos los vendedores disponibles (pueden tener múltiples circuitos)
     const availableVendors = React.useMemo(() => {
-        return [...vendors];
+        return [...vendors].sort((a, b) => b.last_name.localeCompare(a.last_name, 'es', { sensitivity: 'base' }));
     }, [vendors]);
 
     // Obtener vendedor seleccionado
@@ -161,7 +161,7 @@ export function VendorAssignmentModal({
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'assign'
-                            ? 'Asigna un vendedor adicional para gestionar este circuito. Los vendedores pueden tener múltiples circuitos asignados.'
+                            ? 'Asigna un vendedor adicional para gestionar este circuito. Cada circuito puede tener máximo 3 vendedores asignados.'
                             : 'Modifica la asignación de este vendedor al circuito.'
                         }
                     </DialogDescription>
@@ -186,6 +186,46 @@ export function VendorAssignmentModal({
                             <MapPin className="w-4 h-4 text-gray-500" />
                             <span className="text-sm text-gray-600">{circuit.zonal.name}</span>
                         </div>
+
+                        {/* Información de vendedores actuales */}
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="flex items-center gap-2 mb-2">
+                                <UserCheck className="w-4 h-4 text-gray-600" />
+                                <span className="font-medium text-gray-900">Vendedores Asignados</span>
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs ${
+                                        (circuit.active_user_circuits?.length || 0) >= 3
+                                            ? 'bg-green-50 text-green-700 border-green-200'
+                                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                                    }`}
+                                >
+                                    {circuit.active_user_circuits?.length || 0}/3 máximo
+                                </Badge>
+                            </div>
+                            {circuit.active_user_circuits && circuit.active_user_circuits.length > 0 ? (
+                                <div className="space-y-1">
+                                    {circuit.active_user_circuits.map((assignment) => (
+                                        <div key={assignment.id} className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-700">
+                                                {assignment.user.last_name} {assignment.user.first_name}
+                                            </span>
+                                            <Badge variant="outline" className="text-xs">
+                                                P{assignment.priority}
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 italic">No hay vendedores asignados</p>
+                            )}
+                            {(circuit.active_user_circuits?.length || 0) >= 3 && (
+                                <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                    <span>⚠️</span>
+                                    <span>Este circuito ya alcanzó el máximo de 3 vendedores</span>
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Vendedor actual (en modo reasignar) */}
@@ -196,8 +236,8 @@ export function VendorAssignmentModal({
                                 <span className="font-medium text-yellow-800">Vendedor Actual</span>
                             </div>
                             <p className="font-semibold text-gray-900">
-                                {circuit.active_user_circuits[0].user.first_name}{' '}
-                                {circuit.active_user_circuits[0].user.last_name}
+                                {circuit.active_user_circuits[0].user.last_name}{' '}
+                                {circuit.active_user_circuits[0].user.first_name}
                             </p>
                             <p className="text-sm text-gray-600">{circuit.active_user_circuits[0].user.email}</p>
                             <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
@@ -229,7 +269,7 @@ export function VendorAssignmentModal({
                                         <SelectItem key={vendor.id} value={vendor.id.toString()}>
                                             <div className="flex flex-col">
                                                 <span className="font-medium">
-                                                    {vendor.first_name} {vendor.last_name}
+                                                    {vendor.last_name} {vendor.first_name}
                                                 </span>
                                                 <span className="text-sm text-gray-500">{vendor.email}</span>
                                             </div>
@@ -271,7 +311,7 @@ export function VendorAssignmentModal({
                                 <span className="font-medium text-green-800">Vendedor Seleccionado</span>
                             </div>
                             <p className="font-semibold text-gray-900">
-                                {selectedVendor.first_name} {selectedVendor.last_name}
+                                {selectedVendor.last_name} {selectedVendor.first_name}
                             </p>
                             <p className="text-sm text-gray-600">{selectedVendor.email}</p>
                             <div className="mt-2">

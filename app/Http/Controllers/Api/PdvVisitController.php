@@ -278,9 +278,17 @@ class PdvVisitController extends Controller
     {
         $user = $request->user();
 
-        $visits = PdvVisit::with('pdv:id,point_name,address,classification,status')
+        // Usar zona horaria de Perú explícitamente
+        $todayPeru = now('America/Lima')->startOfDay();
+        $tomorrowPeru = now('America/Lima')->copy()->addDay()->startOfDay();
+
+        $visits = PdvVisit::with([
+            'pdv:id,point_name,address,classification,status,route_id',
+            'pdv.route:id,name,circuit_id',
+            'pdv.route.circuit:id,name'
+        ])
             ->where('user_id', $user->id)
-            ->whereDate('check_in_at', today())
+            ->whereBetween('check_in_at', [$todayPeru, $tomorrowPeru])
             ->orderBy('check_in_at', 'desc')
             ->get()
             ->map(function ($visit) {
@@ -293,6 +301,14 @@ class PdvVisitController extends Controller
                         'classification' => $visit->pdv->classification,
                         'status' => $visit->pdv->status,
                     ],
+                    'route' => [
+                        'id' => $visit->pdv->route?->id,
+                        'name' => $visit->pdv->route?->name ?? 'Sin ruta',
+                    ],
+                    'circuit' => [
+                        'id' => $visit->pdv->route?->circuit?->id,
+                        'name' => $visit->pdv->route?->circuit?->name ?? 'Sin circuito',
+                    ],
                     'check_in_at' => $visit->check_in_at,
                     'check_out_at' => $visit->check_out_at,
                     'duration_minutes' => $visit->duration_minutes,
@@ -301,13 +317,15 @@ class PdvVisitController extends Controller
                     'is_valid' => $visit->is_valid,
                     'has_photo' => !is_null($visit->visit_photo),
                     'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
+                    'date' => $visit->check_in_at->setTimezone('America/Lima')->format('Y-m-d'),
+                    'time' => $visit->check_in_at->setTimezone('America/Lima')->format('H:i'),
                 ];
             });
 
         return response()->json([
             'success' => true,
             'data' => [
-                'date' => today()->format('Y-m-d'),
+                'date' => now('America/Lima')->format('Y-m-d'),
                 'visits_count' => $visits->count(),
                 'completed_visits' => $visits->where('visit_status', 'completed')->count(),
                 'in_progress_visits' => $visits->where('visit_status', 'in_progress')->count(),
@@ -333,8 +351,8 @@ class PdvVisitController extends Controller
         $perPage = $request->input('per_page', 20);
 
         $query = PdvVisit::with([
-            'pdv:id,point_name,address,classification,status',
-            'pdv.route:id,name',
+            'pdv:id,point_name,address,classification,status,route_id',
+            'pdv.route:id,name,circuit_id',
             'pdv.route.circuit:id,name'
         ])
         ->where('user_id', $user->id);
@@ -344,12 +362,15 @@ class PdvVisitController extends Controller
             $query->where('visit_status', $request->status);
         }
 
+        // Usar zona horaria de Perú para filtros de fecha
         if ($request->has('date_from')) {
-            $query->whereDate('check_in_at', '>=', $request->date_from);
+            $dateFrom = \Carbon\Carbon::parse($request->date_from, 'America/Lima')->startOfDay();
+            $query->where('check_in_at', '>=', $dateFrom);
         }
 
         if ($request->has('date_to')) {
-            $query->whereDate('check_in_at', '<=', $request->date_to);
+            $dateTo = \Carbon\Carbon::parse($request->date_to, 'America/Lima')->endOfDay();
+            $query->where('check_in_at', '<=', $dateTo);
         }
 
         $visits = $query->orderBy('check_in_at', 'desc')
@@ -366,12 +387,12 @@ class PdvVisitController extends Controller
                     'status' => $visit->pdv->status,
                 ],
                 'route' => [
-                    'id' => $visit->pdv->route->id ?? null,
-                    'name' => $visit->pdv->route->name ?? 'Sin ruta',
+                    'id' => $visit->pdv->route?->id,
+                    'name' => $visit->pdv->route?->name ?? 'Sin ruta',
                 ],
                 'circuit' => [
-                    'id' => $visit->pdv->route->circuit->id ?? null,
-                    'name' => $visit->pdv->route->circuit->name ?? 'Sin circuito',
+                    'id' => $visit->pdv->route?->circuit?->id,
+                    'name' => $visit->pdv->route?->circuit?->name ?? 'Sin circuito',
                 ],
                 'check_in_at' => $visit->check_in_at,
                 'check_out_at' => $visit->check_out_at,
@@ -382,8 +403,8 @@ class PdvVisitController extends Controller
                 'has_photo' => !is_null($visit->visit_photo),
                 'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
                 'notes' => $visit->notes,
-                'date' => $visit->check_in_at->format('Y-m-d'),
-                'time' => $visit->check_in_at->format('H:i'),
+                'date' => $visit->check_in_at->setTimezone('America/Lima')->format('Y-m-d'),
+                'time' => $visit->check_in_at->setTimezone('America/Lima')->format('H:i'),
             ];
         });
 
@@ -425,7 +446,10 @@ class PdvVisitController extends Controller
             ], 403);
         }
 
-        $visit->load('pdv:id,point_name,address,latitude,longitude,classification,status');
+        $visit->load([
+            'pdv:id,point_name,address,latitude,longitude,classification,status',
+            'formResponsesWithFields.formField'
+        ]);
 
         return response()->json([
             'success' => true,
@@ -451,6 +475,17 @@ class PdvVisitController extends Controller
                 'notes' => $visit->notes,
                 'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
                 'visit_data' => $visit->visit_data,
+                'form_responses' => $visit->formResponsesWithFields->map(function ($response) {
+                    return [
+                        'field_id' => $response->form_field_id,
+                        'field_name' => $response->formField->name ?? null,
+                        'field_type' => $response->formField->type ?? null,
+                        'response_value' => $response->response_value,
+                        'response_file' => $response->response_file ? Storage::url($response->response_file) : null,
+                        'response_location' => $response->response_location,
+                        'response_signature' => $response->response_signature ? Storage::url($response->response_signature) : null,
+                    ];
+                }),
             ]
         ]);
     }
@@ -484,6 +519,58 @@ class PdvVisitController extends Controller
                 'visit_data' => $visit->visit_data,
             ]
         ]);
+    }
+
+    /**
+     * Eliminar una visita (solo si está en progreso)
+     */
+    public function destroy(Request $request, PdvVisit $visit)
+    {
+        $user = $request->user();
+
+        // Verificar que la visita pertenezca al usuario
+        if ($visit->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes acceso a esta visita.',
+            ], 403);
+        }
+
+        // Verificar que la visita esté en estado "in_progress"
+        if ($visit->visit_status !== 'in_progress') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se pueden eliminar visitas que están en progreso.',
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Eliminar foto si existe
+            if ($visit->visit_photo && Storage::disk('public')->exists($visit->visit_photo)) {
+                Storage::disk('public')->delete($visit->visit_photo);
+            }
+
+            // Eliminar la visita
+            $visit->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Visita eliminada exitosamente',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la visita',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

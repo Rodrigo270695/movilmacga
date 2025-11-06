@@ -29,6 +29,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
     {
         $query = Pdv::with([
             'route.circuit.zonal.business',
+            'route.visitDates', // Incluir fechas de visita de la ruta para calcular frecuencia
             'district.provincia.departamento',
             'route.circuit.userCircuits.user' // Agregar relación con vendedores
         ])
@@ -115,7 +116,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'Departamento',
             'Localidad',
             'Fecha de Creación',
-            'Última Actualización'
+            'Última Actualización',
+            'Frecuencia'
         ];
     }
 
@@ -127,6 +129,37 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             $activeUserCircuit = $pdv->route->circuit->userCircuits->where('is_active', true)->first();
             if ($activeUserCircuit && $activeUserCircuit->user) {
                 $vendedor = $activeUserCircuit->user->first_name . ' ' . $activeUserCircuit->user->last_name;
+            }
+        }
+
+        // Obtener frecuencia de la ruta (días de la semana únicos)
+        $frequencyText = 'Sin frecuencia definida';
+        if ($pdv->route && $pdv->route->visitDates) {
+            $visitDates = $pdv->route->visitDates->where('is_active', true);
+            if ($visitDates->isNotEmpty()) {
+                $frequencyDays = $visitDates->pluck('visit_date')
+                    ->map(function($date) {
+                        // Carbon devuelve: 1=lunes, 2=martes, ..., 7=domingo
+                        return $date->dayOfWeekIso; // ISO 8601: 1=Lunes, 7=Domingo
+                    })
+                    ->unique()
+                    ->sort()
+                    ->map(function($dayNumber) {
+                        $daysSpanish = [
+                            1 => 'Lunes',
+                            2 => 'Martes',
+                            3 => 'Miércoles',
+                            4 => 'Jueves',
+                            5 => 'Viernes',
+                            6 => 'Sábado',
+                            7 => 'Domingo',
+                        ];
+                        return $daysSpanish[$dayNumber] ?? '';
+                    })
+                    ->filter()
+                    ->implode(', ');
+                
+                $frequencyText = $frequencyDays ?: 'Sin frecuencia definida';
             }
         }
 
@@ -158,6 +191,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             $pdv->locality,
             $pdv->created_at?->format('d/m/Y H:i:s'),
             $pdv->updated_at?->format('d/m/Y H:i:s'),
+            $frequencyText,
         ];
     }
 
@@ -200,7 +234,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
         $sheet->getStyle("K:K")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Vende Recarga
         $sheet->getStyle("J:J")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado
         $sheet->getStyle("V:V")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Vendedor Asignado
-        $sheet->getStyle("AA:AB")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fechas (actualizado)
+        $sheet->getStyle("AA:AB")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fechas
+        $sheet->getStyle("AC:AC")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Frecuencia
 
         return $sheet;
     }

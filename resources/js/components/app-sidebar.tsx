@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation, BarChart3, Clock } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 import { useMemo, useCallback } from 'react';
@@ -87,6 +87,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/dcs/vendor-circuits',
                 icon: Users,
                 permission: 'gestor-vendedor-circuito-acceso',
+            },
+            {
+                title: 'Aprobaciones PDV',
+                href: '/dcs/pdv-change-requests',
+                icon: FileCheck,
+                permission: 'gestor-pdv-aprobaciones-acceso',
             },
         ],
     },

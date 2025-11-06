@@ -89,52 +89,68 @@ class VendorCircuitController extends Controller
             });
         }
 
-        if ($status === 'assigned') {
-            $circuitsQuery->whereHas('activeUserCircuits');
+        if ($status === 'complete') {
+            $circuitsQuery->whereHas('activeUserCircuits', function ($query) {
+                $query->where('is_active', true);
+            }, '=', 3);
+        } elseif ($status === 'partial') {
+            $circuitsQuery->whereHas('activeUserCircuits', function ($query) {
+                $query->where('is_active', true);
+            }, '>=', 1)
+            ->whereHas('activeUserCircuits', function ($query) {
+                $query->where('is_active', true);
+            }, '<', 3);
         } elseif ($status === 'unassigned') {
-            $circuitsQuery->whereDoesntHave('activeUserCircuits');
+            $circuitsQuery->whereDoesntHave('activeUserCircuits', function ($query) {
+                $query->where('is_active', true);
+            });
         }
 
         // Obtener resultados paginados
         $circuits = $circuitsQuery->where('status', true)->paginate($perPage);
 
-        // Obtener vendedores filtrados según el scope del usuario
-        $vendorsQuery = User::role('Vendedor')->where('status', true);
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $cacheKey = 'vendor_circuit_options_' . md5(json_encode($businessScope));
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($businessScope) {
+            // Vendedores filtrados según el scope del usuario
+            $vendorsQuery = User::role('Vendedor')->where('status', true);
+            if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                $vendorsQuery->whereHas('activeUserCircuits.circuit.zonal.business', function ($query) use ($businessScope) {
+                    $query->whereIn('businesses.id', $businessScope['business_ids']);
+                });
+            }
+            if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+                $vendorsQuery->whereHas('activeUserCircuits.circuit', function ($query) use ($businessScope) {
+                    $query->whereIn('zonal_id', $businessScope['zonal_ids']);
+                });
+            }
 
-        // Si el usuario tiene restricciones de negocio, filtrar vendedores por circuitos asignados
-        if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
-            $vendorsQuery->whereHas('activeUserCircuits.circuit.zonal.business', function ($query) use ($businessScope) {
-                $query->whereIn('businesses.id', $businessScope['business_ids']);
-            });
-        }
+            // Negocios filtrados según el scope del usuario
+            $businessesQuery = \App\Models\Business::where('status', true);
+            if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                $businessesQuery->whereIn('id', $businessScope['business_ids']);
+            }
 
-        // Si el usuario tiene restricciones de zonal, filtrar vendedores por zonales asignados
-        if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
-            $vendorsQuery->whereHas('activeUserCircuits.circuit', function ($query) use ($businessScope) {
-                $query->whereIn('zonal_id', $businessScope['zonal_ids']);
-            });
-        }
+            // Zonales filtrados según el scope del usuario
+            $zonalsQuery = \App\Models\Zonal::where('status', true)->with('business');
+            if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+                $zonalsQuery->whereIn('id', $businessScope['zonal_ids']);
+            } elseif ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                $zonalsQuery->whereHas('business', function ($query) use ($businessScope) {
+                    $query->whereIn('businesses.id', $businessScope['business_ids']);
+                });
+            }
 
-        $vendors = $vendorsQuery->get(['id', 'first_name', 'last_name', 'email', 'status']);
+            return [
+                'vendors' => $vendorsQuery->get(['id', 'first_name', 'last_name', 'email', 'status']),
+                'businesses' => $businessesQuery->get(['id', 'name']),
+                'zonals' => $zonalsQuery->get(['id', 'name', 'business_id']),
+            ];
+        });
 
-        // Obtener negocios filtrados según el scope del usuario
-        $businessesQuery = \App\Models\Business::where('status', true);
-        if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
-            $businessesQuery->whereIn('id', $businessScope['business_ids']);
-        }
-        $businesses = $businessesQuery->get(['id', 'name']);
-
-        // Obtener zonales filtrados según el scope del usuario
-        $zonalsQuery = \App\Models\Zonal::where('status', true)->with('business');
-        if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
-            $zonalsQuery->whereIn('id', $businessScope['zonal_ids']);
-        } elseif ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
-            // Si no tiene restricción de zonal pero sí de negocio, filtrar por negocio
-            $zonalsQuery->whereHas('business', function ($query) use ($businessScope) {
-                $query->whereIn('businesses.id', $businessScope['business_ids']);
-            });
-        }
-        $zonals = $zonalsQuery->get(['id', 'name', 'business_id']);
+        $vendors = $filterOptions['vendors'];
+        $businesses = $filterOptions['businesses'];
+        $zonals = $filterOptions['zonals'];
 
         return Inertia::render('dcs/vendor-circuits/index', [
             'circuits' => $circuits,
@@ -162,7 +178,16 @@ class VendorCircuitController extends Controller
         }
 
         try {
-            // Crear nueva asignación (múltiples vendedores pueden estar asignados al mismo circuito)
+            // Verificar que el circuito no exceda máximo 3 vendedores
+            $currentVendorsCount = UserCircuit::where('circuit_id', $request->circuit_id)
+                ->where('is_active', true)
+                ->count();
+
+            if ($currentVendorsCount >= 3) {
+                return back()->with('error', 'Este circuito ya tiene el máximo de 3 vendedores asignados. No se pueden asignar más vendedores.');
+            }
+
+            // Crear nueva asignación (máximo 3 vendedores por circuito)
             $userCircuit = UserCircuit::create([
                 'circuit_id' => $request->circuit_id,
                 'user_id' => $request->user_id,
@@ -217,7 +242,7 @@ class VendorCircuitController extends Controller
         }
 
         try {
-            // Eliminar la asignación directamente
+            // Eliminar la asignación directamente (siempre permitir desasignar)
             $userCircuit->delete();
 
             return back()->with('success', 'Vendedor desasignado del circuito exitosamente.');

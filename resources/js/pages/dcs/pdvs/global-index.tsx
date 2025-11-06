@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { Pagination } from '@/components/ui/pagination';
 import AppLayout from '@/layouts/app-layout';
 import { PdvsTable } from '@/components/dcs/pdvs/pdvs-table';
+import { PdvsMobileCards } from '@/components/dcs/pdvs/pdvs-mobile-cards';
 import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
@@ -152,6 +153,9 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingPdv, setEditingPdv] = useState<PdvModel | null>(null);
     const [toggleModalData, setToggleModalData] = useState<{ pdv: PdvModel } | null>(null);
+
+    // Estado para detectar si estamos en móvil
+    const [isMobile, setIsMobile] = useState(false);
 
     // Breadcrumbs dinámicos (memoizados para evitar re-renders)
     const breadcrumbs: BreadcrumbItem[] = useMemo(() => [
@@ -311,6 +315,20 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             }
         }
     }, [selectedCircuit, allRoutes, selectedRoute]);
+
+    // Detectar si estamos en móvil
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768); // md breakpoint
+        };
+
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkIsMobile);
+        };
+    }, []);
 
     // Limpieza del debounce al desmontar el componente
     useEffect(() => {
@@ -482,6 +500,15 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
         setToggleModalData(null);
     };
 
+    // Funciones adicionales para la vista móvil
+    const handleViewOnMap = (pdv: PdvModel) => {
+        // Implementar vista en mapa si es necesario
+        console.log('Ver PDV en mapa:', pdv);
+    };
+
+    // Determinar si mostrar vista móvil (solo automático)
+    const showMobileView = isMobile;
+
     // Función para exportar a Excel
     const handleExportToExcel = () => {
         if (!hasPermission('gestor-pdv-ver')) {
@@ -556,6 +583,11 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                         </h1>
                                         <p className="text-xs sm:text-sm text-gray-600 mt-1">
                                             Vista global de todos los puntos de venta del sistema
+                                            {showMobileView && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    📱 Vista Móvil
+                                                </span>
+                                            )}
                                         </p>
 
                                         {/* Stats - Responsive */}
@@ -638,7 +670,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                 </div>
 
                                 {/* Filtros Jerárquicos */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                <div className={`grid gap-4 ${showMobileView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5'}`}>
                                     {/* Filtro por Negocio */}
                                     <Select
                                         value={selectedBusiness || "all"}
@@ -777,13 +809,25 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                         </div>
                     </Card>
 
-                    {/* Tabla de PDVs */}
-                    <PdvsTable
-                        pdvs={pdvs}
-                        onEdit={openEditModal}
-                        onToggleStatus={openToggleModal}
-                        isGlobalView={true}
-                    />
+                    {/* Tabla de PDVs - Desktop */}
+                    {!showMobileView && (
+                        <PdvsTable
+                            pdvs={pdvs}
+                            onEdit={openEditModal}
+                            onToggleStatus={openToggleModal}
+                            isGlobalView={true}
+                        />
+                    )}
+
+                    {/* Cards de PDVs - Mobile */}
+                    {showMobileView && (
+                        <PdvsMobileCards
+                            pdvs={pdvs}
+                            onEdit={openEditModal}
+                            onToggleStatus={openToggleModal}
+                            onViewOnMap={handleViewOnMap}
+                        />
+                    )}
 
                     {/* Paginación */}
                     {pdvs.last_page > 1 && (

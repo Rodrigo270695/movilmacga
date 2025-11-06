@@ -43,6 +43,9 @@ class RouteRequest extends FormRequest
                 'max:25',
                 Rule::unique('routes', 'code')->ignore($routeId),
             ],
+            'telegestion' => [
+                'boolean',
+            ],
         ];
     }
 
@@ -67,6 +70,7 @@ class RouteRequest extends FormRequest
             'code.string' => 'El código de la ruta debe ser un texto válido.',
             'code.max' => 'El código de la ruta no puede exceder los 25 caracteres.',
             'code.unique' => 'Ya existe una ruta con este código.',
+            'telegestion.boolean' => 'El campo telegestión debe ser verdadero o falso.',
         ];
     }
 
@@ -81,6 +85,7 @@ class RouteRequest extends FormRequest
             'circuit_id' => 'circuito',
             'name' => 'nombre de la ruta',
             'code' => 'código de la ruta',
+            'telegestion' => 'telegestión',
         ];
     }
 }

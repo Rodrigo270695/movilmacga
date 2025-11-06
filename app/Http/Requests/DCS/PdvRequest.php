@@ -61,7 +61,7 @@ class PdvRequest extends FormRequest
             'sells_recharge' => ['boolean'],
             'classification' => [
                 'required',
-                Rule::in(['telecomunicaciones', 'chalequeros', 'bodega', 'otras tiendas', 'desconocida', 'pusher'])
+                Rule::in(['telecomunicaciones', 'chalequeros', 'bodega', 'otras tiendas', 'desconocida', 'pusher', 'minimarket', 'botica', 'farmacia', 'tambo', 'cencosud'])
             ],
             'status' => [
                 'required',

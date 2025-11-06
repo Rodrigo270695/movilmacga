@@ -66,12 +66,22 @@ class GlobalCircuitController extends Controller
             return $circuit;
         });
 
-        // Cargar datos para los filtros (aplicando scope)
-        $businesses = $this->getAvailableBusinesses()->toArray();
-        $allZonales = $this->getAvailableZonals()->toArray(); // Todos los zonales disponibles para el formulario
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $businessScope = $this->getBusinessScope();
+        $cacheKey = 'circuit_filter_options_' . md5(json_encode($businessScope));
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () {
+            return [
+                'businesses' => $this->getAvailableBusinesses()->toArray(),
+                'allZonales' => $this->getAvailableZonals()->toArray(),
+            ];
+        });
 
-        // Filtrar zonales por negocio seleccionado solo para la vista
-        $zonales = $this->getAvailableZonals();
+        // Cargar datos para los filtros (desde caché)
+        $businesses = $filterOptions['businesses'];
+        $allZonales = $filterOptions['allZonales'];
+
+        // Filtrar zonales por negocio seleccionado (en memoria desde caché)
+        $zonales = collect($allZonales);
         if ($businessFilter) {
             $zonales = $zonales->where('business_id', $businessFilter);
         }

@@ -35,10 +35,10 @@ class ZonalSupervisorController extends Controller
 
 
 
-        // Query para obtener los zonales con sus supervisores activos
+        // Query para obtener los zonales con sus supervisores activos (hasta 5)
         $zonalsQuery = Zonal::with([
             'business',
-            'activeZonalSupervisor.supervisor' => function ($query) {
+            'activeZonalSupervisors.supervisor' => function ($query) {
                 $query->select('id', 'first_name', 'last_name', 'email', 'status');
             }
         ]);
@@ -50,7 +50,7 @@ class ZonalSupervisorController extends Controller
         if ($search) {
             $zonalsQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('activeZonalSupervisor.supervisor', function ($subQuery) use ($search) {
+                  ->orWhereHas('activeZonalSupervisors.supervisor', function ($subQuery) use ($search) {
                       $subQuery->where('first_name', 'like', "%{$search}%")
                           ->orWhere('last_name', 'like', "%{$search}%")
                           ->orWhere('email', 'like', "%{$search}%");
@@ -65,9 +65,9 @@ class ZonalSupervisorController extends Controller
         }
 
         if ($status === 'assigned') {
-            $zonalsQuery->whereHas('activeZonalSupervisor');
+            $zonalsQuery->whereHas('activeZonalSupervisors');
         } elseif ($status === 'unassigned') {
-            $zonalsQuery->whereDoesntHave('activeZonalSupervisor');
+            $zonalsQuery->whereDoesntHave('activeZonalSupervisors');
         }
 
         // Obtener resultados paginados
@@ -122,12 +122,30 @@ class ZonalSupervisorController extends Controller
         }
 
         try {
-            // Desactivar asignación anterior del zonal si existe
-            ZonalSupervisor::where('zonal_id', $request->zonal_id)
+            // Validar que el zonal no tenga ya 5 supervisores activos
+            $currentSupervisorsCount = ZonalSupervisor::where('zonal_id', $request->zonal_id)
                 ->where('is_active', true)
-                ->update(['is_active' => false]);
+                ->count();
 
-            // Crear nueva asignación
+            if ($currentSupervisorsCount >= 5) {
+                return back()->with('error', 'Este zonal ya tiene el máximo de 5 supervisores asignados. Desasigna uno antes de agregar otro.');
+            }
+
+            // Validar que el supervisor no esté ya asignado a este zonal
+            $existingAssignment = ZonalSupervisor::where('zonal_id', $request->zonal_id)
+                ->where('user_id', $request->user_id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($existingAssignment) {
+                return back()->with('error', 'Este supervisor ya está asignado a este zonal.');
+            }
+
+            // Obtener información del supervisor y zonal antes de crear
+            $supervisor = User::findOrFail($request->user_id);
+            $zonal = Zonal::findOrFail($request->zonal_id);
+
+            // Crear nueva asignación (sin desactivar las anteriores)
             $zonalSupervisor = ZonalSupervisor::create([
                 'zonal_id' => $request->zonal_id,
                 'user_id' => $request->user_id,
@@ -137,8 +155,27 @@ class ZonalSupervisorController extends Controller
                 'assignment_data' => $request->assignment_data,
             ]);
 
-            return back()->with('success', 'Supervisor asignado al zonal exitosamente.');
+            // Verificar que realmente se creó
+            if (!$zonalSupervisor || !$zonalSupervisor->id) {
+                throw new \Exception('No se pudo crear la asignación en la base de datos.');
+            }
+
+            \Log::info('Supervisor asignado exitosamente', [
+                'assignment_id' => $zonalSupervisor->id,
+                'zonal_id' => $request->zonal_id,
+                'user_id' => $request->user_id,
+                'total_supervisors' => $currentSupervisorsCount + 1
+            ]);
+
+            $supervisorName = $supervisor->first_name . ' ' . $supervisor->last_name;
+            $zonalName = $zonal->name;
+
+            return back()->with('success', "Supervisor {$supervisorName} asignado al zonal {$zonalName} exitosamente.");
         } catch (\Exception $e) {
+            \Log::error('Error al asignar supervisor', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->with('error', 'Error al asignar supervisor: ' . $e->getMessage());
         }
     }
@@ -154,12 +191,27 @@ class ZonalSupervisorController extends Controller
         }
 
         try {
-            // Si se cambia el supervisor, desactivar asignación anterior del zonal
+            // Si se cambia el zonal, validar que el nuevo zonal no tenga ya 5 supervisores
             if ($request->zonal_id != $zonalSupervisor->zonal_id) {
-                ZonalSupervisor::where('zonal_id', $request->zonal_id)
+                $currentSupervisorsCount = ZonalSupervisor::where('zonal_id', $request->zonal_id)
                     ->where('is_active', true)
                     ->where('id', '!=', $zonalSupervisor->id)
-                    ->update(['is_active' => false]);
+                    ->count();
+
+                if ($currentSupervisorsCount >= 5) {
+                    return back()->with('error', 'El zonal destino ya tiene el máximo de 5 supervisores asignados.');
+                }
+            }
+
+            // Validar que no exista ya este supervisor en el zonal destino
+            $existingAssignment = ZonalSupervisor::where('zonal_id', $request->zonal_id)
+                ->where('user_id', $request->user_id)
+                ->where('is_active', true)
+                ->where('id', '!=', $zonalSupervisor->id)
+                ->first();
+
+            if ($existingAssignment) {
+                return back()->with('error', 'Este supervisor ya está asignado al zonal destino.');
             }
 
             // Actualizar asignación

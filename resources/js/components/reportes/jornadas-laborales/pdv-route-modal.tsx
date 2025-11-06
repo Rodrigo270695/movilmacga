@@ -24,6 +24,10 @@ interface Pdv {
         name: string;
     };
     is_visited?: boolean;
+    visit_data?: {
+        check_in_at: string;
+        check_out_at: string;
+    };
 }
 
 interface Route {
@@ -139,11 +143,18 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
             });
             const visitedPdvs = visitedResponse.data.visits || [];
 
-            // Marcar PDVs como visitados
-            const pdvsWithVisitStatus = routePdvs.map((pdv: Pdv) => ({
-                ...pdv,
-                is_visited: visitedPdvs.some((visit: any) => visit.pdv_id === pdv.id)
-            }));
+            // Marcar PDVs como visitados y agregar datos de visita
+            const pdvsWithVisitStatus = routePdvs.map((pdv: Pdv) => {
+                const visit = visitedPdvs.find((v: any) => v.pdv_id === pdv.id);
+                return {
+                    ...pdv,
+                    is_visited: !!visit,
+                    visit_data: visit ? {
+                        check_in_at: visit.check_in_at,
+                        check_out_at: visit.check_out_at
+                    } : undefined
+                };
+            });
 
             setPdvs(pdvsWithVisitStatus);
 
@@ -720,6 +731,31 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                                                             <p className="text-xs text-gray-400 mt-1">
                                                                 {pdv.locality}
                                                             </p>
+                                                        )}
+                                                        {/* Mostrar horas de visita solo si está visitado */}
+                                                        {pdv.is_visited && pdv.visit_data && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-200">
+                                                                <div className="flex items-center gap-2 text-xs">
+                                                                    <span className="text-gray-500">Inicio:</span>
+                                                                    <span className="text-green-600 font-medium">
+                                                                        {new Date(pdv.visit_data.check_in_at).toLocaleTimeString('es-ES', { 
+                                                                            hour: '2-digit', 
+                                                                            minute: '2-digit' 
+                                                                        })}
+                                                                    </span>
+                                                                </div>
+                                                                {pdv.visit_data.check_out_at && (
+                                                                    <div className="flex items-center gap-2 text-xs mt-1">
+                                                                        <span className="text-gray-500">Fin:</span>
+                                                                        <span className="text-red-600 font-medium">
+                                                                            {new Date(pdv.visit_data.check_out_at).toLocaleTimeString('es-ES', { 
+                                                                                hour: '2-digit', 
+                                                                                minute: '2-digit' 
+                                                                            })}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                     <Badge className={`ml-1 sm:ml-2 flex-shrink-0 text-xs ${

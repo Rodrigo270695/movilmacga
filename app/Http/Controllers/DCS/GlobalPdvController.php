@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DCS\PdvRequest;
 use App\Models\Pdv;
 use App\Models\Route;
+use App\Models\Zonal;
+use App\Models\Circuit;
 use App\Models\Localidad;
 use App\Traits\HasBusinessScope;
 use App\Exports\PdvsExport;
@@ -144,9 +146,19 @@ class GlobalPdvController extends Controller
 
         $pdvs = $query->orderBy('point_name')->paginate($perPage);
 
-        // Cargar datos para los filtros jerárquicos
-        $businesses = $this->getAvailableBusinesses()->toArray();
-        $allZonales = $this->getAvailableZonals()->toArray();
+        // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
+        $businessScope = $this->getBusinessScope();
+        $cacheKey = 'pdv_filter_options_' . md5(json_encode($businessScope));
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () {
+            return [
+                'businesses' => $this->getAvailableBusinesses()->toArray(),
+                'allZonales' => $this->getAvailableZonals()->toArray(),
+            ];
+        });
+
+        // Cargar datos para los filtros jerárquicos (desde caché)
+        $businesses = $filterOptions['businesses'];
+        $allZonales = $filterOptions['allZonales'];
 
         // Filtrar zonales por negocio seleccionado solo para la vista
         $zonales = $this->getAvailableZonals();
@@ -155,12 +167,23 @@ class GlobalPdvController extends Controller
         }
         $zonales = $zonales->toArray();
 
-        // Cargar todos los circuitos disponibles (aplicando scope)
-        $allCircuitsQuery = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
-        $allCircuitsQuery = $this->applyFullScope($allCircuitsQuery, 'zonal.business', 'zonal');
-        $allCircuits = $allCircuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+        // OPTIMIZACIÓN: Cargar circuitos y rutas desde caché extendido
+        $circuitsCacheKey = 'pdv_circuits_' . md5(json_encode($businessScope));
+        $routesCacheKey = 'pdv_routes_' . md5(json_encode($businessScope));
+        
+        $allCircuits = \Illuminate\Support\Facades\Cache::remember($circuitsCacheKey, 300, function () {
+            $allCircuitsQuery = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
+            $allCircuitsQuery = $this->applyFullScope($allCircuitsQuery, 'zonal.business', 'zonal');
+            return $allCircuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
+        });
 
-        // Filtrar circuitos por negocio seleccionado solo para la vista
+        $allRoutes = \Illuminate\Support\Facades\Cache::remember($routesCacheKey, 300, function () {
+            $allRoutesQuery = Route::active()->with('circuit.zonal.business')->orderBy('name');
+            $allRoutesQuery = $this->applyFullScope($allRoutesQuery, 'circuit.zonal.business', 'circuit.zonal');
+            return $allRoutesQuery->get(['id', 'name', 'code', 'circuit_id']);
+        });
+
+        // Filtrar circuitos en memoria desde caché
         $circuits = $allCircuits;
         if ($businessFilter) {
             $circuits = $circuits->filter(function ($circuit) use ($businessFilter) {
@@ -168,23 +191,16 @@ class GlobalPdvController extends Controller
             });
         }
         if ($zonalFilter) {
-            $circuits = $circuits->filter(function ($circuit) use ($zonalFilter) {
-                return $circuit->zonal_id == $zonalFilter;
-            });
+            $circuits = $circuits->where('zonal_id', $zonalFilter);
         }
-        $allCircuits = $allCircuits->toArray();
-        $circuits = $circuits->toArray();
+        $circuits = $circuits->values();
 
-        // Cargar todas las rutas disponibles (aplicando scope)
-        $allRoutesQuery = Route::active()->with('circuit.zonal.business')->orderBy('name');
-        $allRoutesQuery = $this->applyFullScope($allRoutesQuery, 'circuit.zonal.business', 'circuit.zonal');
-        $allRoutes = $allRoutesQuery->get(['id', 'name', 'code', 'circuit_id']);
-
-        // Filtrar rutas por negocio y circuito seleccionado solo para la vista
+        // Filtrar rutas en memoria desde caché
         $routes = $allRoutes;
         if ($businessFilter) {
             $routes = $routes->filter(function ($route) use ($businessFilter) {
-                return $route->circuit && $route->circuit->zonal && $route->circuit->zonal->business_id == $businessFilter;
+                return $route->circuit && $route->circuit->zonal && 
+                       $route->circuit->zonal->business_id == $businessFilter;
             });
         }
         if ($zonalFilter) {
@@ -193,12 +209,9 @@ class GlobalPdvController extends Controller
             });
         }
         if ($circuitFilter) {
-            $routes = $routes->filter(function ($route) use ($circuitFilter) {
-                return $route->circuit_id == $circuitFilter;
-            });
+            $routes = $routes->where('circuit_id', $circuitFilter);
         }
-        $allRoutes = $allRoutes->toArray();
-        $routes = $routes->toArray();
+        $routes = $routes->values();
 
         $departamentos = \App\Models\Departamento::where('status', true)->orderBy('name')->get(['id', 'name', 'pais_id']);
 
@@ -343,6 +356,7 @@ class GlobalPdvController extends Controller
             'district_id' => $pdv->district_id,
             'locality' => $pdv->locality,
             // IDs para cargar las listas dependientes
+            'zonal_id' => $pdv->route?->circuit?->zonal_id,
             'circuit_id' => $pdv->route?->circuit_id,
             'departamento_id' => $pdv->district?->provincia?->departamento_id,
             'provincia_id' => $pdv->district?->provincia_id,
@@ -400,6 +414,133 @@ class GlobalPdvController extends Controller
     }
 
     /**
+     * Obtener PDVs de un zonal específico para mostrar en el mapa (AJAX)
+     * Filtros opcionales por circuitos y rutas
+     * Solo PDVs con estado "vende" (activos)
+     */
+    public function getZonalPdvs(Request $request, Zonal $zonal)
+    {
+        // Obtener filtros opcionales
+        $circuitIds = $request->get('circuit_ids', []);
+        $routeIds = $request->get('route_ids', []);
+
+        // Si vienen como string (query params), convertirlos a array
+        if (is_string($circuitIds)) {
+            $circuitIds = explode(',', $circuitIds);
+            $circuitIds = array_filter(array_map('intval', $circuitIds));
+        }
+        if (is_string($routeIds)) {
+            $routeIds = explode(',', $routeIds);
+            $routeIds = array_filter(array_map('intval', $routeIds));
+        }
+
+        // Construir query base: PDVs del zonal con estado "vende"
+        $query = Pdv::with(['route.circuit.zonal', 'district'])
+            ->where('status', 'vende')
+            ->whereHas('route.circuit', function ($circuitQuery) use ($zonal, $circuitIds) {
+                $circuitQuery->where('zonal_id', $zonal->id);
+                
+                // Filtrar por circuitos si se especifican
+                if (!empty($circuitIds)) {
+                    $circuitQuery->whereIn('id', $circuitIds);
+                }
+            });
+
+        // Filtrar por rutas si se especifican
+        if (!empty($routeIds)) {
+            $query->whereIn('route_id', $routeIds);
+        }
+
+        // Obtener PDVs con información necesaria para el mapa
+        $pdvs = $query
+            ->select([
+                'id',
+                'point_name',
+                'client_name',
+                'pos_id',
+                'address',
+                'latitude',
+                'longitude',
+                'status',
+                'route_id',
+                'district_id',
+                'locality',
+            ])
+            ->orderBy('route_id')
+            ->orderBy('id')
+            ->get();
+
+        // Cargar información de circuitos y rutas del zonal para los filtros
+        $circuits = Circuit::where('zonal_id', $zonal->id)
+            ->where('status', true)
+            ->with(['routes' => function ($query) {
+                $query->where('status', true)->select('id', 'name', 'code', 'circuit_id');
+            }])
+            ->select('id', 'name', 'code', 'zonal_id')
+            ->orderBy('name')
+            ->get();
+
+        // Agrupar PDVs por circuito para estadísticas
+        $pdvsByCircuit = [];
+        foreach ($pdvs as $pdv) {
+            $circuitId = $pdv->route?->circuit?->id;
+            if ($circuitId) {
+                if (!isset($pdvsByCircuit[$circuitId])) {
+                    $pdvsByCircuit[$circuitId] = 0;
+                }
+                $pdvsByCircuit[$circuitId]++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'pdvs' => $pdvs->map(function ($pdv) {
+                return [
+                    'id' => $pdv->id,
+                    'point_name' => $pdv->point_name,
+                    'client_name' => $pdv->client_name,
+                    'pos_id' => $pdv->pos_id,
+                    'address' => $pdv->address,
+                    'latitude' => $pdv->latitude,
+                    'longitude' => $pdv->longitude,
+                    'status' => $pdv->status,
+                    'district_id' => $pdv->district_id,
+                    'locality' => $pdv->locality,
+                    'route_id' => $pdv->route_id,
+                    'circuit_id' => $pdv->route?->circuit?->id,
+                    'circuit_name' => $pdv->route?->circuit?->name,
+                    'circuit_code' => $pdv->route?->circuit?->code,
+                    'route_name' => $pdv->route?->name,
+                    'route_code' => $pdv->route?->code,
+                ];
+            }),
+            'zonal' => [
+                'id' => $zonal->id,
+                'name' => $zonal->name,
+            ],
+            'circuits' => $circuits->map(function ($circuit) {
+                return [
+                    'id' => $circuit->id,
+                    'name' => $circuit->name,
+                    'code' => $circuit->code,
+                    'routes' => $circuit->routes->map(function ($route) {
+                        return [
+                            'id' => $route->id,
+                            'name' => $route->name,
+                            'code' => $route->code,
+                        ];
+                    }),
+                ];
+            }),
+            'stats' => [
+                'total' => $pdvs->count(),
+                'with_coordinates' => $pdvs->whereNotNull('latitude')->whereNotNull('longitude')->count(),
+                'by_circuit' => $pdvsByCircuit,
+            ]
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage (global).
      */
     public function store(PdvRequest $request)
@@ -409,8 +550,10 @@ class GlobalPdvController extends Controller
             abort(403, 'No tienes permisos para crear PDVs.');
         }
 
-        // Generar POS ID automáticamente
-        $posId = $this->generateUniquePosId();
+        // Usar POS ID del request si está presente, sino generar uno automáticamente
+        $posId = $request->filled('pos_id')
+            ? $request->pos_id
+            : $this->generateUniquePosId();
 
         $pdv = Pdv::create([
             'point_name' => $request->point_name,
@@ -446,8 +589,10 @@ class GlobalPdvController extends Controller
             abort(403, 'No tienes permisos para editar PDVs.');
         }
 
-        // Mantener el pos_id existente o generar uno si no existe
-        $posId = $pdv->pos_id ?: $this->generateUniquePosId();
+        // Determinar POS ID: usar el del request si está presente, sino mantener el existente, o generar uno nuevo
+        $posId = $request->filled('pos_id')
+            ? $request->pos_id
+            : ($pdv->pos_id ?: $this->generateUniquePosId());
 
         $pdv->update([
             'point_name' => $request->point_name,
@@ -498,11 +643,11 @@ class GlobalPdvController extends Controller
 
         // Si es una petición de Inertia.js, devolver respuesta JSON
         if (request()->header('X-Inertia')) {
-            return back()->with('success', "PDV estado cambiado a '{$statusText}' exitosamente.");
+            return back()->with('success', "El estado del PDV '{$pdv->point_name}' ha sido cambiado a '{$statusText}' exitosamente.");
         }
 
         return redirect()->route('dcs.pdvs.index')
-            ->with('success', "PDV estado cambiado a '{$statusText}' exitosamente.");
+            ->with('success', "El estado del PDV '{$pdv->point_name}' ha sido cambiado a '{$statusText}' exitosamente.");
     }
 
     /**

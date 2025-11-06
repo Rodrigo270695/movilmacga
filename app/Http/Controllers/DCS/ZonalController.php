@@ -50,10 +50,12 @@ class ZonalController extends Controller
 
         $zonales = $query->orderBy('name')->paginate($perPage);
 
-        // Obtener todas las empresas para el filtro
-        $businesses = \App\Models\Business::where('status', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        // OPTIMIZACIÓN: Usar caché para empresas (TTL: 10 minutos)
+        $businesses = \Illuminate\Support\Facades\Cache::remember('active_businesses', 600, function () {
+            return \App\Models\Business::where('status', true)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        });
 
         return Inertia::render('dcs/zonales/index', [
             'zonales' => $zonales,

@@ -18,6 +18,7 @@ interface Route {
     name: string;
     code: string;
     status?: boolean | number;
+    telegestion?: boolean;
     circuit_id: number;
     created_at: string;
     circuit?: {

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RoutePdvsController;
 use App\Http\Controllers\Api\PdvFormController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RouteController;
+use App\Http\Controllers\Api\PdvChangeRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -121,6 +122,7 @@ Route::prefix('pdv-forms')->group(function () {
         Route::get('my-visits', [PdvVisitController::class, 'getMyVisits'])->name('api.pdv-visits.history');
         Route::get('visit/{visit}', [PdvVisitController::class, 'getVisitDetails'])->name('api.pdv-visits.details');
         Route::patch('visit/{visit}/update-data', [PdvVisitController::class, 'updateVisitData'])->name('api.pdv-visits.update-data');
+        Route::delete('visit/{visit}', [PdvVisitController::class, 'destroy'])->name('api.pdv-visits.destroy');
     });
 
     // ========================================
@@ -138,6 +140,14 @@ Route::prefix('pdv-forms')->group(function () {
 
         // Obtener respuestas de una visita específica
         Route::get('visit/{visitId}/responses', [FormController::class, 'getVisitResponses'])->name('api.forms.get-responses');
+    });
+
+    // ========================================
+    // SOLICITUDES DE CAMBIO PDV
+    // ========================================
+    Route::prefix('pdv-change-requests')->group(function () {
+        Route::post('', [PdvChangeRequestController::class, 'store'])->name('api.pdv-change-requests.store');
+        Route::get('my-requests', [PdvChangeRequestController::class, 'myRequests'])->name('api.pdv-change-requests.my-requests');
     });
 
     // ========================================

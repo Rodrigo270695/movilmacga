@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ZonalForm } from '@/components/dcs/zonales/zonal-form';
 import { ZonalesTable } from '@/components/dcs/zonales/zonales-table';
+import { ZonalMapModal } from '@/components/dcs/zonales/zonal-map-modal';
 import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
 
@@ -68,6 +69,8 @@ export default function ZonalesIndex({ zonales, businesses, filters, flash }: Pr
 
     const [isZonalFormOpen, setIsZonalFormOpen] = useState(false);
     const [editingZonal, setEditingZonal] = useState<Zonal | null>(null);
+    const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+    const [selectedZonalForMap, setSelectedZonalForMap] = useState<Zonal | null>(null);
 
     // Función para verificar permisos
     const hasPermission = (permission: string): boolean => {
@@ -126,6 +129,16 @@ export default function ZonalesIndex({ zonales, businesses, filters, flash }: Pr
     const closeZonalForm = () => {
         setIsZonalFormOpen(false);
         setEditingZonal(null);
+    };
+
+    const openMapModal = (zonal: Zonal) => {
+        setSelectedZonalForMap(zonal);
+        setIsMapModalOpen(true);
+    };
+
+    const closeMapModal = () => {
+        setIsMapModalOpen(false);
+        setSelectedZonalForMap(null);
     };
 
     return (
@@ -187,6 +200,7 @@ export default function ZonalesIndex({ zonales, businesses, filters, flash }: Pr
                         zonales={zonales}
                         businesses={businesses}
                         onEdit={openEditZonalDialog}
+                        onViewMap={openMapModal}
                         userPermissions={userPermissions}
                         filters={filters}
                     />
@@ -196,6 +210,11 @@ export default function ZonalesIndex({ zonales, businesses, filters, flash }: Pr
                         isOpen={isZonalFormOpen}
                         onClose={closeZonalForm}
                         zonal={editingZonal}
+                    />
+                    <ZonalMapModal
+                        isOpen={isMapModalOpen}
+                        onClose={closeMapModal}
+                        zonal={selectedZonalForMap}
                     />
                 </div>
 

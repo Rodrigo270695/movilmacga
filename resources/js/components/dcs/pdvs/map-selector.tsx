@@ -19,6 +19,7 @@ interface MapSelectorProps {
     address?: string;
     onLocationChange: (lat: number, lng: number, address?: string) => void;
     focusLocation?: string; // Nueva prop para enfocar en una ubicación específica
+    isMobile?: boolean; // Nueva prop para optimización móvil
 }
 
 export function MapSelector({
@@ -26,7 +27,8 @@ export function MapSelector({
     longitude,
     address,
     onLocationChange,
-    focusLocation
+    focusLocation,
+    isMobile = false
 }: MapSelectorProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
@@ -53,8 +55,9 @@ export function MapSelector({
 
                 // Obtener dirección de la ubicación actual
                 const newAddress = await reverseGeocode(lat, lng);
-                setCurrentAddress(newAddress);
-                onLocationChange(lat, lng, newAddress);
+                const upperAddress = newAddress.toUpperCase();
+                setCurrentAddress(upperAddress);
+                onLocationChange(lat, lng, upperAddress);
             }
         } catch (error) {
             console.warn('Error obteniendo ubicación actual:', error);
@@ -91,8 +94,9 @@ export function MapSelector({
             // Obtener dirección inversa
             try {
                 const address = await reverseGeocode(position.lat, position.lng);
-                setCurrentAddress(address);
-                onLocationChange(position.lat, position.lng, address);
+                const upperAddress = address.toUpperCase();
+                setCurrentAddress(upperAddress);
+                onLocationChange(position.lat, position.lng, upperAddress);
             } catch (error) {
                 console.warn('No se pudo obtener la dirección:', error);
                 onLocationChange(position.lat, position.lng);
@@ -109,8 +113,9 @@ export function MapSelector({
             // Obtener dirección inversa
             try {
                 const address = await reverseGeocode(lat, lng);
-                setCurrentAddress(address);
-                onLocationChange(lat, lng, address);
+                const upperAddress = address.toUpperCase();
+                setCurrentAddress(upperAddress);
+                onLocationChange(lat, lng, upperAddress);
             } catch (error) {
                 console.warn('No se pudo obtener la dirección:', error);
                 onLocationChange(lat, lng);
@@ -209,7 +214,8 @@ export function MapSelector({
                     mapInstanceRef.current.setView(newLatLng, 15);
                 }
 
-                onLocationChange(lat, lng, address);
+                const upperAddress = address.toUpperCase();
+                onLocationChange(lat, lng, upperAddress);
                 return true;
             }
             return false;
@@ -248,48 +254,50 @@ export function MapSelector({
     };
 
     return (
-        <div className="space-y-3">
-            <div className="flex gap-2">
+        <div className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
+            <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
                 <input
                     type="text"
                     value={currentAddress}
                     onChange={(e) => setCurrentAddress(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAddressSearch()}
                     placeholder="Ingresa una dirección para buscar..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'text-sm' : ''}`}
                 />
-                <Button
-                    type="button"
-                    onClick={handleAddressSearch}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
-                >
-                    <MapPin className="w-4 h-4 mr-1" />
-                    Buscar
-                </Button>
-                {hasPermission && (
+                <div className={`flex ${isMobile ? 'gap-2' : 'gap-2'}`}>
                     <Button
                         type="button"
-                        onClick={handleUseCurrentLocation}
-                        disabled={loading}
+                        onClick={handleAddressSearch}
                         size="sm"
-                        variant="outline"
-                        className="whitespace-nowrap border-green-500 text-green-600 hover:bg-green-50"
+                        className={`bg-blue-600 hover:bg-blue-700 text-white ${isMobile ? 'flex-1' : 'whitespace-nowrap'}`}
                     >
-                        <Navigation className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                        Mi Ubicación
+                        <MapPin className="w-4 h-4 mr-1" />
+                        Buscar
                     </Button>
-                )}
+                    {hasPermission && (
+                        <Button
+                            type="button"
+                            onClick={handleUseCurrentLocation}
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                            className={`${isMobile ? 'flex-1' : 'whitespace-nowrap'} border-green-500 text-green-600 hover:bg-green-50`}
+                        >
+                            <Navigation className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                            {isMobile ? 'GPS' : 'Mi Ubicación'}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div
                 ref={mapRef}
-                className="w-full h-64 border border-gray-300 rounded-lg"
-                style={{ minHeight: '256px' }}
+                className={`w-full border border-gray-300 rounded-lg ${isMobile ? 'h-32' : 'h-64'}`}
+                style={{ minHeight: isMobile ? '128px' : '256px' }}
             />
 
-            <p className="text-xs text-gray-600">
-                💡 Haz clic en el mapa o arrastra el marcador para seleccionar una ubicación
+            <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                💡 {isMobile ? 'Toca el mapa o arrastra el marcador' : 'Haz clic en el mapa o arrastra el marcador para seleccionar una ubicación'}
             </p>
         </div>
     );

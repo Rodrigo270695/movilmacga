@@ -26,7 +26,8 @@ import {
     Navigation,
     BarChart3,
     FileText,
-    Clock
+    Clock,
+    FileCheck
 } from 'lucide-react';
 
 interface Permission {
@@ -220,6 +221,18 @@ const menuStructure = [
                     { id: 'gestor-vendedor-circuito-asignar', label: 'Asignar vendedores' },
                     { id: 'gestor-vendedor-circuito-desasignar', label: 'Desasignar vendedores' }
                 ]
+            },
+            {
+                id: 'aprobaciones-pdv',
+                label: 'Aprobaciones PDV',
+                icon: FileCheck,
+                className: 'text-amber-600 bg-amber-100',
+                permission: 'gestor-pdv-aprobaciones-acceso',
+                actions: [
+                    { id: 'gestor-pdv-aprobaciones-ver', label: 'Ver solicitudes' },
+                    { id: 'gestor-pdv-aprobaciones-aprobar', label: 'Aprobar solicitudes' },
+                    { id: 'gestor-pdv-aprobaciones-rechazar', label: 'Rechazar solicitudes' }
+                ]
             }
         ]
     },
@@ -353,6 +366,10 @@ const actionLabels: Record<string, string> = {
     'gestor-vendedor-circuito-ver': 'Ver asignaciones de vendedores a circuitos',
     'gestor-vendedor-circuito-asignar': 'Asignar vendedores a circuitos',
     'gestor-vendedor-circuito-desasignar': 'Desasignar vendedores de circuitos',
+
+    'gestor-pdv-aprobaciones-ver': 'Ver solicitudes de cambio de PDVs',
+    'gestor-pdv-aprobaciones-aprobar': 'Aprobar solicitudes de cambio de PDVs',
+    'gestor-pdv-aprobaciones-rechazar': 'Rechazar solicitudes de cambio de PDVs',
 
     'mapa-rastreo-vendedores-ver': 'Ver mapa de tracking de vendedores',
     'mapa-rastreo-vendedores-tiempo-real': 'Monitoreo en tiempo real de vendedores',

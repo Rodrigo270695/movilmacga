@@ -42,6 +42,19 @@ class VendorCircuitRequest extends FormRequest
                         $fail('Este vendedor ya está asignado a este circuito.');
                     }
                 },
+                // Validar que el circuito no exceda máximo 3 vendedores activos
+                function ($attribute, $value, $fail) {
+                    $activeVendorsCount = \App\Models\UserCircuit::where('circuit_id', $value)
+                        ->where('is_active', true)
+                        ->when($this->route('userCircuit'), function ($query) {
+                            $query->where('id', '!=', $this->route('userCircuit')->id);
+                        })
+                        ->count();
+
+                    if ($activeVendorsCount >= 3) {
+                        $fail('Este circuito ya tiene el máximo de 3 vendedores asignados. No se pueden asignar más vendedores.');
+                    }
+                },
             ],
             'user_id' => [
                 'required',

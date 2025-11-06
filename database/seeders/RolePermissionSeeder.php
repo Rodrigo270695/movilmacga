@@ -116,6 +116,12 @@ class RolePermissionSeeder extends Seeder
             'gestor-vendedor-circuito-asignar',
             'gestor-vendedor-circuito-desasignar',
 
+            // Gestión de Aprobaciones PDV (DCS)
+            'gestor-pdv-aprobaciones-acceso',
+            'gestor-pdv-aprobaciones-ver',
+            'gestor-pdv-aprobaciones-aprobar',
+            'gestor-pdv-aprobaciones-rechazar',
+
             // Mapas y Tracking GPS
             'menu-mapas',
             'mapa-rastreo-vendedores-acceso',
@@ -134,7 +140,7 @@ class RolePermissionSeeder extends Seeder
             'reporte-jornadas-laborales-ver',
             'reporte-jornadas-laborales-exportar',
 
-            // Aplicación Móvil (Supervisores/Vendedores)e qel 
+            // Aplicación Móvil (Supervisores/Vendedores)
             'app-movil-acceso',
             'app-movil-gps-tracking',
             'app-movil-pdv-visitas',
@@ -186,6 +192,12 @@ class RolePermissionSeeder extends Seeder
             'gestor-vendedor-circuito-ver',
             'gestor-vendedor-circuito-asignar',
             'gestor-vendedor-circuito-desasignar',
+
+            // Aprobaciones de cambios PDV
+            'gestor-pdv-aprobaciones-acceso',
+            'gestor-pdv-aprobaciones-ver',
+            'gestor-pdv-aprobaciones-aprobar',
+            'gestor-pdv-aprobaciones-rechazar',
 
             // Mapas y tracking
             'mapa-rastreo-vendedores-acceso',
@@ -246,6 +258,12 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   • reporte-jornadas-laborales-exportar');
         $this->command->info('   📊 Para el reporte de jornadas laborales (solo Administrador)');
         $this->command->info('');
+        $this->command->info('   • gestor-pdv-aprobaciones-acceso');
+        $this->command->info('   • gestor-pdv-aprobaciones-ver');
+        $this->command->info('   • gestor-pdv-aprobaciones-aprobar');
+        $this->command->info('   • gestor-pdv-aprobaciones-rechazar');
+        $this->command->info('   ✅ Para aprobaciones de cambios PDV (Administrador y Supervisor)');
+        $this->command->info('');
         $this->command->info('👑 Roles creados:');
         $this->command->info('   - Administrador (acceso completo al sistema)');
         $this->command->info('   - Supervisor (acceso web + app móvil)');
@@ -266,6 +284,7 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('   📍 Gestor PDVs: gestor-pdv-* (6 permisos)');
         $this->command->info('   👨‍💼 Supervisor-Zonal: gestor-zonal-supervisor-* (4 permisos)');
         $this->command->info('   🔄 Vendedor-Circuito: gestor-vendedor-circuito-* (4 permisos)');
+        $this->command->info('   ✅ Aprobaciones PDV: gestor-pdv-aprobaciones-* (4 permisos)');
         $this->command->info('   🗺️ Mapas: mapa-rastreo-vendedores-* (4 permisos)');
         $this->command->info('   📊 Reportes: reporte-* (4 permisos)');
         $this->command->info('   📱 App Móvil: app-movil-* (4 permisos)');

@@ -26,6 +26,7 @@ interface RouteModel {
     name: string;
     code: string;
     status?: boolean | number;
+    telegestion?: boolean;
     circuit_id: number;
     created_at: string;
     pdvs_count?: number; // Conteo total de PDVs
@@ -415,6 +416,37 @@ export default function GlobalRoutesIndex({ routes, businesses, zonales, allZona
 
 
 
+    // Función para cambiar de página
+    const handlePageChange = (page: number) => {
+        router.get(route('dcs.routes.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: selectedCircuit || undefined,
+            page: page.toString()
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    };
+
+    // Función para cambiar elementos por página
+    const handlePerPageChange = (perPage: number) => {
+        router.get(route('dcs.routes.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            circuit_id: selectedCircuit || undefined,
+            per_page: perPage.toString(),
+            page: '1'
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    };
+
     const hasActiveFilters = selectedBusiness || selectedZonal || selectedCircuit || searchQuery;
 
         return (
@@ -643,6 +675,8 @@ export default function GlobalRoutesIndex({ routes, businesses, zonales, allZona
                         onViewVisitDates={openVisitDatesModal}
                         onViewMap={openMapModal}
                         isGlobalView={true}
+                        onPageChange={handlePageChange}
+                        onPerPageChange={handlePerPageChange}
                     />
 
                     {/* Modales */}

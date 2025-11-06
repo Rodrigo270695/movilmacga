@@ -9,6 +9,7 @@ use App\Http\Controllers\DCS\GlobalPdvController;
 use App\Http\Controllers\DCS\ZonalSupervisorController;
 use App\Http\Controllers\DCS\VendorCircuitController;
 use App\Http\Controllers\DCS\RouteVisitDateController;
+use App\Http\Controllers\DCS\PdvChangeRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -288,6 +289,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         });
 
+        // Grupo de rutas para aprobaciones de cambios PDV
+        Route::middleware(['permission:gestor-pdv-aprobaciones-acceso'])->group(function () {
+
+            // Vista principal de aprobaciones PDV
+            Route::get('pdv-change-requests', [PdvChangeRequestController::class, 'index'])
+                ->middleware('permission:gestor-pdv-aprobaciones-ver')
+                ->name('pdv-change-requests.index');
+
+            // Aprobar solicitud de cambio
+            Route::post('pdv-change-requests/{changeRequest}/approve', [PdvChangeRequestController::class, 'approve'])
+                ->middleware('permission:gestor-pdv-aprobaciones-aprobar')
+                ->name('pdv-change-requests.approve');
+
+            // Rechazar solicitud de cambio
+            Route::post('pdv-change-requests/{changeRequest}/reject', [PdvChangeRequestController::class, 'reject'])
+                ->middleware('permission:gestor-pdv-aprobaciones-rechazar')
+                ->name('pdv-change-requests.reject');
+
+        });
+
         // ========================================
         // RUTAS AJAX PARA CARGA DINÁMICA (SIN MIDDLEWARE DE PERMISOS)
         // ========================================
@@ -295,6 +316,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Obtener PDVs de una ruta específica (para mapa) - sin middleware de permiso adicional
         Route::get('routes/{route}/pdvs', [GlobalPdvController::class, 'getRoutePdvs'])
             ->name('routes.pdvs');
+
+        // Obtener PDVs de un zonal específico (para mapa) - sin middleware de permiso adicional
+        Route::get('zonales/{zonal}/pdvs', [GlobalPdvController::class, 'getZonalPdvs'])
+            ->name('zonales.pdvs');
 
         // Obtener provincias por departamento
         Route::get('ajax/provincias', [GlobalPdvController::class, 'getProvinciasByDepartamento'])

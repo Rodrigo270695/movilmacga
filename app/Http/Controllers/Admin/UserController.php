@@ -76,7 +76,10 @@ class UserController extends Controller
 
         $users = $usersQuery->paginate($perPage);
 
-        $roles = Role::where('status', true)->get();
+        // OPTIMIZACIÓN: Usar caché para roles (TTL: 10 minutos)
+        $roles = \Illuminate\Support\Facades\Cache::remember('active_roles', 600, function () {
+            return Role::where('status', true)->get();
+        });
 
         return Inertia::render('admin/users/index', [
             'users' => $users,

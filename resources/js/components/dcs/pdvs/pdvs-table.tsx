@@ -110,7 +110,12 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
             'bodega': { color: 'bg-green-100 text-green-800', label: 'Bodega' },
             'otras tiendas': { color: 'bg-purple-100 text-purple-800', label: 'Otras Tiendas' },
             'desconocida': { color: 'bg-gray-100 text-gray-800', label: 'Desconocida' },
-            'pusher': { color: 'bg-red-100 text-red-800', label: 'Pusher' }
+            'pusher': { color: 'bg-red-100 text-red-800', label: 'Pusher' },
+            'minimarket': { color: 'bg-yellow-100 text-yellow-800', label: 'Minimarket' },
+            'botica': { color: 'bg-pink-100 text-pink-800', label: 'Bótica' },
+            'farmacia': { color: 'bg-green-100 text-green-800', label: 'Farmacia' },
+            'tambo': { color: 'bg-blue-100 text-blue-800', label: 'Tambo' },
+            'cencosud': { color: 'bg-purple-100 text-purple-800', label: 'Cencosud' }
         };
 
         const config = classificationConfig[classification as keyof typeof classificationConfig] || classificationConfig['desconocida'];

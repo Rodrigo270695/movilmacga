@@ -51,7 +51,7 @@ interface Zonal {
     name: string;
     status: boolean;
     business: Business;
-    active_zonal_supervisor?: ZonalSupervisorAssignment;
+    active_zonal_supervisors?: ZonalSupervisorAssignment[]; // Cambiado a array para múltiples supervisores (máximo 5)
 }
 
 interface PaginatedZonals {
@@ -138,7 +138,7 @@ export function ZonalSupervisorsTable({
     // Filtros activos
     const hasActiveFilters = searchTerm || (businessFilter && businessFilter !== 'all') || (statusFilter && statusFilter !== 'all');
 
-    const handleUnassign = (zonal: Zonal) => {
+    const handleUnassign = (zonal: Zonal, assignmentId: number) => {
         if (!hasPermission('gestor-zonal-supervisor-desasignar')) {
             addToast({
                 type: 'error',
@@ -148,8 +148,7 @@ export function ZonalSupervisorsTable({
             });
             return;
         }
-        if (!zonal.active_zonal_supervisor) return;
-        setConfirmUnassign({ zonal, assignmentId: zonal.active_zonal_supervisor.id });
+        setConfirmUnassign({ zonal, assignmentId });
     };
 
     const formatDate = (dateString: string) => {
@@ -163,10 +162,27 @@ export function ZonalSupervisorsTable({
     // Componente para las acciones de cada zonal
     const ZonalActions = ({ zonal }: { zonal: Zonal }) => {
         const actions = [];
-        const hasAssignedSupervisor = !!zonal.active_zonal_supervisor;
+        const supervisorCount = zonal.active_zonal_supervisors?.length || 0;
+        const maxSupervisors = 5;
+        const canAddMore = supervisorCount < maxSupervisors;
 
         if (hasPermission('gestor-zonal-supervisor-asignar')) {
-            if (hasAssignedSupervisor) {
+            if (canAddMore) {
+                // Botón de asignar (o agregar más)
+                actions.push(
+                    <Button
+                        key="assign"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => supervisorCount > 0 ? onReassign(zonal) : onAssign(zonal)}
+                        className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200 cursor-pointer"
+                        title={supervisorCount > 0 ? `Agregar supervisor (${supervisorCount}/5)` : "Asignar supervisor"}
+                    >
+                        <UserPlus className="w-4 h-4 text-green-600" />
+                    </Button>
+                );
+            } else {
+                // Botón de reasignar cuando ya está completo
                 actions.push(
                     <Button
                         key="reassign"
@@ -174,81 +190,63 @@ export function ZonalSupervisorsTable({
                         size="sm"
                         onClick={() => onReassign(zonal)}
                         className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
-                        title="Reasignar supervisor"
+                        title="Gestionar supervisores (5/5 completo)"
                     >
                         <RotateCcw className="w-4 h-4 text-blue-600" />
                     </Button>
                 );
-            } else {
-                actions.push(
-                    <Button
-                        key="assign"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onAssign(zonal)}
-                        className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200 cursor-pointer"
-                        title="Asignar supervisor"
-                    >
-                        <UserPlus className="w-4 h-4 text-green-600" />
-                    </Button>
-                );
             }
-        }
-
-        if (hasPermission('gestor-zonal-supervisor-desasignar') && hasAssignedSupervisor) {
-            actions.push(
-                <Button
-                    key="unassign"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUnassign(zonal)}
-                    className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200 cursor-pointer"
-                    title="Desasignar supervisor"
-                >
-                    <UserX className="w-4 h-4 text-red-600" />
-                </Button>
-            );
         }
 
         return actions;
     };
 
     const getStatusBadge = (zonal: Zonal) => {
-        const hasAssignedSupervisor = !!zonal.active_zonal_supervisor;
-        return (
-            <Badge
-                variant={hasAssignedSupervisor ? "default" : "secondary"}
-                className={`
-                    ${hasAssignedSupervisor
-                        ? 'bg-green-100 text-green-800 border-green-200'
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
-                    }
-                    font-medium transition-colors
-                `}
-            >
-                {hasAssignedSupervisor ? (
-                    <><CheckCircle2 className="w-3 h-3 mr-1" /> Asignado</>
-                ) : (
-                    <><XCircle className="w-3 h-3 mr-1" /> Sin asignar</>
-                )}
-            </Badge>
-        );
+        const supervisorCount = zonal.active_zonal_supervisors?.length || 0;
+        const maxSupervisors = 5;
+        
+        if (supervisorCount === 0) {
+            return (
+                <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-gray-200 font-medium">
+                    <XCircle className="w-3 h-3 mr-1" /> Sin supervisores
+                </Badge>
+            );
+        } else if (supervisorCount === maxSupervisors) {
+            return (
+                <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 font-medium">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Completo ({supervisorCount}/{maxSupervisors})
+                </Badge>
+            );
+        } else {
+            return (
+                <Badge variant="default" className="bg-blue-100 text-blue-800 border-blue-200 font-medium">
+                    <Users className="w-3 h-3 mr-1" /> Parcial ({supervisorCount}/{maxSupervisors})
+                </Badge>
+            );
+        }
     };
 
     const getStatusConfig = (zonal: Zonal) => {
-        const hasAssignedSupervisor = !!zonal.active_zonal_supervisor;
+        const supervisorCount = zonal.active_zonal_supervisors?.length || 0;
+        const maxSupervisors = 5;
 
-        if (hasAssignedSupervisor) {
+        if (supervisorCount === 0) {
             return {
-                text: 'Asignado',
+                text: 'Sin supervisores',
+                icon: XCircle,
+                className: 'bg-gray-100 text-gray-600 border-gray-200'
+            };
+        } else if (supervisorCount === maxSupervisors) {
+            return {
+                text: `Completo (${supervisorCount}/${maxSupervisors})`,
                 icon: CheckCircle2,
                 className: 'bg-green-100 text-green-800 border-green-200'
             };
         } else {
             return {
-                text: 'Sin asignar',
-                icon: XCircle,
-                className: 'bg-gray-100 text-gray-600 border-gray-200'
+                text: `Parcial (${supervisorCount}/${maxSupervisors})`,
+                icon: Users,
+                className: 'bg-blue-100 text-blue-800 border-blue-200'
             };
         }
     };
@@ -400,22 +398,31 @@ export function ZonalSupervisorsTable({
                                                 </div>
                                             </td>
 
-                                        {/* Supervisor */}
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                {zonal.active_zonal_supervisor ? (
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                                        <User className="w-5 h-5 text-green-600" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {zonal.active_zonal_supervisor.supervisor.first_name} {zonal.active_zonal_supervisor.supervisor.last_name}
+                                        {/* Supervisores */}
+                                        <td className="px-6 py-4">
+                                                {zonal.active_zonal_supervisors && zonal.active_zonal_supervisors.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {zonal.active_zonal_supervisors.slice(0, 2).map((assignment) => (
+                                                        <div key={assignment.id} className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                <User className="w-4 h-4 text-green-600" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                                    {assignment.supervisor.first_name} {assignment.supervisor.last_name}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 truncate">
+                                                                    {assignment.supervisor.email}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {zonal.active_zonal_supervisor.supervisor.email}
+                                                    ))}
+                                                    {zonal.active_zonal_supervisors.length > 2 && (
+                                                        <div className="text-xs text-gray-500 pl-10">
+                                                            +{zonal.active_zonal_supervisors.length - 2} más
                                                         </div>
-                                                    </div>
-                                                    </div>
+                                                    )}
+                                                </div>
                                                 ) : (
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -423,10 +430,10 @@ export function ZonalSupervisorsTable({
                                                     </div>
                                                     <div>
                                                         <div className="text-sm text-gray-500 italic">
-                                                            Sin supervisor
+                                                            Sin supervisores
                                                         </div>
                                                         <div className="text-xs text-gray-400">
-                                                            No asignado
+                                                            No asignados
                                                         </div>
                                                     </div>
                                                 </div>
@@ -440,15 +447,21 @@ export function ZonalSupervisorsTable({
 
                                         {/* Asignación */}
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            {zonal.active_zonal_supervisor ? (
-                                                <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
-                                                    <Calendar className="w-3 h-3" />
-                                                    {formatDate(zonal.active_zonal_supervisor.assigned_at)}
+                                            {zonal.active_zonal_supervisors && zonal.active_zonal_supervisors.length > 0 ? (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                        <Users className="w-3 h-3" />
+                                                        <span>{zonal.active_zonal_supervisors.length} supervisor{zonal.active_zonal_supervisors.length !== 1 ? 'es' : ''}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(zonal.active_zonal_supervisors[0].assigned_at)}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-xs text-gray-400">-</span>
                                             )}
-                                            </td>
+                                        </td>
 
                                         {/* Acciones */}
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -495,23 +508,30 @@ export function ZonalSupervisorsTable({
                                         </Badge>
                                     </div>
 
-                                    {/* Información del supervisor */}
+                                    {/* Información de supervisores */}
                                     <div className="space-y-2">
-                                        {zonal.active_zonal_supervisor ? (
+                                        {zonal.active_zonal_supervisors && zonal.active_zonal_supervisors.length > 0 ? (
                                             <>
-                                                <div className="flex items-center gap-1 text-sm text-gray-900">
-                                                    <User className="w-3 h-3 text-gray-400" />
-                                                    <span>{zonal.active_zonal_supervisor.supervisor.first_name} {zonal.active_zonal_supervisor.supervisor.last_name}</span>
-                                                </div>
+                                                {zonal.active_zonal_supervisors.slice(0, 3).map((assignment) => (
+                                                    <div key={assignment.id} className="flex items-center gap-1 text-sm text-gray-900">
+                                                        <User className="w-3 h-3 text-gray-400" />
+                                                        <span>{assignment.supervisor.first_name} {assignment.supervisor.last_name}</span>
+                                                    </div>
+                                                ))}
+                                                {zonal.active_zonal_supervisors.length > 3 && (
+                                                    <div className="text-xs text-gray-500 pl-4">
+                                                        +{zonal.active_zonal_supervisors.length - 3} más
+                                                    </div>
+                                                )}
                                                 <div className="flex items-center gap-1 text-xs text-gray-500">
-                                                    <Calendar className="w-3 h-3 text-gray-400" />
-                                                    <span>Asignado: {formatDate(zonal.active_zonal_supervisor.assigned_at)}</span>
+                                                    <Users className="w-3 h-3 text-gray-400" />
+                                                    <span>{zonal.active_zonal_supervisors.length} supervisor{zonal.active_zonal_supervisors.length !== 1 ? 'es' : ''}</span>
                                                 </div>
                                             </>
                                         ) : (
                                             <div className="flex items-center gap-1 text-sm text-gray-500 italic">
                                                 <User className="w-3 h-3 text-gray-400" />
-                                                <span>Sin supervisor asignado</span>
+                                                <span>Sin supervisores asignados</span>
                                             </div>
                                         )}
                                     </div>
@@ -548,7 +568,14 @@ export function ZonalSupervisorsTable({
                                 });
                             }}
                             onPerPageChange={(perPage) => {
-                                router.get(route('dcs.zonal-supervisors.index'), { per_page: perPage, page: 1 }, {
+                                const params = new URLSearchParams();
+                                params.set('page', '1'); // Reset a página 1
+                                params.set('per_page', perPage.toString());
+                                if (searchTerm) params.set('search', searchTerm);
+                                if (businessFilter && businessFilter !== 'all') params.set('business', businessFilter);
+                                if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+
+                                router.get(route('dcs.zonal-supervisors.index'), Object.fromEntries(params), {
                                     preserveState: true,
                                     preserveScroll: true,
                                     replace: true

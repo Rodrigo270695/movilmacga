@@ -185,23 +185,12 @@ export function VendorCircuitsTable({
     // Componente para las acciones de cada circuito
     const CircuitActions = ({ circuit }: { circuit: Circuit }) => {
         const actions = [];
-        const hasAssignedVendor = !!(circuit.active_user_circuits && circuit.active_user_circuits.length > 0);
+        const vendorsCount = circuit.active_user_circuits?.length || 0;
+        const hasReachedMaxVendors = vendorsCount >= 3;
 
         if (hasPermission('gestor-vendedor-circuito-asignar')) {
-            if (hasAssignedVendor) {
-                actions.push(
-                    <Button
-                        key="reassign"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onReassign(circuit)}
-                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200 cursor-pointer"
-                        title="Reasignar vendedor"
-                    >
-                        <RotateCcw className="w-4 h-4 text-blue-600" />
-                    </Button>
-                );
-            } else {
+            // Solo permitir asignar si no se ha alcanzado el máximo de 3 vendedores
+            if (!hasReachedMaxVendors) {
                 actions.push(
                     <Button
                         key="assign"
@@ -209,15 +198,30 @@ export function VendorCircuitsTable({
                         size="sm"
                         onClick={() => onAssign(circuit)}
                         className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200 cursor-pointer"
-                        title="Asignar vendedor"
+                        title="Asignar vendedor (máximo 3)"
                     >
                         <UserPlus className="w-4 h-4 text-green-600" />
+                    </Button>
+                );
+            } else {
+                // Mostrar botón deshabilitado si ya tiene 3 vendedores
+                actions.push(
+                    <Button
+                        key="assign-disabled"
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="h-8 w-8 p-0 opacity-50 cursor-not-allowed"
+                        title="Máximo de 3 vendedores alcanzado"
+                    >
+                        <UserPlus className="w-4 h-4 text-gray-400" />
                     </Button>
                 );
             }
         }
 
-        if (hasPermission('gestor-vendedor-circuito-desasignar') && hasAssignedVendor) {
+        if (hasPermission('gestor-vendedor-circuito-desasignar') && vendorsCount > 0) {
+            // Siempre permitir desasignar
             actions.push(
                 <Button
                     key="unassign"
@@ -236,39 +240,52 @@ export function VendorCircuitsTable({
     };
 
     const getStatusBadge = (circuit: Circuit) => {
-        const hasAssignedVendor = !!(circuit.active_user_circuits && circuit.active_user_circuits.length > 0);
+        const vendorsCount = circuit.active_user_circuits?.length || 0;
+        const hasMaxVendors = vendorsCount === 3;
+
         return (
             <Badge
-                variant={hasAssignedVendor ? "default" : "secondary"}
+                variant={hasMaxVendors ? "default" : "secondary"}
                 className={`
-                    ${hasAssignedVendor
+                    ${hasMaxVendors
                         ? 'bg-green-100 text-green-800 border-green-200'
+                        : vendorsCount > 0
+                        ? 'bg-blue-100 text-blue-800 border-blue-200'
                         : 'bg-gray-100 text-gray-600 border-gray-200'
                     }
                     font-medium transition-colors
                 `}
             >
-                {hasAssignedVendor ? (
-                    <><CheckCircle2 className="w-3 h-3 mr-1" /> Asignado</>
+                {hasMaxVendors ? (
+                    <><CheckCircle2 className="w-3 h-3 mr-1" /> Completo (3/3)</>
+                ) : vendorsCount > 0 ? (
+                    <><User className="w-3 h-3 mr-1" /> Parcial ({vendorsCount}/3)</>
                 ) : (
-                    <><XCircle className="w-3 h-3 mr-1" /> Sin asignar</>
+                    <><XCircle className="w-3 h-3 mr-1" /> Sin vendedores</>
                 )}
             </Badge>
         );
     };
 
     const getStatusConfig = (circuit: Circuit) => {
-        const hasAssignedVendor = !!(circuit.active_user_circuits && circuit.active_user_circuits.length > 0);
+        const vendorsCount = circuit.active_user_circuits?.length || 0;
+        const hasMaxVendors = vendorsCount === 3;
 
-        if (hasAssignedVendor) {
+        if (hasMaxVendors) {
             return {
-                text: 'Asignado',
+                text: 'Completo (3/3)',
                 icon: CheckCircle2,
                 className: 'bg-green-100 text-green-800 border-green-200'
             };
+        } else if (vendorsCount > 0) {
+            return {
+                text: `Parcial (${vendorsCount}/3)`,
+                icon: User,
+                className: 'bg-blue-100 text-blue-800 border-blue-200'
+            };
         } else {
             return {
-                text: 'Sin asignar',
+                text: 'Sin vendedores',
                 icon: XCircle,
                 className: 'bg-gray-100 text-gray-600 border-gray-200'
             };
@@ -359,8 +376,9 @@ export function VendorCircuitsTable({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todos los estados</SelectItem>
-                                        <SelectItem value="assigned">Con vendedor</SelectItem>
-                                        <SelectItem value="unassigned">Sin vendedor</SelectItem>
+                                        <SelectItem value="complete">Completo (3 vendedores)</SelectItem>
+                                        <SelectItem value="partial">Parcial (1-2 vendedores)</SelectItem>
+                                        <SelectItem value="unassigned">Sin vendedores</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -446,21 +464,33 @@ export function VendorCircuitsTable({
                                                 </div>
                                             </td>
 
-                                            {/* Vendedor */}
+                                            {/* Vendedores */}
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                {assignment ? (
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                                            <User className="w-5 h-5 text-green-600" />
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-900">
-                                                                {assignment.user.first_name} {assignment.user.last_name}
+                                                {circuit.active_user_circuits && circuit.active_user_circuits.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {circuit.active_user_circuits.slice(0, 2).map((assignment, index) => (
+                                                            <div key={assignment.id} className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                                                    <User className="w-4 h-4 text-green-600" />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-sm font-medium text-gray-900 truncate">
+                                                                        {assignment.user.first_name} {assignment.user.last_name}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500 truncate">
+                                                                        {assignment.user.email}
+                                                                    </div>
+                                                                </div>
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    P{assignment.priority}
+                                                                </Badge>
                                                             </div>
-                                                            <div className="text-xs text-gray-500">
-                                                                {assignment.user.email}
+                                                        ))}
+                                                        {circuit.active_user_circuits.length > 2 && (
+                                                            <div className="text-xs text-gray-500 text-center">
+                                                                +{circuit.active_user_circuits.length - 2} vendedores más
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center gap-3">
@@ -469,10 +499,10 @@ export function VendorCircuitsTable({
                                                         </div>
                                                         <div>
                                                             <div className="text-sm text-gray-500 italic">
-                                                                Sin vendedor
+                                                                Sin vendedores
                                                             </div>
                                                             <div className="text-xs text-gray-400">
-                                                                No asignado
+                                                                Máximo 3 permitidos
                                                             </div>
                                                         </div>
                                                     </div>
@@ -543,23 +573,39 @@ export function VendorCircuitsTable({
                                         </Badge>
                                     </div>
 
-                                    {/* Información del vendedor */}
+                                    {/* Información de los vendedores */}
                                     <div className="space-y-2">
-                                        {assignment ? (
+                                        {circuit.active_user_circuits && circuit.active_user_circuits.length > 0 ? (
                                             <>
-                                                <div className="flex items-center gap-1 text-sm text-gray-900">
-                                                    <User className="w-3 h-3 text-gray-400" />
-                                                    <span>{assignment.user.first_name} {assignment.user.last_name}</span>
+                                                <div className="space-y-1">
+                                                    {circuit.active_user_circuits.slice(0, 3).map((assignment, index) => (
+                                                        <div key={assignment.id} className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <User className="w-3 h-3 text-gray-400" />
+                                                                <span className="text-sm text-gray-900">
+                                                                    {assignment.user.first_name} {assignment.user.last_name}
+                                                                </span>
+                                                            </div>
+                                                            <Badge variant="outline" className="text-xs">
+                                                                P{assignment.priority}
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                    {circuit.active_user_circuits.length > 3 && (
+                                                        <div className="text-xs text-gray-500 text-center">
+                                                            +{circuit.active_user_circuits.length - 3} vendedores más
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-1 text-xs text-gray-500">
                                                     <Calendar className="w-3 h-3 text-gray-400" />
-                                                    <span>Asignado: {formatDate(assignment.assigned_date)}</span>
+                                                    <span>Total: {circuit.active_user_circuits.length} vendedores</span>
                                                 </div>
                                             </>
                                         ) : (
                                             <div className="flex items-center gap-1 text-sm text-gray-500 italic">
                                                 <User className="w-3 h-3 text-gray-400" />
-                                                <span>Sin vendedor asignado</span>
+                                                <span>Sin vendedores asignados (máximo 3 permitidos)</span>
                                             </div>
                                         )}
                                     </div>
@@ -597,7 +643,15 @@ export function VendorCircuitsTable({
                                 });
                             }}
                             onPerPageChange={(perPage) => {
-                                router.get(route('dcs.vendor-circuits.index'), { per_page: perPage, page: 1 }, {
+                                const params = new URLSearchParams();
+                                params.set('page', '1'); // Reset a página 1
+                                params.set('per_page', perPage.toString());
+                                if (searchTerm) params.set('search', searchTerm);
+                                if (businessFilter && businessFilter !== 'all') params.set('business', businessFilter);
+                                if (zonalFilter && zonalFilter !== 'all') params.set('zonal', zonalFilter);
+                                if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+
+                                router.get(route('dcs.vendor-circuits.index'), Object.fromEntries(params), {
                                     preserveState: true,
                                     preserveScroll: true,
                                     replace: true

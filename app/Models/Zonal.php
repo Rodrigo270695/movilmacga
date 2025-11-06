@@ -56,11 +56,21 @@ class Zonal extends Model
     }
 
     /**
-     * Get active supervisor assignment for this zonal.
+     * Get active supervisor assignment for this zonal (singular - backward compatibility).
      */
     public function activeZonalSupervisor(): HasOne
     {
         return $this->hasOne(ZonalSupervisor::class)->where('is_active', true);
+    }
+
+    /**
+     * Get all active supervisor assignments for this zonal (up to 5).
+     */
+    public function activeZonalSupervisors(): HasMany
+    {
+        return $this->hasMany(ZonalSupervisor::class)
+            ->where('is_active', true)
+            ->orderBy('assigned_at', 'desc');
     }
 
     /**

@@ -147,6 +147,11 @@ class Pdv extends Model
             'otras tiendas' => 'Otras Tiendas',
             'desconocida' => 'Desconocida',
             'pusher' => 'Pusher',
+            'minimarket' => 'Minimarket',
+            'botica' => 'Bótica',
+            'farmacia' => 'Farmacia',
+            'tambo' => 'Tambo',
+            'cencosud' => 'Cencosud',
             default => 'Desconocida'
         };
     }

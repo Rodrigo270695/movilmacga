@@ -82,6 +82,7 @@ class CircuitRoutesController extends Controller
                     'name' => $route->name,
                     'code' => $route->code,
                     'status' => $route->status,
+                    'telegestion' => $route->telegestion ?? false,
                     'has_visit_today' => $todayVisit ? true : false,
                     'today_visit_date' => $todayVisit ? $todayVisit->visit_date : null,
                     'today_visit_notes' => $todayVisit ? $todayVisit->notes : null,

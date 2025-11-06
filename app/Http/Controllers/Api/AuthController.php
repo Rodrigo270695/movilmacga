@@ -96,50 +96,94 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        // Cargar circuitos asignados activos
-        $user->load(['activeUserCircuits.circuit.zonal', 'activeZonalSupervisorAssignments.zonal']);
+            if (!$user) {
+                \Log::warning('API Profile: Usuario no autenticado', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'token_present' => $request->bearerToken() ? 'yes' : 'no'
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado',
+                ], 401);
+            }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
+            // Verificar que el usuario esté activo
+            if (!$user->status) {
+                \Log::warning('API Profile: Usuario desactivado intentando acceder', [
+                    'user_id' => $user->id,
                     'username' => $user->username,
-                    'dni' => $user->dni,
-                    'phone_number' => $user->phone_number,
-                    'email' => $user->email,
-                    'roles' => $user->getRoleNames(),
-                    'permissions' => $user->getAllPermissions()->pluck('name'),
-                ],
-                'assignments' => [
-                    'circuits' => $user->activeUserCircuits->map(function ($assignment) {
-                        return [
-                            'assignment_id' => $assignment->id,
-                            'circuit_id' => $assignment->circuit->id,
-                            'circuit_name' => $assignment->circuit->name,
-                            'circuit_code' => $assignment->circuit->code,
-                            'zonal_name' => $assignment->circuit->zonal->name,
-                            'priority' => $assignment->priority,
-                            'assigned_date' => $assignment->assigned_date,
-                            'notes' => $assignment->notes,
-                        ];
-                    }),
-                    'supervised_zonales' => $user->activeZonalSupervisorAssignments->map(function ($assignment) {
-                        return [
-                            'assignment_id' => $assignment->id,
-                            'zonal_id' => $assignment->zonal->id,
-                            'zonal_name' => $assignment->zonal->name,
-                            'assigned_at' => $assignment->assigned_at,
-                        ];
-                    }),
+                    'ip' => $request->ip()
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tu cuenta está desactivada. Contacta al administrador.',
+                ], 403);
+            }
+
+            // Cargar circuitos asignados activos
+            $user->load(['activeUserCircuits.circuit.zonal', 'activeZonalSupervisorAssignments.zonal']);
+
+            \Log::info('API Profile: Perfil obtenido exitosamente', [
+                'user_id' => $user->id,
+                'username' => $user->username
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'first_name' => $user->first_name,
+                        'last_name' => $user->last_name,
+                        'username' => $user->username,
+                        'dni' => $user->dni,
+                        'phone_number' => $user->phone_number,
+                        'email' => $user->email,
+                        'roles' => $user->getRoleNames(),
+                        'permissions' => $user->getAllPermissions()->pluck('name'),
+                    ],
+                    'assignments' => [
+                        'circuits' => $user->activeUserCircuits->map(function ($assignment) {
+                            return [
+                                'assignment_id' => $assignment->id,
+                                'circuit_id' => $assignment->circuit->id,
+                                'circuit_name' => $assignment->circuit->name,
+                                'circuit_code' => $assignment->circuit->code,
+                                'zonal_name' => $assignment->circuit->zonal->name,
+                                'priority' => $assignment->priority,
+                                'assigned_date' => $assignment->assigned_date,
+                                'notes' => $assignment->notes,
+                            ];
+                        }),
+                        'supervised_zonales' => $user->activeZonalSupervisorAssignments->map(function ($assignment) {
+                            return [
+                                'assignment_id' => $assignment->id,
+                                'zonal_id' => $assignment->zonal->id,
+                                'zonal_name' => $assignment->zonal->name,
+                                'assigned_at' => $assignment->assigned_at,
+                            ];
+                        }),
+                    ]
                 ]
-            ]
-        ]);
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('API Profile: Error al obtener perfil', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user()?->id,
+                'ip' => $request->ip()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el perfil',
+            ], 500);
+        }
     }
 
     /**

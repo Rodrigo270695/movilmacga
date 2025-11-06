@@ -42,9 +42,12 @@ class WorkingSessionController extends Controller
         try {
             DB::beginTransaction();
 
+            // Usar zona horaria de Perú para guardar la fecha/hora
+            $peruNow = now('America/Lima');
+            
             $session = WorkingSession::create([
                 'user_id' => $user->id,
-                'started_at' => now(),
+                'started_at' => $peruNow,
                 'start_latitude' => $request->latitude,
                 'start_longitude' => $request->longitude,
                 'status' => 'active',
@@ -59,12 +62,16 @@ class WorkingSessionController extends Controller
 
             DB::commit();
 
+            // Formatear started_at en zona horaria de Perú para la respuesta
+            $startedAtFormatted = $session->started_at->setTimezone('America/Lima');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Jornada iniciada exitosamente',
                 'data' => [
                     'session_id' => $session->id,
-                    'started_at' => $session->started_at,
+                    'started_at' => $startedAtFormatted->toIso8601String(),
+                    'started_at_formatted' => $startedAtFormatted->format('Y-m-d H:i:s'),
                     'status' => $session->status,
                 ]
             ]);
@@ -281,10 +288,16 @@ class WorkingSessionController extends Controller
             ]);
         }
 
-        // Calcular métricas en tiempo real
-        $currentDuration = now()->diffInMinutes($currentSession->started_at);
+        // Calcular métricas en tiempo real (usar zona horaria de Perú)
+        $peruNow = now('America/Lima');
+        $currentDuration = $peruNow->diffInMinutes($currentSession->started_at);
+        
+        // Obtener fecha de hoy en zona horaria de Perú
+        $todayPeru = now('America/Lima')->startOfDay();
+        $tomorrowPeru = now('America/Lima')->copy()->addDay()->startOfDay();
+        
         $todayPdvsVisited = $user->pdvVisits()
-            ->whereDate('check_in_at', today())
+            ->whereBetween('check_in_at', [$todayPeru, $tomorrowPeru])
             ->where('is_valid', true)
             ->count();
 
@@ -295,11 +308,15 @@ class WorkingSessionController extends Controller
             'duration_minutes' => $currentDuration
         ]);
 
+        // Formatear started_at en zona horaria de Perú
+        $startedAtFormatted = $currentSession->started_at->setTimezone('America/Lima');
+
         return response()->json([
             'success' => true,
             'data' => [
                 'session_id' => $currentSession->id,
-                'started_at' => $currentSession->started_at,
+                'started_at' => $startedAtFormatted->toIso8601String(),
+                'started_at_formatted' => $startedAtFormatted->format('Y-m-d H:i:s'),
                 'status' => $currentSession->status,
                 'current_duration_minutes' => $currentDuration,
                 'pdvs_visited_today' => $todayPdvsVisited,

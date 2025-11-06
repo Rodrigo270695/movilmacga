@@ -8,12 +8,14 @@ import { useToast } from '@/components/ui/toast';
 import { router } from '@inertiajs/react';
 import { route } from 'ziggy-js';
 import { Route, Shuffle, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface RouteModel {
     id: number;
     name: string;
     code: string;
     status?: boolean | number;
+    telegestion?: boolean;
     circuit_id: number;
     created_at: string;
 }
@@ -52,7 +54,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
     const [formData, setFormData] = useState({
         name: '',
         code: '',
-        circuit_id: circuit?.id?.toString() || ''
+        circuit_id: circuit?.id?.toString() || '',
+        telegestion: false
     });
 
     const [selectedZonal, setSelectedZonal] = useState<string>('');
@@ -70,7 +73,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
             setFormData({
                 name: editingRoute.name,
                 code: editingRoute.code,
-                circuit_id: editingRoute.circuit_id.toString()
+                circuit_id: editingRoute.circuit_id.toString(),
+                telegestion: editingRoute.telegestion || false
             });
 
             // En vista global, encontrar el zonal del circuito de la ruta
@@ -84,7 +88,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
             setFormData({
                 name: '',
                 code: '',
-                circuit_id: circuit?.id?.toString() || ''
+                circuit_id: circuit?.id?.toString() || '',
+                telegestion: false
             });
             setSelectedZonal('');
         }
@@ -140,6 +145,10 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
         setIsSubmitting(true);
         setErrors({});
 
+        // Capturar los query parameters actuales ANTES de enviar la petición
+        const currentUrl = new URL(window.location.href);
+        const preservedQueryParams = currentUrl.search;
+
         // Validaciones básicas
         const newErrors: Record<string, string> = {};
 
@@ -169,7 +178,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
         const submitData = {
             name: formData.name.trim(),
             code: formData.code.trim(),
-            circuit_id: formData.circuit_id ? parseInt(formData.circuit_id) : null
+            circuit_id: formData.circuit_id ? parseInt(formData.circuit_id) : null,
+            telegestion: formData.telegestion
         };
 
         // Validación adicional
@@ -189,6 +199,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
                 : [circuit?.zonal?.id, circuit?.id, editingRoute.id];
 
             router.patch(route(routeName, routeParams), submitData, {
+                preserveState: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     addToast({
                         type: 'success',
@@ -197,6 +209,14 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
                         duration: 4000
                     });
                     onClose();
+                    
+                    // Recargar la página preservando los query parameters guardados
+                    const targetUrl = route('dcs.routes.index') + preservedQueryParams;
+                    router.get(targetUrl, {}, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        only: ['routes', 'businesses', 'zonales', 'allZonales', 'allCircuits', 'circuits', 'filters']
+                    });
                 },
                 onError: (errors) => {
                     setErrors(errors);
@@ -217,6 +237,8 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
             const routeParams = isGlobalView ? {} : [circuit?.zonal?.id, circuit?.id];
 
             router.post(route(routeName, routeParams), submitData, {
+                preserveState: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     addToast({
                         type: 'success',
@@ -225,6 +247,14 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
                         duration: 4000
                     });
                     onClose();
+                    
+                    // Recargar la página preservando los query parameters guardados
+                    const targetUrl = route('dcs.routes.index') + preservedQueryParams;
+                    router.get(targetUrl, {}, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        only: ['routes', 'businesses', 'zonales', 'allZonales', 'allCircuits', 'circuits', 'filters']
+                    });
                 },
                 onError: (errors) => {
                     setErrors(errors);
@@ -283,7 +313,7 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
                             id="name"
                             type="text"
                             value={formData.name}
-                            onChange={(e) => handleChange('name', e.target.value)}
+                            onChange={(e) => handleChange('name', e.target.value.toUpperCase())}
                             placeholder="Ej: Ruta Principal Centro"
                             className={errors.name ? 'border-red-500' : ''}
                             maxLength={25}
@@ -408,6 +438,24 @@ export function RouteForm({ isOpen, onClose, route: editingRoute, circuit, circu
                             )}
                         </div>
                     )}
+
+                    {/* Checkbox de Telegestión */}
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="telegestion"
+                            checked={formData.telegestion}
+                            onCheckedChange={(checked) => {
+                                setFormData(prev => ({ ...prev, telegestion: checked === true }));
+                            }}
+                            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 border-blue-300"
+                        />
+                        <Label
+                            htmlFor="telegestion"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                            Telegestión
+                        </Label>
+                    </div>
                 </form>
 
                 <DialogFooter>

@@ -65,5 +65,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Renderizar páginas de error personalizadas para Inertia
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, \Illuminate\Http\Request $request) {
+            if ($request->header('X-Inertia')) {
+                return \Inertia\Inertia::render('errors/404')->toResponse($request)->setStatusCode(404);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
+            if ($request->header('X-Inertia')) {
+                return \Inertia\Inertia::render('errors/401')->toResponse($request)->setStatusCode(401);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, \Illuminate\Http\Request $request) {
+            if ($request->header('X-Inertia')) {
+                return \Inertia\Inertia::render('errors/403')->toResponse($request)->setStatusCode(403);
+            }
+        });
     })->create();

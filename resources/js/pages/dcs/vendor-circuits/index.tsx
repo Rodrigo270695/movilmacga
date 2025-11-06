@@ -1,7 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { VendorCircuitsTable } from '@/components/dcs/vendor-circuits/vendor-circuits-table';
 import { VendorAssignmentModal } from '@/components/dcs/vendor-circuits/vendor-assignment-modal';
@@ -105,13 +103,18 @@ export default function VendorCircuitsIndex({ circuits, vendors, businesses, zon
     };
 
     // Calcular estadísticas
-    const totalAssigned = circuits.data.filter(circuit =>
-        circuit.active_user_circuits && circuit.active_user_circuits.length > 0
+    const totalComplete = circuits.data.filter(circuit =>
+        circuit.active_user_circuits && circuit.active_user_circuits.length === 3
+    ).length;
+    const totalPartial = circuits.data.filter(circuit =>
+        circuit.active_user_circuits && circuit.active_user_circuits.length > 0 && circuit.active_user_circuits.length < 3
     ).length;
     const totalUnassigned = circuits.data.filter(circuit =>
         !circuit.active_user_circuits || circuit.active_user_circuits.length === 0
     ).length;
-    const activeVendors = vendors.filter(vendor => vendor.status).length;
+    const totalVendorAssignments = circuits.data.reduce((total, circuit) =>
+        total + (circuit.active_user_circuits?.length || 0), 0
+    );
 
     // Mostrar toasts para mensajes flash
     useEffect(() => {
@@ -216,15 +219,19 @@ export default function VendorCircuitsIndex({ circuits, vendors, businesses, zon
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        <span>{totalAssigned} asignados</span>
+                                        <span>{totalComplete} completos (3/3)</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                        <span>{totalUnassigned} sin asignar</span>
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                        <span>{totalPartial} parciales (1-2)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                        <span>{totalUnassigned} sin vendedores</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                                         <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                        <span>{activeVendors} vendedores activos</span>
+                                        <span>{totalVendorAssignments} asignaciones totales</span>
                                     </div>
                                     {circuits.last_page > 1 && (
                                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">

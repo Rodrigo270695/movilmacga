@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,6 +85,7 @@ interface Props {
 
 interface FormData {
     point_name: string;
+    pos_id: string;
     document_type: 'DNI' | 'RUC';
     document_number: string;
     client_name: string;
@@ -115,6 +117,7 @@ export function PdvForm({
 }: Props) {
     const { data, setData, post, patch, processing, errors, reset } = useForm<FormData>({
         point_name: '',
+        pos_id: '',
         document_type: 'DNI',
         document_number: '',
         client_name: '',
@@ -148,9 +151,34 @@ export function PdvForm({
     // Estado para enfoque dinámico del mapa
     const [mapFocusLocation, setMapFocusLocation] = useState<string>('');
 
+    // Estado para detectar si estamos en móvil
+    const [isMobile, setIsMobile] = useState(false);
+
     // Función helper para limpieza completa del formulario
     const clearFormCompletely = () => {
-        reset();
+        // Resetear a valores iniciales explícitamente
+        setData({
+            point_name: '',
+            pos_id: '',
+            document_type: 'DNI',
+            document_number: '',
+            client_name: '',
+            phone: '',
+            classification: 'bodega',
+            status: 'vende',
+            sells_recharge: false,
+            address: '',
+            reference: '',
+            latitude: '',
+            longitude: '',
+            zonal_id: '',
+            circuit_id: '',
+            route_id: '',
+            district_id: '',
+            locality: '',
+            departamento_id: '',
+            provincia_id: '',
+        });
         setAvailableCircuits([]);
         setAvailableRoutes([]);
         setProvincias([]);
@@ -316,6 +344,20 @@ export function PdvForm({
         }
     };
 
+    // Detectar si estamos en móvil
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768); // md breakpoint
+        };
+
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkIsMobile);
+        };
+    }, []);
+
     // Efectos para cargar datos del PDV en edición
     useEffect(() => {
         if (open && pdv) {
@@ -350,6 +392,7 @@ export function PdvForm({
                     ...prev,
                     // Datos básicos
                     point_name: pdvDetails.point_name || '',
+                    pos_id: pdvDetails.pos_id || '',
                     document_type: pdvDetails.document_type || 'DNI',
                     document_number: pdvDetails.document_number || '',
                     client_name: pdvDetails.client_name || '',
@@ -365,6 +408,7 @@ export function PdvForm({
                     district_id: pdvDetails.district_id?.toString() || '',
                     locality: pdvDetails.locality || '',
                     // IDs geográficos
+                    zonal_id: pdvDetails.zonal_id?.toString() || '',
                     circuit_id: pdvDetails.circuit_id?.toString() || '',
                     departamento_id: pdvDetails.departamento_id?.toString() || '',
                     provincia_id: pdvDetails.provincia_id?.toString() || '',
@@ -397,8 +441,8 @@ export function PdvForm({
                             // Esperar a que se actualicen los distritos
                             await new Promise(resolve => setTimeout(resolve, 300));
 
-                            if (pdvDetails.provincia_id) {
-                                handleDistritoChange(pdvDetails.district_id?.toString() || '');
+                            if (pdvDetails.district_id) {
+                                handleDistritoChange(pdvDetails.district_id.toString());
                             }
                         }
                     }
@@ -414,12 +458,26 @@ export function PdvForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Capturar los query parameters actuales ANTES de enviar la petición
+        const currentUrl = new URL(window.location.href);
+        const preservedQueryParams = currentUrl.search;
+
         if (pdv) {
             patch(`/dcs/pdvs/${pdv.id}`, {
+                preserveState: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     // Limpieza completa después de editar exitosamente
                     clearFormCompletely();
                     onClose();
+                    
+                    // Recargar la página preservando los query parameters guardados
+                    const targetUrl = route('dcs.pdvs.index') + preservedQueryParams;
+                    router.get(targetUrl, {}, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        only: ['pdvs', 'businesses', 'zonales', 'allZonales', 'allCircuits', 'circuits', 'allRoutes', 'routes', 'departamentos', 'filters']
+                    });
                 },
                 onError: () => {
                     // No limpiar en caso de error para mantener los datos ingresados
@@ -427,10 +485,20 @@ export function PdvForm({
             });
         } else {
             post('/dcs/pdvs', {
+                preserveState: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     // Limpieza completa después de crear exitosamente
                     clearFormCompletely();
                     onClose();
+                    
+                    // Recargar la página preservando los query parameters guardados
+                    const targetUrl = route('dcs.pdvs.index') + preservedQueryParams;
+                    router.get(targetUrl, {}, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        only: ['pdvs', 'businesses', 'zonales', 'allZonales', 'allCircuits', 'circuits', 'allRoutes', 'routes', 'departamentos', 'filters']
+                    });
                 },
                 onError: () => {
                     // No limpiar en caso de error para mantener los datos ingresados
@@ -448,32 +516,51 @@ export function PdvForm({
     const isEditing = !!pdv;
 
     return (
-        <Dialog open={open} onOpenChange={handleClose}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+            // Solo permitir cerrar con botones específicos, no con arrastrar
+            if (!isOpen) {
+                return; // No hacer nada si se intenta cerrar arrastrando
+            }
+        }}>
             <DialogContent
-                className="max-w-6xl max-h-[90vh] overflow-y-auto"
-                style={{ width: '85vw', maxWidth: '1200px', minWidth: '900px' }}
-                onClose={() => handleClose(false)}
+                className={`max-h-[90vh] overflow-y-auto ${
+                    isMobile
+                        ? 'w-[100vw] max-w-[100vw] mx-0 rounded-none'
+                        : 'w-[85vw] max-w-6xl min-w-[900px]'
+                }`}
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
             >
                 <DialogHeader>
-                    <DialogTitle className="text-xl">
+                    <DialogTitle className="text-xl flex items-center gap-2">
                         {isEditing ? 'Editar PDV' : 'Crear Nuevo PDV'}
+                        {isMobile && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                📱 Móvil
+                            </span>
+                        )}
                     </DialogTitle>
                     <DialogDescription>
                         {isEditing ? 'Modifica los datos del PDV.' : 'Completa la información para crear un nuevo PDV.'}
+                        {isMobile && (
+                            <span className="block mt-1 text-xs text-blue-600">
+                                💡 Optimizado para dispositivos móviles
+                            </span>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className={`space-y-4 ${isMobile ? 'px-1' : 'space-y-6'}`}>
+                    <div className={`grid ${isMobile ? 'gap-3 grid-cols-1' : 'gap-6 grid-cols-1 lg:grid-cols-2'}`}>
 
                         {/* === SECCIÓN 1: INFORMACIÓN BÁSICA === */}
-                        <Card>
-                            <CardHeader>
+                        <Card className={isMobile ? 'mx-0' : ''}>
+                            <CardHeader className={isMobile ? 'px-2 py-2' : ''}>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     📍 Información Básica del PDV
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className={`space-y-4 ${isMobile ? 'px-2' : ''}`}>
                                 <div>
                                     <Label htmlFor="point_name">
                                         Nombre del Punto <span className="text-red-500">*</span>
@@ -481,7 +568,7 @@ export function PdvForm({
                                     <Input
                                         id="point_name"
                                         value={data.point_name}
-                                        onChange={(e) => setData('point_name', e.target.value)}
+                                        onChange={(e) => setData('point_name', e.target.value.toUpperCase())}
                                         placeholder="Ej: Bodega San José"
                                     />
                                     {errors.point_name && (
@@ -489,9 +576,26 @@ export function PdvForm({
                                     )}
                                 </div>
 
+                                <div>
+                                    <Label htmlFor="pos_id">
+                                        ID POS (Punto de Venta)
+                                    </Label>
+                                    <Input
+                                        id="pos_id"
+                                        value={data.pos_id}
+                                        onChange={(e) => setData('pos_id', e.target.value)}
+                                        placeholder="Dejar vacío para generar automáticamente"
+                                        maxLength={6}
+                                    />
+                                    {errors.pos_id && (
+                                        <p className="text-sm text-red-500">{errors.pos_id}</p>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Si se deja vacío, se generará automáticamente un código único de 6 dígitos
+                                    </p>
+                                </div>
 
-
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
                                         <Label htmlFor="classification">
                                             Clasificación <span className="text-red-500">*</span>
@@ -505,7 +609,12 @@ export function PdvForm({
                                     { value: "bodega", label: "Bodega" },
                                     { value: "otras tiendas", label: "Otras Tiendas" },
                                     { value: "desconocida", label: "Desconocida" },
-                                    { value: "pusher", label: "Pusher" }
+                                    { value: "pusher", label: "Pusher" },
+                                    { value: 'minimarket', label: 'Minimarket' },
+                                    { value: 'botica', label: 'Bótica' },
+                                    { value: 'farmacia', label: 'Farmacia' },
+                                    { value: 'tambo', label: 'Tambo' },
+                                    { value: 'cencosud', label: 'Cencosud' }
                                 ]}
                                 placeholder="Seleccionar clasificación"
                             />
@@ -544,13 +653,13 @@ export function PdvForm({
                         </Card>
 
                         {/* === SECCIÓN 2: INFORMACIÓN DEL CLIENTE === */}
-                        <Card>
-                            <CardHeader>
+                        <Card className={isMobile ? 'mx-0' : ''}>
+                            <CardHeader className={isMobile ? 'px-2 py-2' : ''}>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     👤 Información del Cliente
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className={`space-y-4 ${isMobile ? 'px-2' : ''}`}>
                                 <div>
                                     <Label htmlFor="client_name">
                                         Nombre del Cliente <span className="text-red-500">*</span>
@@ -558,7 +667,7 @@ export function PdvForm({
                                     <Input
                                         id="client_name"
                                         value={data.client_name}
-                                        onChange={(e) => setData('client_name', e.target.value)}
+                                        onChange={(e) => setData('client_name', e.target.value.toUpperCase())}
                                         placeholder="Nombre completo del cliente"
                                     />
                                     {errors.client_name && (
@@ -566,7 +675,7 @@ export function PdvForm({
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
                                         <Label htmlFor="document_type">
                                             Tipo de Documento <span className="text-red-500">*</span>
@@ -611,13 +720,13 @@ export function PdvForm({
                         </Card>
 
                         {/* === SECCIÓN 3: ASIGNACIÓN DE RUTA === */}
-                        <Card>
-                            <CardHeader>
+                        <Card className={isMobile ? 'mx-0' : ''}>
+                            <CardHeader className={isMobile ? 'px-2 py-2' : ''}>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     🚚 Asignación de Ruta
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className={`space-y-4 ${isMobile ? 'px-2' : ''}`}>
                                 <div>
                                     <Label htmlFor="zonal">
                                         Zonal <span className="text-red-500">*</span>
@@ -683,13 +792,13 @@ export function PdvForm({
                         </Card>
 
                         {/* === SECCIÓN 4: UBICACIÓN GEOGRÁFICA === */}
-                        <Card>
-                            <CardHeader>
+                        <Card className={isMobile ? 'mx-0' : ''}>
+                            <CardHeader className={isMobile ? 'px-2 py-2' : ''}>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     🌍 Ubicación Geográfica
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className={`space-y-4 ${isMobile ? 'px-2' : ''}`}>
                                 <div>
                                     <Label htmlFor="departamento">
                                         Departamento <span className="text-red-500">*</span>
@@ -747,7 +856,7 @@ export function PdvForm({
                                     <Input
                                         id="locality"
                                         value={data.locality}
-                                        onChange={(e) => setData('locality', e.target.value)}
+                                        onChange={(e) => setData('locality', e.target.value.toUpperCase())}
                                         placeholder="Nombre de la localidad"
                                     />
                                     {errors.locality && (
@@ -762,7 +871,7 @@ export function PdvForm({
                                     <Input
                                         id="address"
                                         value={data.address}
-                                        onChange={(e) => setData('address', e.target.value)}
+                                        onChange={(e) => setData('address', e.target.value.toUpperCase())}
                                         placeholder="Dirección completa del PDV"
                                     />
                                     {errors.address && (
@@ -775,7 +884,7 @@ export function PdvForm({
                                     <Input
                                         id="reference"
                                         value={data.reference}
-                                        onChange={(e) => setData('reference', e.target.value)}
+                                        onChange={(e) => setData('reference', e.target.value.toUpperCase())}
                                         placeholder="Punto de referencia adicional"
                                     />
                                     {errors.reference && (
@@ -783,7 +892,7 @@ export function PdvForm({
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
                                         <Label htmlFor="latitude">Latitud (X)</Label>
                                         <Input
@@ -808,52 +917,107 @@ export function PdvForm({
                     </div>
 
                     {/* === SECCIÓN 5: MAPA === */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                🗺️ Ubicación en el Mapa
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <MapSelector
-                                latitude={data.latitude ? parseFloat(data.latitude) : undefined}
-                                longitude={data.longitude ? parseFloat(data.longitude) : undefined}
-                                address={data.address}
-                                focusLocation={mapFocusLocation}
-                                onLocationChange={(lat, lng, addr) => {
-                                    // Solo actualizar si hay cambios reales
-                                    const newLat = lat.toString();
-                                    const newLng = lng.toString();
-                                    const newAddr = addr || data.address;
+                    {!isMobile && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    🗺️ Ubicación en el Mapa
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <MapSelector
+                                    latitude={data.latitude ? parseFloat(data.latitude) : undefined}
+                                    longitude={data.longitude ? parseFloat(data.longitude) : undefined}
+                                    address={data.address}
+                                    focusLocation={mapFocusLocation}
+                                    onLocationChange={(lat, lng, addr) => {
+                                        // Solo actualizar si hay cambios reales
+                                        const newLat = lat.toString();
+                                        const newLng = lng.toString();
+                                        const newAddr = addr || data.address;
 
-                                    if (newLat !== data.latitude || newLng !== data.longitude || newAddr !== data.address) {
-                                        setData(prev => ({
-                                            ...prev,
-                                            latitude: newLat,
-                                            longitude: newLng,
-                                            address: newAddr
-                                        }));
-                                    }
-                                }}
-                            />
-                        </CardContent>
-                    </Card>
+                                        if (newLat !== data.latitude || newLng !== data.longitude || newAddr !== data.address) {
+                                            setData(prev => ({
+                                                ...prev,
+                                                latitude: newLat,
+                                                longitude: newLng,
+                                                address: newAddr
+                                            }));
+                                        }
+                                    }}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Mapa para móvil - Optimizado pero completo */}
+                    {isMobile && (
+                        <Card className="mx-0">
+                            <CardHeader className="px-2 py-2">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    🗺️ Ubicación en el Mapa
+                                    <span className="text-xs text-blue-600">
+                                        (Móvil)
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-2">
+                                <div className={`${isMobile ? 'space-y-3' : 'space-y-4'}`}>
+                                    {/* Mapa optimizado para móvil */}
+                                    <MapSelector
+                                        latitude={data.latitude ? parseFloat(data.latitude) : undefined}
+                                        longitude={data.longitude ? parseFloat(data.longitude) : undefined}
+                                        address={data.address}
+                                        focusLocation={mapFocusLocation}
+                                        isMobile={isMobile}
+                                        onLocationChange={(lat, lng, addr) => {
+                                            // Solo actualizar si hay cambios reales
+                                            const newLat = lat.toString();
+                                            const newLng = lng.toString();
+                                            const newAddr = addr || data.address;
+
+                                            if (newLat !== data.latitude || newLng !== data.longitude || newAddr !== data.address) {
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    latitude: newLat,
+                                                    longitude: newLng,
+                                                    address: newAddr
+                                                }));
+                                            }
+                                        }}
+                                    />
+
+
+                                    {/* Tip para móvil */}
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                        <p className="text-xs text-blue-800">
+                                            💡 <strong>Tip móvil:</strong> Puedes hacer zoom y arrastrar el mapa para buscar direcciones, o usar el botón de arriba para obtener tu ubicación actual.
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Separator />
 
-                    <DialogFooter>
+                    <DialogFooter className={`${isMobile ? 'flex-col gap-2 px-2' : 'flex-row gap-3'}`}>
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleClose}
-                            className="border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            className={`border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer ${
+                                isMobile ? 'w-full' : ''
+                            }`}
                         >
                             Cancelar
                         </Button>
                         <Button
                             type="submit"
                             disabled={processing}
-                            className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                            className={`bg-blue-600 hover:bg-blue-700 text-white cursor-pointer ${
+                                isMobile ? 'w-full' : ''
+                            }`}
                         >
                             {processing ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Guardar')}
                         </Button>

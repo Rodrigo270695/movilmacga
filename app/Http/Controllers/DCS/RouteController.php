@@ -32,7 +32,7 @@ class RouteController extends Controller
 
         $routes = Route::with(['circuit.zonal'])
             ->where('circuit_id', $circuit->id)
-            ->select('id', 'circuit_id', 'name', 'code', 'status', 'created_at')
+            ->select('id', 'circuit_id', 'name', 'code', 'status', 'telegestion', 'created_at')
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -62,6 +62,7 @@ class RouteController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'status' => true,
+            'telegestion' => $request->boolean('telegestion', false),
         ]);
 
         return redirect()->route('dcs.zonales.circuits.routes.index', [$zonal, $circuit])
@@ -91,6 +92,7 @@ class RouteController extends Controller
         $route->update([
             'name' => $request->name,
             'code' => $request->code,
+            'telegestion' => $request->boolean('telegestion', false),
         ]);
 
         return redirect()->route('dcs.zonales.circuits.routes.index', [$zonal, $circuit])

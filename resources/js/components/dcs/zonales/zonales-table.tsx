@@ -18,7 +18,8 @@ import {
     MapPin,
     CircuitBoard,
     Filter,
-    Building2
+    Building2,
+    Map
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useState, useMemo, useEffect } from 'react';
@@ -53,6 +54,7 @@ interface ZonalesTableProps {
     zonales: PaginatedZonales;
     businesses: Business[];
     onEdit: (zonal: Zonal) => void;
+    onViewMap?: (zonal: Zonal) => void;
     userPermissions: string[];
     filters?: {
         search?: string;
@@ -60,7 +62,7 @@ interface ZonalesTableProps {
     };
 }
 
-export function ZonalesTable({ zonales, businesses, onEdit, userPermissions, filters }: ZonalesTableProps) {
+export function ZonalesTable({ zonales, businesses, onEdit, onViewMap, userPermissions, filters }: ZonalesTableProps) {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [businessFilter, setBusinessFilter] = useState<string>(filters?.business_filter || 'all');
@@ -145,11 +147,14 @@ export function ZonalesTable({ zonales, businesses, onEdit, userPermissions, fil
 
     const handlePageChange = (page: number) => {
         router.get(route('dcs.zonales.index'), {
+            search: searchTerm || undefined,
+            business_filter: businessFilter !== 'all' ? businessFilter : undefined,
             page,
             per_page: zonales.per_page
         }, {
             preserveState: true,
             preserveScroll: true,
+            replace: true,
             onStart: () => {
                 addToast({
                     type: 'info',
@@ -163,11 +168,14 @@ export function ZonalesTable({ zonales, businesses, onEdit, userPermissions, fil
 
     const handlePerPageChange = (perPage: number) => {
         router.get(route('dcs.zonales.index'), {
+            search: searchTerm || undefined,
+            business_filter: businessFilter !== 'all' ? businessFilter : undefined,
             page: 1, // Reset to first page when changing per_page
             per_page: perPage
         }, {
             preserveState: true,
             preserveScroll: true,
+            replace: true,
             onStart: () => {
                 addToast({
                     type: 'info',
@@ -208,6 +216,21 @@ export function ZonalesTable({ zonales, businesses, onEdit, userPermissions, fil
     // Componente para las acciones de cada zonal
     const ZonalActions = ({ zonal }: { zonal: Zonal }) => {
         const actions = [];
+
+        if (onViewMap && hasPermission('gestor-zonal-ver')) {
+            actions.push(
+                <Button
+                    key="map"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewMap(zonal)}
+                    className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer"
+                    title="Ver mapa del zonal"
+                >
+                    <Map className="w-4 h-4 text-emerald-600" />
+                </Button>
+            );
+        }
 
         if (hasPermission('gestor-zonal-editar')) {
             actions.push(

@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { useEffect } from 'react';
 import { useToast } from '@/components/ui/toast';
 
@@ -45,6 +46,10 @@ export function ZonalForm({ isOpen, onClose, zonal }: ZonalFormProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Capturar los query parameters actuales ANTES de enviar la petición
+        const currentUrl = new URL(window.location.href);
+        const preservedQueryParams = currentUrl.search;
+
         const options = {
             preserveScroll: true,
             onSuccess: () => {
@@ -57,6 +62,14 @@ export function ZonalForm({ isOpen, onClose, zonal }: ZonalFormProps) {
                 });
                 onClose();
                 reset();
+                
+                // Recargar la página preservando los query parameters guardados
+                const targetUrl = route('dcs.zonales.index') + preservedQueryParams;
+                router.get(targetUrl, {}, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: ['zonales', 'businesses', 'filters']
+                });
             },
             onError: (errors: any) => {
                 addToast({
@@ -106,7 +119,7 @@ export function ZonalForm({ isOpen, onClose, zonal }: ZonalFormProps) {
                                 id="name"
                                 type="text"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(e) => setData('name', e.target.value.toUpperCase())}
                                 className={`${errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="Ingresa el nombre del zonal"
                                 maxLength={30}

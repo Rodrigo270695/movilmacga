@@ -187,6 +187,35 @@ export default function GlobalCircuitsIndex({ circuits, businesses, zonales, all
         });
     };
 
+    // Función para cambiar de página
+    const handlePageChange = (page: number) => {
+        router.get(route('dcs.circuits.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            page: page.toString()
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    };
+
+    // Función para cambiar elementos por página
+    const handlePerPageChange = (perPage: number) => {
+        router.get(route('dcs.circuits.index'), {
+            search: searchQuery || undefined,
+            business_id: selectedBusiness || undefined,
+            zonal_id: selectedZonal || undefined,
+            per_page: perPage.toString(),
+            page: '1'
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    };
+
     const openCreateModal = () => {
         if (!hasPermission('gestor-circuito-crear')) {
             addToast({
@@ -412,9 +441,10 @@ export default function GlobalCircuitsIndex({ circuits, businesses, zonales, all
                         circuits={circuits}
                         onEdit={openEditModal}
                         onToggleStatus={openToggleModal}
-
                         userPermissions={userPermissions}
                         isGlobalView={true}
+                        onPageChange={handlePageChange}
+                        onPerPageChange={handlePerPageChange}
                     />
 
                     {/* Modal de Formulario */}
