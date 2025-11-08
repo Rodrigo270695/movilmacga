@@ -147,6 +147,8 @@ export default function PdvChangeRequestsIndex({
     flash
 }: Props) {
     const { addToast } = useToast();
+    const { auth } = usePage().props as { auth?: { user?: { permissions?: string[] } } };
+    const userPermissions = auth?.user?.permissions || [];
     const [isExporting, setIsExporting] = useState(false);
 
     // Mostrar toasts para mensajes flash
