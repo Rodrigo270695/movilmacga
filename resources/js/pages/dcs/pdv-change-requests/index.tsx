@@ -147,11 +147,7 @@ export default function PdvChangeRequestsIndex({
     flash
 }: Props) {
     const { addToast } = useToast();
-    const { auth } = usePage().props as { auth?: { user?: { permissions?: string[] } } };
-    const userPermissions = auth?.user?.permissions || [];
     const [isExporting, setIsExporting] = useState(false);
-
-    const hasPermission = (permission: string): boolean => userPermissions.includes(permission);
 
     // Mostrar toasts para mensajes flash
     useEffect(() => {
@@ -184,16 +180,6 @@ export default function PdvChangeRequestsIndex({
     }, [flash, addToast]);
 
     const handleExport = () => {
-        if (!hasPermission('gestor-pdv-aprobaciones-exportar')) {
-            addToast({
-                type: 'error',
-                title: 'Sin permisos',
-                message: 'No tienes permisos para exportar las solicitudes de cambio.',
-                duration: 4000
-            });
-            return;
-        }
-
         setIsExporting(true);
 
         try {
@@ -276,18 +262,16 @@ export default function PdvChangeRequestsIndex({
                                         )}
                                     </div>
                                 </div>
-                                {hasPermission('gestor-pdv-aprobaciones-exportar') && (
-                                    <div className="w-full sm:w-auto">
-                                        <Button
-                                            onClick={handleExport}
-                                            disabled={isExporting}
-                                            className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                                        >
-                                            <Download className="w-4 h-4 mr-2" />
-                                            {isExporting ? 'Generando...' : 'Descargar Excel'}
-                                        </Button>
-                                    </div>
-                                )}
+                                <div className="w-full sm:w-auto">
+                                    <Button
+                                        onClick={handleExport}
+                                        disabled={isExporting}
+                                        className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+                                    >
+                                        <Download className="w-4 h-4 mr-2" />
+                                        {isExporting ? 'Generando...' : 'Descargar Excel'}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
