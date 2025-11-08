@@ -24,9 +24,6 @@ class PdvChangeRequestController extends Controller
     {
         // Validar permisos
         if (!auth()->user()->can('gestor-pdv-aprobaciones-ver')) {
-            abort(403, 'No tienes permisos para ver las aprobaciones de cambios PDV.');
-        }
-
         // Obtener parámetros de filtrado y paginación
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search', '');
