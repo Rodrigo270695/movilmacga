@@ -22,8 +22,6 @@ class PdvChangeRequestController extends Controller
      */
     public function index(Request $request): Response
     {
-        // Validar permisos
-        if (!auth()->user()->can('gestor-pdv-aprobaciones-ver')) {
         // Obtener parámetros de filtrado y paginación
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search', '');
