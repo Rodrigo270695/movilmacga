@@ -1,9 +1,12 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PdvChangeRequestsTable } from '@/components/dcs/pdv-change-requests/pdv-change-requests-table';
 import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { route } from 'ziggy-js';
 
 interface Route {
     id: number;
@@ -146,6 +149,9 @@ export default function PdvChangeRequestsIndex({
     const { addToast } = useToast();
     const { auth } = usePage().props as { auth?: { user?: { permissions?: string[] } } };
     const userPermissions = auth?.user?.permissions || [];
+    const [isExporting, setIsExporting] = useState(false);
+
+    const hasPermission = (permission: string): boolean => userPermissions.includes(permission);
 
     // Mostrar toasts para mensajes flash
     useEffect(() => {
@@ -176,6 +182,54 @@ export default function PdvChangeRequestsIndex({
             });
         }
     }, [flash, addToast]);
+
+    const handleExport = () => {
+        if (!hasPermission('gestor-pdv-aprobaciones-exportar')) {
+            addToast({
+                type: 'error',
+                title: 'Sin permisos',
+                message: 'No tienes permisos para exportar las solicitudes de cambio.',
+                duration: 4000
+            });
+            return;
+        }
+
+        setIsExporting(true);
+
+        try {
+            const params = new URLSearchParams();
+            if (filters?.search) params.set('search', filters.search);
+            if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+            if (filters?.zonal && filters.zonal !== 'all') params.set('zonal', filters.zonal);
+
+            const baseUrl = route('dcs.pdv-change-requests.export');
+            const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `solicitudes_cambio_pdv_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            addToast({
+                type: 'success',
+                title: 'Exportación iniciada',
+                message: 'Estamos generando el Excel con las solicitudes filtradas.',
+                duration: 4000
+            });
+        } catch (error) {
+            console.error(error);
+            addToast({
+                type: 'error',
+                title: 'Error al exportar',
+                message: 'No pudimos iniciar la descarga. Inténtalo nuevamente.',
+                duration: 5000
+            });
+        } finally {
+            setTimeout(() => setIsExporting(false), 1500);
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -222,6 +276,18 @@ export default function PdvChangeRequestsIndex({
                                         )}
                                     </div>
                                 </div>
+                                {hasPermission('gestor-pdv-aprobaciones-exportar') && (
+                                    <div className="w-full sm:w-auto">
+                                        <Button
+                                            onClick={handleExport}
+                                            disabled={isExporting}
+                                            className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+                                        >
+                                            <Download className="w-4 h-4 mr-2" />
+                                            {isExporting ? 'Generando...' : 'Descargar Excel'}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

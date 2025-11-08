@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\DCS;
 
 use App\Http\Controllers\Controller;
+use App\Exports\PdvChangeRequestsExport;
 use App\Models\PdvChangeRequest;
-use App\Models\Pdv;
 use App\Traits\HasBusinessScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,6 +104,74 @@ class PdvChangeRequestController extends Controller
                 'per_page' => $perPage,
             ]
         ]);
+    }
+
+    /**
+     * Export change requests to Excel applying current filters and scopes.
+     */
+    public function export(Request $request)
+    {
+        if (!auth()->user()->can('gestor-pdv-aprobaciones-exportar')) {
+            abort(403, 'No tienes permisos para exportar las solicitudes de cambio.');
+        }
+
+        $search = $request->get('search', '');
+        $statusFilter = $request->get('status', '');
+        $zonalFilter = $request->get('zonal', '');
+
+        $query = PdvChangeRequest::with([
+            'pdv:id,point_name,client_name,address,reference,latitude,longitude,route_id',
+            'pdv.route:id,name,code,circuit_id',
+            'pdv.route.circuit:id,name,code,zonal_id',
+            'pdv.route.circuit.zonal:id,name,business_id',
+            'pdv.route.circuit.zonal.business:id,name',
+            'user:id,first_name,last_name,email'
+        ]);
+
+        $query = $this->applyZonalScope($query, 'zonal_id');
+
+        if ($statusFilter && in_array($statusFilter, ['pending', 'approved', 'rejected'])) {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($zonalFilter && $zonalFilter !== 'all') {
+            $query->where('zonal_id', $zonalFilter);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('pdv', function ($subQuery) use ($search) {
+                    $subQuery->where('point_name', 'like', "%{$search}%")
+                        ->orWhere('client_name', 'like', "%{$search}%")
+                        ->orWhere('address', 'like', "%{$search}%");
+                })
+                ->orWhereHas('user', function ($subQuery) use ($search) {
+                    $subQuery->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                })
+                ->orWhereHas('zonal', function ($subQuery) use ($search) {
+                    $subQuery->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $changeRequests = $query->orderBy('created_at', 'desc')->get();
+
+        $timestamp = now()->format('Y-m-d_H-i-s');
+        $filename = "solicitudes_cambio_pdv_{$timestamp}.xlsx";
+
+        Log::info('Exportando solicitudes de cambio PDV', [
+            'user_id' => auth()->id(),
+            'total' => $changeRequests->count(),
+            'filters' => [
+                'search' => $search,
+                'status' => $statusFilter,
+                'zonal' => $zonalFilter,
+            ]
+        ]);
+
+        return Excel::download(new PdvChangeRequestsExport($changeRequests), $filename);
     }
 
     /**
