@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, usePage, router } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { PdvChangeRequestsTable } from '@/components/dcs/pdv-change-requests/pdv-change-requests-table';
 import { useToast } from '@/components/ui/toast';
@@ -182,9 +182,9 @@ export default function PdvChangeRequestsIndex({
     }, [flash, addToast]);
 
     const handleExport = () => {
-        setIsExporting(true);
-
         try {
+            setIsExporting(true);
+
             const params = new URLSearchParams();
             if (filters?.search) params.set('search', filters.search);
             if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
@@ -193,40 +193,19 @@ export default function PdvChangeRequestsIndex({
             const baseUrl = route('dcs.pdv-change-requests.export');
             const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
 
-            router.visit(url, {
-                preserveState: true,
-                preserveScroll: true,
-                onStart: () => setIsExporting(true),
-                onFinish: () => setIsExporting(false),
-                onSuccess: () => {
-                    addToast({
-                        type: 'success',
-                        title: 'Exportación iniciada',
-                        message: 'Estamos generando el Excel con las solicitudes filtradas.',
-                        duration: 4000
-                    });
-                },
-                onError: (errors) => {
-                    const normalized = Object.values(errors as Record<string, unknown>)
-                        .map((value) => {
-                            if (Array.isArray(value)) {
-                                return value.join(', ');
-                            }
-                            if (typeof value === 'string') {
-                                return value;
-                            }
-                            return '';
-                        })
-                        .flat()
-                        .join(', ');
-                    const message = normalized || 'No pudimos iniciar la descarga.';
-                    addToast({
-                        type: 'error',
-                        title: 'Error al exportar',
-                        message,
-                        duration: 5000
-                    });
-                }
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `solicitudes_cambio_pdv_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            addToast({
+                type: 'success',
+                title: 'Exportación iniciada',
+                message: 'Estamos generando el Excel con las solicitudes filtradas.',
+                duration: 4000
             });
         } catch (error) {
             console.error(error);
@@ -237,7 +216,7 @@ export default function PdvChangeRequestsIndex({
                 duration: 5000
             });
         } finally {
-            setTimeout(() => setIsExporting(false), 1500);
+            setTimeout(() => setIsExporting(false), 1000);
         }
     };
 
