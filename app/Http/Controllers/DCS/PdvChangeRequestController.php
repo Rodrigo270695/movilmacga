@@ -84,7 +84,7 @@ class PdvChangeRequestController extends Controller
         // Estadísticas
         $statsQuery = PdvChangeRequest::query();
         $statsQuery = $this->applyZonalScope($statsQuery, 'zonal_id');
-        
+
         $stats = [
             'total' => (clone $statsQuery)->count(),
             'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
@@ -202,7 +202,7 @@ class PdvChangeRequestController extends Controller
             $originalChangesRaw = DB::table('pdv_change_requests')
                 ->where('id', $changeRequest->id)
                 ->value('changes');
-            
+
             $originalChanges = [];
             if ($originalChangesRaw) {
                 if (is_string($originalChangesRaw)) {
@@ -214,7 +214,7 @@ class PdvChangeRequestController extends Controller
 
             // Aprobar la solicitud PRIMERO (esto debe guardarse siempre)
             $approved = $changeRequest->approve();
-            
+
             if (!$approved) {
                 DB::rollBack();
                 return back()->with('error', 'No se pudo aprobar la solicitud. Verifica que esté en estado pendiente.');
@@ -228,10 +228,10 @@ class PdvChangeRequestController extends Controller
                 // Recargar la solicitud para obtener el estado actualizado
                 $changeRequest->refresh();
                 $changeRequest->load('pdv');
-                
+
                 // Usar los cambios originales guardados antes de aprobar
                 $changesApplied = $changeRequest->applyChanges($originalChanges);
-                
+
                 if ($changesApplied) {
                     \Log::info('PdvChangeRequest: Solicitud aprobada y cambios aplicados', [
                         'request_id' => $changeRequest->id,
@@ -260,13 +260,13 @@ class PdvChangeRequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('PdvChangeRequest: Error al aprobar solicitud', [
                 'request_id' => $changeRequest->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return back()->with('error', 'Error al aprobar la solicitud: ' . $e->getMessage());
         }
     }

@@ -297,8 +297,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-pdv-aprobaciones-ver')
                 ->name('pdv-change-requests.index');
 
-            // Exportar solicitudes de cambio a Excel
+            // Exportar solicitudes de cambio a Excel (reusa mismo middleware para aplicar permisos y scope)
             Route::get('pdv-change-requests/export', [PdvChangeRequestController::class, 'export'])
+                ->middleware('permission:gestor-pdv-aprobaciones-ver')
                 ->name('pdv-change-requests.export');
 
             // Aprobar solicitud de cambio
