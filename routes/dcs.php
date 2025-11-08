@@ -297,10 +297,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-pdv-aprobaciones-ver')
                 ->name('pdv-change-requests.index');
 
-            // Exportar solicitudes de cambio a Excel (reusa mismo middleware para aplicar permisos y scope)
-            Route::get('pdv-change-requests/export', [PdvChangeRequestController::class, 'export'])
-                ->name('pdv-change-requests.export');
-
             // Aprobar solicitud de cambio
             Route::post('pdv-change-requests/{changeRequest}/approve', [PdvChangeRequestController::class, 'approve'])
                 ->middleware('permission:gestor-pdv-aprobaciones-aprobar')
@@ -312,6 +308,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->name('pdv-change-requests.reject');
 
         });
+
+        // Exportar solicitudes de cambio a Excel (sin requerir permisos adicionales)
+        Route::get('pdv-change-requests/export', [PdvChangeRequestController::class, 'export'])
+            ->name('pdv-change-requests.export');
 
         // ========================================
         // RUTAS AJAX PARA CARGA DINÁMICA (SIN MIDDLEWARE DE PERMISOS)
