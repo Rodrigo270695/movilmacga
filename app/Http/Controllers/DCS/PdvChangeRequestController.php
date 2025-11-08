@@ -111,10 +111,6 @@ class PdvChangeRequestController extends Controller
      */
     public function export(Request $request)
     {
-        if (!auth()->user()->can('gestor-pdv-aprobaciones-exportar')) {
-            abort(403, 'No tienes permisos para exportar las solicitudes de cambio.');
-        }
-
         $search = $request->get('search', '');
         $statusFilter = $request->get('status', '');
         $zonalFilter = $request->get('zonal', '');
