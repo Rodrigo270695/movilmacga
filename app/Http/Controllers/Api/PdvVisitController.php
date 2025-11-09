@@ -422,10 +422,6 @@ class PdvVisitController extends Controller
             $baseQuery->whereBetween('check_in_at', [$dateFrom, $dateFrom->copy()->endOfDay()]);
         } elseif (!$dateFrom && $dateTo) {
             $baseQuery->whereBetween('check_in_at', [$dateTo->copy()->startOfDay(), $dateTo]);
-        } else {
-            $todayStartUtc = now('America/Lima')->startOfDay()->setTimezone('UTC');
-            $todayEndUtc = now('America/Lima')->endOfDay()->setTimezone('UTC');
-            $baseQuery->whereBetween('check_in_at', [$todayStartUtc, $todayEndUtc]);
         }
 
         $filteredQueryForPagination = clone $baseQuery;
