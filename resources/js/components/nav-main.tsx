@@ -3,46 +3,32 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+
+const DEFAULT_EXPANDED_ITEMS = new Set(['Admin', 'DCS', 'Reportes']);
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
-    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['Admin', 'DCS', 'Mapas']));
-
-    const handleToggle = (itemTitle: string, isOpen: boolean) => {
-        setExpandedItems(prev => {
-            const newSet = new Set(prev);
-            if (isOpen) {
-                newSet.add(itemTitle);
-            } else {
-                newSet.delete(itemTitle);
-            }
-            return newSet;
-        });
-    };
 
     return (
         <SidebarGroup className="px-2 py-0">
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu className="space-y-1">
                 {items.map((item, itemIndex) => {
-                    const isExpanded = expandedItems.has(item.title);
-
                     if (item.items && item.items.length > 0) {
                         // Item with subitems
+                        const defaultOpen = DEFAULT_EXPANDED_ITEMS.has(item.title);
                         return (
                             <Collapsible
                                 key={item.title}
                                 asChild
-                                open={isExpanded}
-                                onOpenChange={(open) => handleToggle(item.title, open)}
+                                defaultOpen={defaultOpen}
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton className="group">
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
-                                            <ChevronRight className={`ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]:rotate-90" />
                                         </SidebarMenuButton>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
