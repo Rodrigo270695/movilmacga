@@ -35,6 +35,7 @@ interface PdvVisit {
     distance_to_pdv?: number;
     latitude: number;
     longitude: number;
+    used_mock_location?: boolean | null;
     user: User;
     pdv: Pdv;
 }
@@ -70,6 +71,8 @@ interface Filtros {
 
 interface Opciones {
     businesses: Array<{ id: number; name: string }>;
+    allZonales: Array<{ id: number; name: string; business_id?: number }>;
+    allCircuits: Array<{ id: number; name: string; code: string; zonal_id?: number }>;
     zonales: Array<{ id: number; name: string }>;
     circuits: Array<{ id: number; name: string; code: string }>;
     routes: Array<{ id: number; name: string }>;

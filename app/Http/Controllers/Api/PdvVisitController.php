@@ -395,7 +395,7 @@ class PdvVisitController extends Controller
         $user = $request->user();
         $perPage = $request->input('per_page', 20);
 
-        $query = PdvVisit::with([
+        $baseQuery = PdvVisit::with([
             'pdv:id,point_name,address,classification,status,route_id',
             'pdv.route:id,name,circuit_id',
             'pdv.route.circuit:id,name'
@@ -404,55 +404,74 @@ class PdvVisitController extends Controller
 
         // Filtros opcionales
         if ($request->has('status')) {
-            $query->where('visit_status', $request->status);
+            $baseQuery->where('visit_status', $request->status);
         }
 
         // Usar zona horaria de Perú para filtros de fecha
-        if ($request->has('date_from')) {
-            $dateFrom = \Carbon\Carbon::parse($request->date_from, 'America/Lima')->startOfDay();
-            $query->where('check_in_at', '>=', $dateFrom);
+        $dateFrom = $request->has('date_from')
+            ? Carbon::parse($request->date_from, 'America/Lima')->startOfDay()->setTimezone('UTC')
+            : null;
+        $dateTo = $request->has('date_to')
+            ? Carbon::parse($request->date_to, 'America/Lima')->endOfDay()->setTimezone('UTC')
+            : null;
+
+        if ($dateFrom && $dateTo) {
+            $baseQuery->whereBetween('check_in_at', [$dateFrom, $dateTo]);
+        } elseif ($dateFrom && !$dateTo) {
+            $baseQuery->whereBetween('check_in_at', [$dateFrom, $dateFrom->copy()->endOfDay()]);
+        } elseif (!$dateFrom && $dateTo) {
+            $baseQuery->whereBetween('check_in_at', [$dateTo->copy()->startOfDay(), $dateTo]);
+        } else {
+            $todayStartUtc = now('America/Lima')->startOfDay()->setTimezone('UTC');
+            $todayEndUtc = now('America/Lima')->endOfDay()->setTimezone('UTC');
+            $baseQuery->whereBetween('check_in_at', [$todayStartUtc, $todayEndUtc]);
         }
 
-        if ($request->has('date_to')) {
-            $dateTo = \Carbon\Carbon::parse($request->date_to, 'America/Lima')->endOfDay();
-            $query->where('check_in_at', '<=', $dateTo);
-        }
+        $filteredQueryForPagination = clone $baseQuery;
 
-        $visits = $query->orderBy('check_in_at', 'desc')
+        $visits = $filteredQueryForPagination
+            ->orderBy('check_in_at', 'desc')
             ->paginate($perPage);
 
-        $mappedVisits = $visits->getCollection()->map(function ($visit) {
-            return [
-                'visit_id' => $visit->id,
-                'pdv' => [
-                    'id' => $visit->pdv->id,
-                    'name' => $visit->pdv->point_name,
-                    'address' => $visit->pdv->address,
-                    'classification' => $visit->pdv->classification,
-                    'status' => $visit->pdv->status,
-                ],
-                'route' => [
-                    'id' => $visit->pdv->route?->id,
-                    'name' => $visit->pdv->route?->name ?? 'Sin ruta',
-                ],
-                'circuit' => [
-                    'id' => $visit->pdv->route?->circuit?->id,
-                    'name' => $visit->pdv->route?->circuit?->name ?? 'Sin circuito',
-                ],
-                'check_in_at' => $visit->check_in_at,
-                'check_out_at' => $visit->check_out_at,
-                'duration_minutes' => $visit->duration_minutes,
-                'distance_to_pdv_meters' => $visit->distance_to_pdv,
-                'visit_status' => $visit->visit_status,
-                'is_valid' => $visit->is_valid,
-                'used_mock_location' => $visit->used_mock_location,
-                'has_photo' => !is_null($visit->visit_photo),
-                'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
-                'notes' => $visit->notes,
-                'date' => $visit->check_in_at->setTimezone('America/Lima')->format('Y-m-d'),
-                'time' => $visit->check_in_at->setTimezone('America/Lima')->format('H:i'),
-            ];
-        });
+        $mappedVisits = $visits->getCollection()
+            ->map(function ($visit) {
+                return [
+                    'visit_id' => $visit->id,
+                    'pdv' => [
+                        'id' => $visit->pdv->id,
+                        'name' => $visit->pdv->point_name,
+                        'address' => $visit->pdv->address,
+                        'classification' => $visit->pdv->classification,
+                        'status' => $visit->pdv->status,
+                    ],
+                    'route' => [
+                        'id' => $visit->pdv->route?->id,
+                        'name' => $visit->pdv->route?->name ?? 'Sin ruta',
+                    ],
+                    'circuit' => [
+                        'id' => $visit->pdv->route?->circuit?->id,
+                        'name' => $visit->pdv->route?->circuit?->name ?? 'Sin circuito',
+                    ],
+                    'check_in_at' => $visit->check_in_at,
+                    'check_out_at' => $visit->check_out_at,
+                    'duration_minutes' => $visit->duration_minutes,
+                    'distance_to_pdv_meters' => $visit->distance_to_pdv,
+                    'visit_status' => $visit->visit_status,
+                    'is_valid' => $visit->is_valid,
+                    'used_mock_location' => $visit->used_mock_location,
+                    'has_photo' => !is_null($visit->visit_photo),
+                    'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
+                    'notes' => $visit->notes,
+                    'date' => $visit->check_in_at->setTimezone('America/Lima')->format('Y-m-d'),
+                    'time' => $visit->check_in_at->setTimezone('America/Lima')->format('H:i'),
+                ];
+            })
+            ->values();
+
+        $summaryBaseQuery = clone $baseQuery;
+        $completedCount = (clone $summaryBaseQuery)->where('visit_status', 'completed')->count();
+        $inProgressCount = (clone $summaryBaseQuery)->where('visit_status', 'in_progress')->count();
+        $cancelledCount = (clone $summaryBaseQuery)->where('visit_status', 'cancelled')->count();
 
         return response()->json([
             'success' => true,
@@ -468,12 +487,9 @@ class PdvVisitController extends Controller
                 ],
                 'summary' => [
                     'total_visits' => $visits->total(),
-                    'completed_visits' => PdvVisit::where('user_id', $user->id)
-                        ->where('visit_status', 'completed')->count(),
-                    'in_progress_visits' => PdvVisit::where('user_id', $user->id)
-                        ->where('visit_status', 'in_progress')->count(),
-                    'cancelled_visits' => PdvVisit::where('user_id', $user->id)
-                        ->where('visit_status', 'cancelled')->count(),
+                    'completed_visits' => $completedCount,
+                    'in_progress_visits' => $inProgressCount,
+                    'cancelled_visits' => $cancelledCount,
                 ]
             ]
         ]);

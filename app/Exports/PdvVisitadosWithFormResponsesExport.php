@@ -60,7 +60,7 @@ class PdvVisitadosWithFormResponsesExport implements FromCollection, WithHeading
             'PDV',
             'Cliente',
             'Clasificación',
-            'Estado PDV',
+            'Mock Location',
             'Negocio',
             'Zonal',
             'Circuito',
@@ -111,7 +111,7 @@ class PdvVisitadosWithFormResponsesExport implements FromCollection, WithHeading
             $visita->pdv->point_name,
             $visita->pdv->client_name,
             $visita->pdv->classification,
-            $visita->pdv->status,
+            $this->formatMockLocation($visita->used_mock_location ?? null),
             $visita->pdv->route->circuit->zonal->business->name ?? 'N/A',
             $visita->pdv->route->circuit->zonal->name ?? 'N/A',
             $visita->pdv->route->circuit->name ?? 'N/A',
@@ -299,7 +299,7 @@ class PdvVisitadosWithFormResponsesExport implements FromCollection, WithHeading
             'F' => 25,  // PDV
             'G' => 25,  // Cliente
             'H' => 15,  // Clasificación
-            'I' => 12,  // Estado PDV
+            'I' => 16,  // Mock Location
             'J' => 20,  // Negocio
             'K' => 15,  // Zonal
             'L' => 15,  // Circuito
@@ -344,6 +344,15 @@ class PdvVisitadosWithFormResponsesExport implements FromCollection, WithHeading
             'completed' => 'Completada',
             'cancelled' => 'Cancelada',
             default => 'Desconocido'
+        };
+    }
+
+    private function formatMockLocation($value)
+    {
+        return match(true) {
+            $value === true => 'Mock detectado',
+            $value === false => 'Ubicación real',
+            default => 'Sin dato'
         };
     }
 }

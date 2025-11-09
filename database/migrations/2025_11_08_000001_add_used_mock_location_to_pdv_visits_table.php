@@ -20,7 +20,7 @@ return new class extends Migration
                 $table->index(['used_mock_location', 'check_in_at'], 'pdv_visits_mock_location_index');
             }
         });
-    }
+    } 
 
     /**
      * Reverse the migrations.

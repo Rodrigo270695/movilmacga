@@ -244,6 +244,7 @@ class PdvVisitadosController extends Controller
                             'pdv_visits.distance_to_pdv',
                             'pdv_visits.latitude',
                             'pdv_visits.longitude',
+                            'pdv_visits.used_mock_location',
                             'pdv_visits.visit_photo',
                             'pdv_visits.notes',
                             'pdv_visits.visit_data',
@@ -317,6 +318,7 @@ class PdvVisitadosController extends Controller
                     'distance_to_pdv' => $visitArray['distance_to_pdv'] ?? $visit->distance_to_pdv ?? null,
                     'latitude' => $visitArray['latitude'] ?? $visit->latitude ?? null,
                     'longitude' => $visitArray['longitude'] ?? $visit->longitude ?? null,
+                    'used_mock_location' => $visitArray['used_mock_location'] ?? $visit->used_mock_location ?? null,
                     'user' => [
                         'id' => $visitArray['user_id'] ?? $visit->user_id ?? null,
                         'first_name' => $visitArray['first_name'] ?? $visit->first_name ?? null,

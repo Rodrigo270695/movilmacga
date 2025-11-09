@@ -42,6 +42,7 @@ interface PdvVisit {
     distance_to_pdv?: number;
     latitude: number;
     longitude: number;
+    used_mock_location?: boolean | null;
     user: User;
     pdv: Pdv;
 }
@@ -111,35 +112,6 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
         }
     };
 
-    const getPdvStatusBadge = (status: string) => {
-        switch (status) {
-            case 'vende':
-                return (
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-                        Vende
-                    </Badge>
-                );
-            case 'no vende':
-                return (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 border-yellow-200">
-                        No Vende
-                    </Badge>
-                );
-            case 'no existe':
-                return (
-                    <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
-                        No Existe
-                    </Badge>
-                );
-            default:
-                return (
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
-                        {status}
-                    </Badge>
-                );
-        }
-    };
-
     const formatDateTime = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleString('es-ES', {
@@ -163,6 +135,29 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
         return meters < 1000 ? `${meters}m` : `${(meters / 1000).toFixed(1)}km`;
     };
 
+    const getMockLocationBadge = (usedMockLocation?: boolean | null) => {
+        if (usedMockLocation) {
+            return (
+                <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+                    Mock detectado
+                </Badge>
+            );
+        }
+
+        if (usedMockLocation === false) {
+            return (
+                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                    Ubicación real
+                </Badge>
+            );
+        }
+
+        return (
+            <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
+                Sin dato
+            </Badge>
+        );
+    };
 
 
     if (visitas.data.length === 0) {
@@ -202,7 +197,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                     <TableHead className="w-[200px]">Vendedor</TableHead>
                                     <TableHead className="w-[250px]">PDV</TableHead>
                                     <TableHead className="w-[100px]">Estado Visita</TableHead>
-                                    <TableHead className="w-[100px]">Estado PDV</TableHead>
+                                    <TableHead className="w-[140px]">Mock Location</TableHead>
                                     <TableHead className="w-[100px]">Duración</TableHead>
                                     <TableHead className="w-[100px]">Distancia</TableHead>
                                     <TableHead className="w-[120px]">Check-out</TableHead>
@@ -255,7 +250,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                             {getEstadoBadge(visita.visit_status)}
                                         </TableCell>
                                         <TableCell>
-                                            {getPdvStatusBadge(visita.pdv.status)}
+                                            {getMockLocationBadge(visita.used_mock_location)}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-1">
@@ -358,7 +353,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                             {visita.pdv.client_name}
                                         </div>
                                         <div className="mt-1">
-                                            {getPdvStatusBadge(visita.pdv.status)}
+                                            {getMockLocationBadge(visita.used_mock_location)}
                                         </div>
                                     </div>
                                 </div>

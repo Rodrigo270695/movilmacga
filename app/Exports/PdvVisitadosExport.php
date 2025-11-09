@@ -39,6 +39,7 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             'PDV',
             'Cliente',
             'Clasificación',
+            'Mock Location',
             'Estado PDV',
             'Negocio',
             'Zonal',
@@ -64,6 +65,7 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             $visita->pdv->point_name,
             $visita->pdv->client_name,
             $visita->pdv->classification,
+            $this->formatMockLocation($visita->used_mock_location ?? null),
             $visita->pdv->status,
             $visita->pdv->route->circuit->zonal->business->name ?? 'N/A',
             $visita->pdv->route->circuit->zonal->name ?? 'N/A',
@@ -121,10 +123,10 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             $sheet->getStyle('A:A')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // ID
             $sheet->getStyle('B:B')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fecha
             $sheet->getStyle('C:C')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Hora
-            $sheet->getStyle('N:N')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado Visita
-            $sheet->getStyle('O:O')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Duración
-            $sheet->getStyle('P:P')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Distancia
-            $sheet->getStyle('Q:Q')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Check-out
+            $sheet->getStyle('N:N')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Mock
+            $sheet->getStyle('O:O')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado Visita
+            $sheet->getStyle('P:P')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Duración
+            $sheet->getStyle('Q:Q')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Distancia
             $sheet->getStyle('R:S')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Coordenadas
         }
 
@@ -142,7 +144,7 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             'F' => 25,  // PDV
             'G' => 25,  // Cliente
             'H' => 15,  // Clasificación
-            'I' => 12,  // Estado PDV
+            'I' => 16,  // Mock Location
             'J' => 20,  // Negocio
             'K' => 15,  // Zonal
             'L' => 15,  // Circuito
@@ -163,6 +165,15 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             'completed' => 'Completada',
             'cancelled' => 'Cancelada',
             default => 'Desconocido'
+        };
+    }
+
+    private function formatMockLocation($value)
+    {
+        return match(true) {
+            $value === true => 'Mock detectado',
+            $value === false => 'Ubicación real',
+            default => 'Sin dato'
         };
     }
 }
