@@ -420,7 +420,15 @@ class FormController extends Controller
                     }
                     break;
                 default:
-                    if (empty($value)) {
+                    $isEmptyString = is_string($value) && trim($value) === '';
+                    $isEmptyArray = is_array($value) && count(array_filter($value, function ($item) {
+                        if (is_string($item)) {
+                            return trim($item) !== '';
+                        }
+                        return $item !== null;
+                    })) === 0;
+
+                    if ($value === null || $isEmptyString || $isEmptyArray) {
                         return ['valid' => false, 'message' => 'Valor requerido'];
                     }
                     break;

@@ -21,6 +21,7 @@ class PdvVisitController extends Controller
             'pdv_id' => 'required|exists:pdvs,id',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
+            'is_mock_location' => 'nullable|boolean',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -71,6 +72,13 @@ class PdvVisitController extends Controller
             ], 400);
         }
 
+        if (is_null($pdv->latitude) || is_null($pdv->longitude)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El PDV no tiene coordenadas configuradas. Contacta al administrador.',
+            ], 409);
+        }
+
         // Calcular distancia al PDV
         $distanceToPdv = $this->calculateDistance(
             $request->latitude,
@@ -79,27 +87,37 @@ class PdvVisitController extends Controller
             $pdv->longitude
         );
 
-        // TEMPORALMENTE DESHABILITADO PARA TESTING - Verificar geofence si existe
-        // $geofence = Geofence::where('pdv_id', $pdv->id)
-        //     ->where('is_active', true)
-        //     ->first();
+        $distanceToPdvMeters = round($distanceToPdv * 1000, 2);
 
-        // $isWithinGeofence = true;
-        // if ($geofence) {
-        //     $geofenceDistance = $this->calculateDistance(
-        //         $request->latitude,
-        //         $request->longitude,
-        //         $geofence->center_latitude,
-        //         $geofence->center_longitude
-        //     );
-        //     $isWithinGeofence = $geofenceDistance <= ($geofence->radius_meters / 1000); // Convertir a km
-        // }
+        $geofence = Geofence::where('pdv_id', $pdv->id)
+            ->where('is_active', true)
+            ->first();
 
-        // Para testing: permitir visitas desde cualquier distancia
-        $isWithinGeofence = true;
+        $distanceToGeofenceMeters = null;
+        $geofenceRadiusMeters = null;
+
+        if ($geofence) {
+            $geofenceDistance = $this->calculateDistance(
+                $request->latitude,
+                $request->longitude,
+                $geofence->center_latitude,
+                $geofence->center_longitude
+            );
+
+            $distanceToGeofenceMeters = round($geofenceDistance * 1000, 2);
+            $geofenceRadiusMeters = (float) $geofence->radius_meters;
+            $isWithinGeofence = $distanceToGeofenceMeters <= $geofenceRadiusMeters;
+        } else {
+            $defaultRadiusMeters = (float) config('tracking.default_check_in_radius_meters', 150);
+            $distanceToGeofenceMeters = $distanceToPdvMeters;
+            $geofenceRadiusMeters = $defaultRadiusMeters;
+            $isWithinGeofence = $distanceToGeofenceMeters <= $defaultRadiusMeters;
+        }
 
         try {
             DB::beginTransaction();
+
+            $usedMockLocation = $request->boolean('is_mock_location');
 
             $visit = PdvVisit::create([
                 'user_id' => $user->id,
@@ -107,19 +125,23 @@ class PdvVisitController extends Controller
                 'check_in_at' => now(),
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
-                'distance_to_pdv' => round($distanceToPdv * 1000, 2), // Convertir a metros
+                'distance_to_pdv' => $distanceToPdvMeters,
                 'notes' => $request->notes,
                 'visit_status' => 'in_progress',
                 'is_valid' => $isWithinGeofence, // Marcar como válida si está dentro del geofence
+                'used_mock_location' => $usedMockLocation,
                 'visit_data' => [
                     'check_in_device_info' => [
                         'user_agent' => $request->userAgent(),
                         'ip' => $request->ip(),
                     ],
+                    'location_validation' => [
+                        'is_mock_location' => $usedMockLocation,
+                    ],
                     'geofence_validation' => [
                         'within_geofence' => $isWithinGeofence,
-                        'distance_to_geofence' => null, // Comentado para testing
-                        'geofence_radius' => null, // Comentado para testing
+                        'distance_to_geofence_meters' => $distanceToGeofenceMeters,
+                        'geofence_radius_meters' => $geofenceRadiusMeters,
                     ]
                 ]
             ]);
@@ -138,6 +160,9 @@ class PdvVisitController extends Controller
                     'distance_to_pdv_meters' => $visit->distance_to_pdv,
                     'is_within_geofence' => $isWithinGeofence,
                     'is_valid' => $visit->is_valid,
+                'used_mock_location' => $visit->used_mock_location,
+                    'distance_to_geofence_meters' => $distanceToGeofenceMeters,
+                    'geofence_radius_meters' => $geofenceRadiusMeters,
                 ]
             ]);
 
@@ -161,6 +186,9 @@ class PdvVisitController extends Controller
             'visit_id' => 'required|exists:pdv_visits,id',
             'notes' => 'nullable|string|max:500',
             'visit_data' => 'nullable|array', // Datos adicionales del formulario
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'is_mock_location' => 'nullable|boolean',
         ]);
 
         $user = $request->user();
@@ -174,18 +202,33 @@ class PdvVisitController extends Controller
 
             $durationMinutes = now()->diffInMinutes($visit->check_in_at);
 
+            $visitData = $visit->visit_data ?? [];
+            $visitData = array_merge($visitData, [
+                'check_out_device_info' => [
+                    'user_agent' => $request->userAgent(),
+                    'ip' => $request->ip(),
+                ],
+                'additional_data' => $request->visit_data ?? [],
+            ]);
+
+            if ($request->filled(['latitude', 'longitude'])) {
+                $visitData['check_out_location'] = [
+                    'latitude' => (float) $request->latitude,
+                    'longitude' => (float) $request->longitude,
+                    'recorded_at' => now(),
+                    'is_mock_location' => $request->boolean('is_mock_location'),
+                ];
+            }
+
+            $usedMockLocation = $visit->used_mock_location || $request->boolean('is_mock_location');
+
             $visit->update([
                 'check_out_at' => now(),
                 'visit_status' => 'completed',
                 'duration_minutes' => $durationMinutes,
                 'notes' => $visit->notes . ($request->notes ? "\n\nSalida: " . $request->notes : ''),
-                'visit_data' => array_merge($visit->visit_data ?? [], [
-                    'check_out_device_info' => [
-                        'user_agent' => $request->userAgent(),
-                        'ip' => $request->ip(),
-                    ],
-                    'additional_data' => $request->visit_data ?? []
-                ])
+                'used_mock_location' => $usedMockLocation,
+                'visit_data' => $visitData,
             ]);
 
             DB::commit();
@@ -198,6 +241,7 @@ class PdvVisitController extends Controller
                     'check_out_at' => $visit->check_out_at,
                     'duration_minutes' => $durationMinutes,
                     'status' => 'completed',
+                'used_mock_location' => $visit->used_mock_location,
                 ]
             ]);
 
@@ -315,6 +359,7 @@ class PdvVisitController extends Controller
                     'distance_to_pdv_meters' => $visit->distance_to_pdv,
                     'visit_status' => $visit->visit_status,
                     'is_valid' => $visit->is_valid,
+                    'used_mock_location' => $visit->used_mock_location,
                     'has_photo' => !is_null($visit->visit_photo),
                     'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
                     'date' => $visit->check_in_at->setTimezone('America/Lima')->format('Y-m-d'),
@@ -400,6 +445,7 @@ class PdvVisitController extends Controller
                 'distance_to_pdv_meters' => $visit->distance_to_pdv,
                 'visit_status' => $visit->visit_status,
                 'is_valid' => $visit->is_valid,
+                'used_mock_location' => $visit->used_mock_location,
                 'has_photo' => !is_null($visit->visit_photo),
                 'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
                 'notes' => $visit->notes,
@@ -472,6 +518,7 @@ class PdvVisitController extends Controller
                 'distance_to_pdv_meters' => $visit->distance_to_pdv,
                 'visit_status' => $visit->visit_status,
                 'is_valid' => $visit->is_valid,
+                'used_mock_location' => $visit->used_mock_location,
                 'notes' => $visit->notes,
                 'photo_url' => $visit->visit_photo ? Storage::url($visit->visit_photo) : null,
                 'visit_data' => $visit->visit_data,

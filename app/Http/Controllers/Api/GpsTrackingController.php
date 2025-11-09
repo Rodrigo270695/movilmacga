@@ -89,6 +89,17 @@ class GpsTrackingController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Validar que exista una jornada activa igual que en el registro individual
+        $hasActiveSession = $user->activeWorkingSessions()->exists();
+
+        if (!$hasActiveSession) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes iniciar una jornada laboral para registrar ubicaciones.',
+            ], 400);
+        }
+
         $locations = $request->locations;
 
         try {

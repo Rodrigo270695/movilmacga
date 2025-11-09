@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Pdv;
 use App\Models\PdvFormAssignment;
+use App\Models\PdvVisit;
+use App\Models\PdvVisitFormResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +19,15 @@ class PdvFormController extends Controller
     public function getPdvForm(Request $request, Pdv $pdv)
     {
         $user = $request->user();
+
+        $pdv->loadMissing('route.circuit');
+
+        if (!$pdv->route || !$pdv->route->circuit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El PDV no tiene un circuito asignado. Contacta al administrador.',
+            ], 409);
+        }
 
         // Verificar que el usuario tenga acceso a este PDV
         $hasAccess = $user->activeUserCircuits()
@@ -168,6 +179,15 @@ class PdvFormController extends Controller
     {
         $user = $request->user();
 
+        $pdv->loadMissing('route.circuit');
+
+        if (!$pdv->route || !$pdv->route->circuit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El PDV no tiene un circuito asignado. Contacta al administrador.',
+            ], 409);
+        }
+
         // Verificar que el usuario tenga acceso a este PDV
         $hasAccess = $user->activeUserCircuits()
             ->where('circuit_id', $pdv->route->circuit_id)
@@ -210,70 +230,95 @@ class PdvFormController extends Controller
             'responses.*.location' => 'nullable|array',
         ]);
 
+        $visit = PdvVisit::where('id', $request->input('visit_id'))
+            ->where('user_id', $user->id)
+            ->where('pdv_id', $pdv->id)
+            ->first();
+
+        if (!$visit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Visita no encontrada para este PDV.',
+            ], 404);
+        }
+
+        if ($visit->visit_status !== 'in_progress') {
+            return response()->json([
+                'success' => false,
+                'message' => 'La visita ya fue completada o cancelada.',
+            ], 409);
+        }
+
+        $responses = $request->input('responses');
+
         try {
-            DB::beginTransaction();
+            $result = DB::transaction(function () use ($responses, $user, $pdv, $visit) {
+                $lockedVisit = PdvVisit::where('id', $visit->id)->lockForUpdate()->firstOrFail();
 
-            $visitId = $request->input('visit_id');
-            $responses = $request->input('responses');
+                foreach ($responses as $response) {
+                    $fieldId = $response['field_id'];
+                    $value = $response['value'] ?? null;
+                    $fileData = $response['file_data'] ?? null;
+                    $fileName = $response['file_name'] ?? null;
+                    $fileType = $response['file_type'] ?? null;
+                    $location = $response['location'] ?? null;
 
-            foreach ($responses as $response) {
-                $fieldId = $response['field_id'];
-                $value = $response['value'] ?? null;
-                $fileData = $response['file_data'] ?? null;
-                $fileName = $response['file_name'] ?? null;
-                $fileType = $response['file_type'] ?? null;
-                $location = $response['location'] ?? null;
+                    $filePath = null;
+                    if ($fileData && $fileName) {
+                        $filePath = $this->saveFileFromBase64($fileData, $fileName, $fileType, $user->id, $pdv->id);
+                    }
 
-                // Procesar archivo si existe (imagen, PDF, firma)
-                $filePath = null;
-                if ($fileData && $fileName) {
-                    $filePath = $this->saveFileFromBase64($fileData, $fileName, $fileType, $user->id, $pdv->id);
+                    PdvVisitFormResponse::updateOrCreate(
+                        [
+                            'pdv_visit_id' => $lockedVisit->id,
+                            'form_field_id' => $fieldId,
+                        ],
+                        [
+                            'response_value' => $value,
+                            'response_file' => $filePath,
+                            'response_location' => $location,
+                            'response_metadata' => [
+                                'submitted_at' => now('America/Lima'),
+                                'user_id' => $user->id,
+                                'file_type' => $fileType,
+                                'file_name' => $fileName,
+                            ],
+                        ]
+                    );
                 }
 
-                // Crear o actualizar la respuesta
-                DB::table('pdv_visit_form_responses')->updateOrInsert(
-                    [
-                        'pdv_visit_id' => $visitId,
-                        'form_field_id' => $fieldId,
-                    ],
-                    [
-                        'response_value' => $value,
-                        'response_file' => $filePath,
-                        'response_location' => $location ? json_encode($location) : null,
-                        'response_metadata' => json_encode([
-                            'submitted_at' => now(),
-                            'user_id' => $user->id,
-                            'file_type' => $fileType,
-                            'file_name' => $fileName,
-                        ]),
-                        'updated_at' => now(),
-                    ]
-                );
-            }
+                $endedAtPeru = now('America/Lima');
+                $durationMinutes = $lockedVisit->check_in_at?->diffInMinutes($endedAtPeru);
 
-            // Marcar la visita como completada
-            DB::table('pdv_visits')
-                ->where('id', $visitId)
-                ->update([
+                $visitData = $lockedVisit->visit_data ?? [];
+                $visitData['form_submission'] = [
+                    'submitted_at' => $endedAtPeru->toIso8601String(),
+                    'responses_count' => count($responses),
+                ];
+
+                $lockedVisit->fill([
                     'visit_status' => 'completed',
-                    'check_out_at' => now(),
-                    'updated_at' => now(),
+                    'check_out_at' => $endedAtPeru,
+                    'duration_minutes' => $durationMinutes,
+                    'visit_data' => $visitData,
                 ]);
 
-            DB::commit();
+                $lockedVisit->save();
+
+                return $lockedVisit;
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Respuestas del formulario guardadas correctamente.',
                 'data' => [
-                    'visit_id' => $visitId,
+                    'visit_id' => $result->id,
                     'responses_count' => count($responses),
                     'visit_completed' => true
                 ]
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error guardando respuestas del formulario:', [
                 'user_id' => $user->id,
                 'pdv_id' => $pdv->id,

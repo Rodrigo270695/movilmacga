@@ -100,22 +100,9 @@ class WorkingSessionController extends Controller
 
         $user = $request->user();
 
-        // 🔍 LOGGING DEBUG - Inicio
-        \Log::info('🏁 END WORKING SESSION - Inicio', [
-            'user_id' => $user->id,
-            'user_name' => $user->name,
-            'timestamp' => now()->toISOString()
-        ]);
-
         $activeSession = WorkingSession::where('user_id', $user->id)
             ->where('status', 'active')
             ->first();
-
-        // 🔍 LOGGING DEBUG - Session encontrada
-        \Log::info('🔍 Session encontrada', [
-            'session_id' => $activeSession ? $activeSession->id : null,
-            'status' => $activeSession ? $activeSession->status : null
-        ]);
 
         if (!$activeSession) {
             return response()->json([
@@ -124,60 +111,68 @@ class WorkingSessionController extends Controller
             ], 400);
         }
 
-                try {
-            // 🧪 PRUEBA ULTRA-SIMPLE: SIN TRANSACCIÓN, SOLO UPDATE BÁSICO
-            \Log::info('🧪 === PRUEBA ULTRA-SIMPLE ===');
-            \Log::info('📊 Session a actualizar:', [
-                'id' => $activeSession->id,
-                'user_id' => $user->id,
-                'status_actual' => $activeSession->status
-            ]);
+        try {
+            $session = DB::transaction(function () use ($request, $activeSession, $user) {
+                $activeSession->refresh();
 
-            // ⭐ UPDATE MÁS SIMPLE POSIBLE
-            $updateResult = DB::update('
-                UPDATE working_sessions
-                SET status = ?, ended_at = ?, updated_at = ?
-                WHERE id = ? AND user_id = ?
-            ', [
-                'completed',
-                now(),
-                now(),
-                $activeSession->id,
-                $user->id
-            ]);
+                $endedAtPeru = now('America/Lima');
 
-            \Log::info('✅ UPDATE SIMPLE resultado:', ['rows_affected' => $updateResult]);
+                // Calcular métricas acumuladas
+                $totalDistanceKm = round($this->calculateTotalDistance($user->id, $activeSession->started_at), 2);
+                $totalPdvsVisited = $user->pdvVisits()
+                    ->whereBetween('check_in_at', [$activeSession->started_at, $endedAtPeru])
+                    ->count();
 
-            // 🔍 VERIFICACIÓN INMEDIATA
-            $verification = DB::select('SELECT id, status, ended_at FROM working_sessions WHERE id = ?', [
-                $activeSession->id
-            ]);
-            \Log::info('🔍 VERIFICACIÓN POST-UPDATE:', ['db_result' => $verification]);
+                $sessionNotes = $activeSession->notes;
+                if ($request->filled('notes')) {
+                    $separator = $sessionNotes ? PHP_EOL . PHP_EOL : '';
+                    $sessionNotes = $sessionNotes . $separator . 'Cierre: ' . $request->input('notes');
+                }
 
-            if ($updateResult > 0) {
-                \Log::info('✅ UPDATE EXITOSO - Devolviendo success');
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Jornada finalizada exitosamente',
-                    'data' => [
-                        'session_id' => $activeSession->id,
-                        'status' => 'completed',
-                    ]
+                $sessionData = $activeSession->session_data ?? [];
+                $sessionData['end_device_info'] = [
+                    'user_agent' => $request->userAgent(),
+                    'ip' => $request->ip(),
+                ];
+
+                $activeSession->fill([
+                    'end_latitude' => $request->latitude,
+                    'end_longitude' => $request->longitude,
+                    'notes' => $sessionNotes,
+                    'total_distance_km' => $totalDistanceKm,
+                    'total_pdvs_visited' => $totalPdvsVisited,
+                    'total_duration_minutes' => $activeSession->started_at->diffInMinutes($endedAtPeru),
+                    'session_data' => $sessionData,
+                    'status' => 'completed',
                 ]);
-            } else {
-                \Log::error('❌ UPDATE FALLÓ - 0 rows affected');
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo actualizar la jornada - 0 rows affected',
-                ], 500);
-            }
 
+                $activeSession->ended_at = $endedAtPeru;
+
+                $activeSession->save();
+
+                return $activeSession->fresh();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jornada finalizada exitosamente',
+                'data' => [
+                    'session_id' => $session->id,
+                    'status' => $session->status,
+                    'ended_at' => $session->ended_at?->toIso8601String(),
+                    'total_duration_minutes' => $session->total_duration_minutes,
+                    'total_distance_km' => $session->total_distance_km,
+                    'total_pdvs_visited' => $session->total_pdvs_visited,
+                ]
+            ]);
         } catch (\Exception $e) {
-            \Log::error('❌ EXCEPCIÓN en end():', [
+            \Log::error('Error al finalizar jornada', [
                 'message' => $e->getMessage(),
                 'code' => $e->getCode(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
+                'user_id' => $user->id,
+                'session_id' => $activeSession->id,
             ]);
 
             return response()->json([

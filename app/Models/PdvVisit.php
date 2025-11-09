@@ -23,6 +23,7 @@ class PdvVisit extends Model
         'notes',
         'visit_data',
         'is_valid',
+        'used_mock_location',
         'duration_minutes',
         'visit_status',
     ];
@@ -35,6 +36,7 @@ class PdvVisit extends Model
         'distance_to_pdv' => 'float',
         'visit_data' => 'array',
         'is_valid' => 'boolean',
+        'used_mock_location' => 'boolean',
         'duration_minutes' => 'integer',
     ];
 
