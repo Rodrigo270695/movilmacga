@@ -284,7 +284,6 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
                     {/* Tabla de visitas - Responsive */}
                     <PdvVisitadosTable
                         visitas={visitas}
-                        userPermissions={userPermissions}
                     />
 
                     {/* Paginación */}

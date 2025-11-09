@@ -64,10 +64,9 @@ interface PaginatedVisitas {
 
 interface PdvVisitadosTableProps {
     visitas: PaginatedVisitas;
-    userPermissions: string[];
 }
 
-export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTableProps) {
+export function PdvVisitadosTable({ visitas }: PdvVisitadosTableProps) {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedVisita, setSelectedVisita] = useState<PdvVisit | null>(null);
 
@@ -123,11 +122,32 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
         });
     };
 
-    const formatDuration = (minutes?: number) => {
-        if (!minutes) return 'N/A';
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    const formatDuration = (visita: PdvVisit) => {
+        let minutes: number | null | undefined = visita.duration_minutes;
+
+        if ((minutes === null || minutes === undefined) && visita.check_out_at) {
+            const checkIn = new Date(visita.check_in_at).getTime();
+            const checkOut = new Date(visita.check_out_at).getTime();
+
+            if (!Number.isNaN(checkIn) && !Number.isNaN(checkOut)) {
+                const diffMinutes = Math.floor((checkOut - checkIn) / 60000);
+                minutes = diffMinutes >= 0 ? diffMinutes : 0;
+            }
+        }
+
+        if (minutes === null || minutes === undefined) {
+            return 'N/A';
+        }
+
+        const totalMinutes = Math.max(0, Math.round(minutes));
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+
+        if (hours > 0) {
+            return `${hours}h ${mins}m`;
+        }
+
+        return `${mins}m`;
     };
 
     const formatDistance = (meters?: number) => {
@@ -255,7 +275,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                         <TableCell>
                                             <div className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3 text-gray-400" />
-                                                <span className="text-sm">{formatDuration(visita.duration_minutes)}</span>
+                                                <span className="text-sm">{formatDuration(visita)}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -363,7 +383,7 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                     <div className="flex items-center gap-1">
                                         <Clock className="w-3 h-3 text-gray-400" />
                                         <span className="text-xs text-gray-600">
-                                            {formatDuration(visita.duration_minutes)}
+                                            {formatDuration(visita)}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1">
@@ -384,30 +404,30 @@ export function PdvVisitadosTable({ visitas, userPermissions }: PdvVisitadosTabl
                                 )}
 
                                 {/* Acciones */}
-                                <div className="pt-3 border-t border-gray-100 space-y-2">
-                                    {/* Botón formulario */}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
-                                        className="w-full flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
-                                    >
-                                        <FileText className="w-4 h-4" />
-                                        Ver Formulario
-                                    </Button>
-
-                                    {/* Botón eliminar - Solo para visitas en progreso */}
-                                    {visita.visit_status === 'in_progress' && (
+                                <div className="pt-3 border-t border-gray-100">
+                                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => handleDeleteVisit(visita)}
-                                            className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-800 hover:bg-red-50 cursor-pointer"
+                                            onClick={() => router.visit(`/reportes/pdvs-visitados/${visita.id}/formulario`)}
+                                            className="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
                                         >
-                                            <Trash2 className="w-4 h-4" />
-                                            Eliminar Visita
+                                            <FileText className="w-4 h-4" />
+                                            Ver Formulario
                                         </Button>
-                                    )}
+
+                                        {visita.visit_status === 'in_progress' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteVisit(visita)}
+                                                className="flex-1 flex items-center justify-center gap-2 text-red-600 hover:text-red-800 hover:bg-red-50 cursor-pointer"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Eliminar Visita
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
