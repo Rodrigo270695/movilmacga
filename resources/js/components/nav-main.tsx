@@ -9,13 +9,13 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['Admin', 'DCS', 'Mapas']));
 
-    const handleToggle = (itemTitle: string) => {
+    const handleToggle = (itemTitle: string, isOpen: boolean) => {
         setExpandedItems(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(itemTitle)) {
-                newSet.delete(itemTitle);
-            } else {
+            if (isOpen) {
                 newSet.add(itemTitle);
+            } else {
+                newSet.delete(itemTitle);
             }
             return newSet;
         });
@@ -35,7 +35,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 key={item.title}
                                 asChild
                                 open={isExpanded}
-                                onOpenChange={() => handleToggle(item.title)}
+                                onOpenChange={(open) => handleToggle(item.title, open)}
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
