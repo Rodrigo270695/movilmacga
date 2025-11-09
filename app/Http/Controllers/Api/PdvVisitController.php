@@ -410,10 +410,10 @@ class PdvVisitController extends Controller
 
         // Usar zona horaria de Perú para filtros de fecha
         $dateFrom = $request->has('date_from')
-            ? Carbon::parse($request->date_from, 'America/Lima')->startOfDay()->setTimezone('UTC')
+            ? Carbon::parse($request->date_from, 'America/Lima')->startOfDay()
             : null;
         $dateTo = $request->has('date_to')
-            ? Carbon::parse($request->date_to, 'America/Lima')->endOfDay()->setTimezone('UTC')
+            ? Carbon::parse($request->date_to, 'America/Lima')->endOfDay()
             : null;
 
         if ($dateFrom && $dateTo) {
