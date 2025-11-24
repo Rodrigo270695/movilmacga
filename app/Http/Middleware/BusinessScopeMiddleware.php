@@ -51,24 +51,27 @@ class BusinessScopeMiddleware
             return $next($request);
         }
 
-        // Obtener negocios activos del usuario
-        $userBusinesses = $user->activeBusinesses()->pluck('businesses.id');
+        // Cachear scope de negocio para evitar consultas pesadas en cada request
+        $cacheKey = "business_scope_user_{$user->id}";
+        $businessScope = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($user) {
+            // Obtener negocios activos del usuario
+            $userBusinesses = $user->activeBusinesses()->pluck('businesses.id');
 
-        // Obtener zonales donde es supervisor activo
-        $userZonalIds = $user->activeZonalSupervisorAssignments()
-            ->with('zonal')
-            ->get()
-            ->pluck('zonal.id');
+            // Obtener zonales donde es supervisor activo
+            $userZonalIds = $user->activeZonalSupervisorAssignments()
+                ->with('zonal')
+                ->get()
+                ->pluck('zonal.id');
 
-        // Determinar el scope del usuario
-        $businessScope = [
-            'is_admin' => false,
-            'business_id' => $userBusinesses->count() === 1 ? $userBusinesses->first() : null,
-            'business_ids' => $userBusinesses->toArray(),
-            'zonal_ids' => $userZonalIds->toArray(),
-            'has_business_restriction' => $userBusinesses->count() > 0,
-            'has_zonal_restriction' => $userZonalIds->count() > 0
-        ];
+            return [
+                'is_admin' => false,
+                'business_id' => $userBusinesses->count() === 1 ? $userBusinesses->first() : null,
+                'business_ids' => $userBusinesses->toArray(),
+                'zonal_ids' => $userZonalIds->toArray(),
+                'has_business_restriction' => $userBusinesses->count() > 0,
+                'has_zonal_restriction' => $userZonalIds->count() > 0
+            ];
+        });
 
         // Compartir el scope globalmente para usar en controladores y vistas
         $this->shareGlobalScope($businessScope);

@@ -24,6 +24,9 @@ class PdvVisitadosController extends Controller
      */
     public function index(Request $request)
     {
+        // Aumentar timeout para consultas pesadas
+        set_time_limit(120); // 2 minutos
+        
         // Obtener filtros de la request con valores por defecto del día actual en Perú
         // CORREGIDO: Validar y limpiar valores de filtros, preservando valores originales para el frontend
         $fechaDesde = $request->get('fecha_desde', now()->format('Y-m-d'));
@@ -422,7 +425,7 @@ class PdvVisitadosController extends Controller
         // OPTIMIZACIÓN: Usar caché para opciones de filtros (TTL: 5 minutos)
         $businessScope = $this->getBusinessScope();
         $cacheKey = 'pdv_visitados_filter_options_' . md5(json_encode($businessScope));
-        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () {
+        $filterOptions = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($businessScope) {
             $circuitsQuery = \App\Models\Circuit::with('zonal.business')->where('status', true);
             $circuitsQuery = $this->applyFullScope($circuitsQuery, 'zonal.business', 'zonal');
             

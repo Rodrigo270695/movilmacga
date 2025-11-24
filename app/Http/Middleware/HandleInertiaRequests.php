@@ -39,15 +39,32 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        $user = $request->user();
+        
+        // Cachear permisos y roles para evitar consultas pesadas en cada request
+        $permissions = null;
+        $roles = null;
+        if ($user) {
+            $cacheKey = "user_permissions_roles_{$user->id}";
+            $cached = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($user) {
+                return [
+                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                    'roles' => $user->getRoleNames()->toArray(),
+                ];
+            });
+            $permissions = $cached['permissions'];
+            $roles = $cached['roles'];
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user() ? [
-                    ...$request->user()->toArray(),
-                    'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
-                    'roles' => $request->user()->getRoleNames()->toArray(),
+                'user' => $user ? [
+                    ...$user->toArray(),
+                    'permissions' => $permissions,
+                    'roles' => $roles,
                 ] : null,
             ],
             'ziggy' => fn (): array => [
