@@ -63,6 +63,7 @@ interface Filtros {
     vendedor_id?: string;
     pdv_id?: string;
     estado?: string;
+    mock_location?: string;
     business_id?: string;
     zonal_id?: string;
     circuit_id?: string;
@@ -169,6 +170,7 @@ export default function PdvVisitadosIndex({ visitas, filtros, opciones, flash }:
             if (filtros.vendedor_id && filtros.vendedor_id !== 'todos') params.set('vendedor_id', filtros.vendedor_id);
             if (filtros.pdv_id && filtros.pdv_id !== 'todos') params.set('pdv_id', filtros.pdv_id);
             if (filtros.estado && filtros.estado !== 'todos') params.set('estado', filtros.estado);
+            if (filtros.mock_location && filtros.mock_location !== 'todos') params.set('mock_location', filtros.mock_location);
             if (filtros.business_id && filtros.business_id !== 'todos') params.set('business_id', filtros.business_id);
             if (filtros.zonal_id && filtros.zonal_id !== 'todos') params.set('zonal_id', filtros.zonal_id);
             if (filtros.circuit_id && filtros.circuit_id !== 'todos') params.set('circuit_id', filtros.circuit_id);

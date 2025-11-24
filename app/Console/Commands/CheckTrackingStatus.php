@@ -55,26 +55,32 @@ class CheckTrackingStatus extends Command
         $startOfDay = Carbon::parse($dateFilter)->startOfDay();
         $endOfDay = Carbon::parse($dateFilter)->endOfDay();
 
+        // OPTIMIZACIÓN: Usar JOIN en lugar de subquery correlacionado
+        $latestLocationsSubquery = \Illuminate\Support\Facades\DB::table('gps_tracking as g2')
+            ->select('g2.user_id', \Illuminate\Support\Facades\DB::raw('MAX(g2.recorded_at) as max_recorded_at'))
+            ->whereNotNull('g2.latitude')
+            ->whereNotNull('g2.longitude')
+            ->where('g2.is_mock_location', false)
+            ->whereBetween('g2.recorded_at', [$startOfDay, $endOfDay])
+            ->groupBy('g2.user_id');
+
         $locations = GpsTracking::with([
             'user:id,first_name,last_name,email',
             'user.activeWorkingSessions:id,user_id,started_at',
             'user.activeUserCircuits.circuit:id,name,code'
         ])
         ->select([
-            'id', 'user_id', 'latitude', 'longitude', 'accuracy', 'speed',
-            'heading', 'battery_level', 'is_mock_location', 'recorded_at'
+            'gps_tracking.id', 'gps_tracking.user_id', 'gps_tracking.latitude', 'gps_tracking.longitude', 
+            'gps_tracking.accuracy', 'gps_tracking.speed',
+            'gps_tracking.heading', 'gps_tracking.battery_level', 'gps_tracking.is_mock_location', 'gps_tracking.recorded_at'
         ])
         ->validLocation()
-        ->whereBetween('recorded_at', [$startOfDay, $endOfDay])
+        ->whereBetween('gps_tracking.recorded_at', [$startOfDay, $endOfDay])
         ->whereHas('user.activeWorkingSessions')
-        ->whereRaw('recorded_at = (
-            SELECT MAX(recorded_at)
-            FROM gps_tracking g2
-            WHERE g2.user_id = gps_tracking.user_id
-            AND g2.latitude IS NOT NULL
-            AND g2.longitude IS NOT NULL
-            AND g2.recorded_at BETWEEN ? AND ?
-        )', [$startOfDay, $endOfDay])
+        ->joinSub($latestLocationsSubquery, 'latest', function ($join) {
+            $join->on('gps_tracking.user_id', '=', 'latest.user_id')
+                 ->on('gps_tracking.recorded_at', '=', 'latest.max_recorded_at');
+        })
         ->get();
 
         $this->info("🗺️ Ubicaciones encontradas para el mapa: {$locations->count()}");

@@ -16,7 +16,7 @@ return [
     */
 
     'ssr' => [
-        'enabled' => true,
+        'enabled' => false, // Deshabilitado para evitar errores 502 en producción
         'url' => 'http://127.0.0.1:13714',
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 

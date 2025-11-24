@@ -33,6 +33,7 @@ class PdvVisitadosController extends Controller
         $vendedorIdRaw = $request->get('vendedor_id');
         $pdvIdRaw = $request->get('pdv_id');
         $estado = $request->get('estado');
+        $mockLocation = $request->get('mock_location');
         $businessIdRaw = $request->get('business_id');
         $zonalIdRaw = $request->get('zonal_id');
         $circuitIdRaw = $request->get('circuit_id');
@@ -66,7 +67,12 @@ class PdvVisitadosController extends Controller
         // ESTRATEGIA: Obtener IDs sin ordenar primero, luego ordenar solo los IDs obtenidos
         
         $page = $request->get('page', 1);
-        $perPage = 25;
+        $perPage = $request->get('per_page', 25);
+        // Validar que per_page sea un valor válido (5, 10, 25, 50, 100)
+        $allowedPerPage = [5, 10, 25, 50, 100];
+        if (!in_array((int)$perPage, $allowedPerPage)) {
+            $perPage = 25;
+        }
         $offset = ($page - 1) * $perPage;
         
         // Construir query base para filtros (sin ordenar)
@@ -106,6 +112,17 @@ class PdvVisitadosController extends Controller
 
         if ($estado && $estado !== 'todos') {
             $baseQuery->where('pdv_visits.visit_status', $estado);
+        }
+
+        if ($mockLocation && $mockLocation !== 'todos') {
+            if ($mockLocation === 'real') {
+                $baseQuery->where(function($query) {
+                    $query->where('pdv_visits.used_mock_location', false)
+                          ->orWhereNull('pdv_visits.used_mock_location');
+                });
+            } elseif ($mockLocation === 'mock') {
+                $baseQuery->where('pdv_visits.used_mock_location', true);
+            }
         }
 
         // Filtros por jerarquía organizacional
@@ -198,6 +215,17 @@ class PdvVisitadosController extends Controller
             
             if ($estado && $estado !== 'todos') {
                 $visitIdsQuery->where('pdv_visits.visit_status', $estado);
+            }
+            
+            if ($mockLocation && $mockLocation !== 'todos') {
+                if ($mockLocation === 'real') {
+                    $visitIdsQuery->where(function($query) {
+                        $query->where('pdv_visits.used_mock_location', false)
+                              ->orWhereNull('pdv_visits.used_mock_location');
+                    });
+                } elseif ($mockLocation === 'mock') {
+                    $visitIdsQuery->where('pdv_visits.used_mock_location', true);
+                }
             }
             
             // Obtener IDs candidatos (SIN ordenar en MySQL para evitar error de memoria)
@@ -592,6 +620,7 @@ class PdvVisitadosController extends Controller
                 'vendedor_id' => $vendedorIdRaw ?? null,
                 'pdv_id' => $pdvIdRaw ?? null,
                 'estado' => $estado ?? null,
+                'mock_location' => $mockLocation ?? null,
                 'business_id' => $businessIdRaw ?? null,
                 'zonal_id' => $zonalIdRaw ?? null,
                 'circuit_id' => $circuitIdRaw ?? null,
@@ -627,6 +656,7 @@ class PdvVisitadosController extends Controller
         $vendedorId = $request->get('vendedor_id');
         $pdvId = $request->get('pdv_id');
         $estado = $request->get('estado');
+        $mockLocation = $request->get('mock_location');
         $businessId = $request->get('business_id');
         $zonalId = $request->get('zonal_id');
         $circuitId = $request->get('circuit_id');
@@ -659,6 +689,17 @@ class PdvVisitadosController extends Controller
 
         if ($estado && $estado !== 'todos') {
             $query->where('visit_status', $estado);
+        }
+
+        if ($mockLocation && $mockLocation !== 'todos') {
+            if ($mockLocation === 'real') {
+                $query->where(function($q) {
+                    $q->where('used_mock_location', false)
+                      ->orWhereNull('used_mock_location');
+                });
+            } elseif ($mockLocation === 'mock') {
+                $query->where('used_mock_location', true);
+            }
         }
 
         if ($businessId && $businessId !== 'todos') {

@@ -303,16 +303,23 @@ class TrackingController extends Controller
             }
         }
 
-        // Obtener solo la ubicación más reciente por usuario
-        $locations = $query->whereRaw('recorded_at = (
-            SELECT MAX(recorded_at)
-            FROM gps_tracking g2
-            WHERE g2.user_id = gps_tracking.user_id
-            AND g2.latitude IS NOT NULL
-            AND g2.longitude IS NOT NULL
-            AND g2.recorded_at BETWEEN ? AND ?
-        )', [$startOfDay, $endOfDay])
-        ->get();
+        // OPTIMIZACIÓN: Obtener solo la ubicación más reciente por usuario usando JOIN en lugar de subquery correlacionado
+        // Primero obtenemos el MAX(recorded_at) por usuario en una subconsulta derivada
+        $latestLocationsSubquery = DB::table('gps_tracking as g2')
+            ->select('g2.user_id', DB::raw('MAX(g2.recorded_at) as max_recorded_at'))
+            ->whereNotNull('g2.latitude')
+            ->whereNotNull('g2.longitude')
+            ->where('g2.is_mock_location', false)
+            ->whereBetween('g2.recorded_at', [$startOfDay, $endOfDay])
+            ->groupBy('g2.user_id');
+
+        // Ahora hacemos JOIN con la subconsulta para obtener solo las ubicaciones más recientes
+        $locations = $query
+            ->joinSub($latestLocationsSubquery, 'latest', function ($join) {
+                $join->on('gps_tracking.user_id', '=', 'latest.user_id')
+                     ->on('gps_tracking.recorded_at', '=', 'latest.max_recorded_at');
+            })
+            ->get();
 
         // Log del resultado
         \Log::info('TrackingController getRealTimeLocations - Result', [

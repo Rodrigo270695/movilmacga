@@ -26,6 +26,7 @@ interface Filtros {
     vendedor_id?: string;
     pdv_id?: string;
     estado?: string;
+    mock_location?: string;
     business_id?: string;
     zonal_id?: string;
     circuit_id?: string;
@@ -108,6 +109,7 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
             vendedor_id: safeFiltros.vendedor_id,
             pdv_id: safeFiltros.pdv_id,
             estado: safeFiltros.estado,
+            mock_location: safeFiltros.mock_location,
             business_id: safeFiltros.business_id,
             zonal_id: safeFiltros.zonal_id,
             circuit_id: safeFiltros.circuit_id,
@@ -363,7 +365,7 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
                     {/* Filtros Específicos */}
                     <div className="space-y-4">
                         <Label className="text-xs font-medium text-gray-700">Filtros Específicos</Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Vendedor */}
                             <div className="space-y-2">
                                 <Label htmlFor="vendedor_id" className="text-xs text-gray-600 flex items-center gap-1">
@@ -433,6 +435,26 @@ export function PdvVisitadosFilters({ filtros, opciones }: PdvVisitadosFiltersPr
                                                 {estado.label}
                                             </SelectItem>
                                         ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Mock Location */}
+                            <div className="space-y-2">
+                                <Label htmlFor="mock_location" className="text-xs text-gray-600">
+                                    Mock Location
+                                </Label>
+                                <Select
+                                    value={localFilters.mock_location || 'todos'}
+                                    onValueChange={(value) => handleFilterChange('mock_location', value)}
+                                >
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder="Seleccionar tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todos">Todos</SelectItem>
+                                        <SelectItem value="real">Ubicación Real</SelectItem>
+                                        <SelectItem value="mock">Mock Detectado</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
