@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { ExpandableButton } from '@/components/ui/expandable-button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,7 +14,7 @@ import { PdvsMobileCards } from '@/components/dcs/pdvs/pdvs-mobile-cards';
 import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
-import { Plus, Download, Search, X, Filter } from 'lucide-react';
+import { Plus, Download, Search, X, Filter, Store } from 'lucide-react';
 
 interface PdvModel {
     id: number;
@@ -624,15 +625,15 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                         Exportar Excel
                                     </Button>
 
-                                    {/* Botón de crear */}
+                                    {/* Botón de crear - Efecto expandible profesional */}
                                     {hasPermission('gestor-pdv-crear') && (
-                                        <Button
+                                        <ExpandableButton
+                                            icon={Store}
+                                            text="Nuevo PDV"
+                                            variant="glow"
                                             onClick={openCreateModal}
-                                            className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nuevo PDV
-                                        </Button>
+                                            className="bg-pink-600 hover:bg-pink-700"
+                                        />
                                     )}
                                 </div>
                             </div>

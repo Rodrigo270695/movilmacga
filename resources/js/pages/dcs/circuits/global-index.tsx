@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { ExpandableButton } from '@/components/ui/expandable-button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +16,8 @@ import {
     Search,
     X,
     Filter,
-    Plus
+    Plus,
+    Network
 } from 'lucide-react';
 
 interface Circuit {
@@ -310,16 +312,16 @@ export default function GlobalCircuitsIndex({ circuits, businesses, zonales, all
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
+                                {/* Botón desktop - Efecto expandible profesional */}
                                 {hasPermission('gestor-circuito-crear') && (
                                     <div className="hidden sm:block">
-                                        <Button
+                                        <ExpandableButton
+                                            icon={Network}
+                                            text="Nuevo Circuito"
+                                            variant="glow"
                                             onClick={openCreateModal}
-                                            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nuevo Circuito
-                                        </Button>
+                                            className="bg-teal-600 hover:bg-teal-700"
+                                        />
                                     </div>
                                 )}
                             </div>

@@ -1,7 +1,8 @@
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { ExpandableButton } from '@/components/ui/expandable-button';
 import { Head, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { Plus, MapPin } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ZonalForm } from '@/components/dcs/zonales/zonal-form';
 import { ZonalesTable } from '@/components/dcs/zonales/zonales-table';
@@ -179,16 +180,15 @@ export default function ZonalesIndex({ zonales, businesses, filters, flash }: Pr
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
+                                {/* Botón desktop - Efecto expandible profesional */}
                                 {hasPermission('gestor-zonal-crear') && (
                                     <div className="hidden sm:block">
-                                        <Button
+                                        <ExpandableButton
+                                            icon={MapPin}
+                                            text="Nuevo Zonal"
+                                            variant="glow"
                                             onClick={openCreateZonalDialog}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nuevo Zonal
-                                        </Button>
+                                        />
                                     </div>
                                 )}
                             </div>

@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { ExpandableButton } from '@/components/ui/expandable-button';
 import { Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { BusinessForm } from '@/components/admin/businesses/business-form';
@@ -190,16 +191,15 @@ export default function BusinessesIndex({ businesses, availableZonales, flash }:
                                     </div>
                                 </div>
 
-                                {/* Botones desktop - Solo mostrar en pantallas grandes */}
+                                {/* Botón desktop - Efecto expandible profesional */}
                                 {hasPermission('gestor-business-crear') && (
                                     <div className="hidden sm:block">
-                                        <Button
+                                        <ExpandableButton
+                                            icon={Plus}
+                                            text="Nuevo Negocio"
+                                            variant="glow"
                                             onClick={openCreateBusinessDialog}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nuevo Negocio
-                                        </Button>
+                                        />
                                     </div>
                                 )}
                             </div>

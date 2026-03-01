@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pdv extends Model
@@ -57,6 +58,17 @@ class Pdv extends Model
     public function pdvVisits(): HasMany
     {
         return $this->hasMany(PdvVisit::class);
+    }
+
+    /**
+     * Get the operators associated with this PDV (many-to-many).
+     */
+    public function operators(): BelongsToMany
+    {
+        return $this->belongsToMany(Operator::class, 'pdv_operator')
+            ->using(PdvOperator::class)
+            ->withPivot('status')
+            ->withTimestamps();
     }
 
     /**

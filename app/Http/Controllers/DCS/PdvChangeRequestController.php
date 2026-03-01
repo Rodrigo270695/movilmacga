@@ -23,7 +23,7 @@ class PdvChangeRequestController extends Controller
     public function index(Request $request): Response
     {
         // Obtener parámetros de filtrado y paginación
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $search = $request->get('search', '');
         $statusFilter = $request->get('status', '');
         $zonalFilter = $request->get('zonal', '');

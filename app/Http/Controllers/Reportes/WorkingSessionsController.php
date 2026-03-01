@@ -104,7 +104,7 @@ class WorkingSessionsController extends Controller
         $query->orderBy('started_at', 'desc');
 
         // Paginación
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $sessions = $query->paginate($perPage)->withQueryString();
 
         // OPTIMIZACIÓN: Pre-cargar todas las rutas asignadas por fecha y circuito en una sola query
@@ -326,7 +326,7 @@ class WorkingSessionsController extends Controller
                 'circuit_id' => $request->circuit_id,
                 'user_id' => $request->user_id,
                 'status' => $request->status,
-                'per_page' => $request->get('per_page', 10),
+                'per_page' => $request->get('per_page', 50),
             ],
             'opciones' => [
                 'businesses' => $businesses,

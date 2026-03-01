@@ -24,7 +24,7 @@ class UserController extends Controller
             abort(403, 'No tienes permisos para ver los usuarios.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $search = $request->get('search', '');
         $roleFilter = $request->get('role', '');
         $statusFilter = $request->get('status', '');

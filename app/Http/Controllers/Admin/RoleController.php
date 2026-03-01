@@ -9,6 +9,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class RoleController extends Controller
 {
@@ -24,7 +25,7 @@ class RoleController extends Controller
             abort(403, 'No tienes permisos para ver los roles.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $page = $request->get('page', 1);
 
         $roles = Role::with('permissions')
@@ -85,6 +86,12 @@ class RoleController extends Controller
             }
 
             $role->syncPermissions($request->permissions ?? []);
+
+            // Invalidar caché de permisos de todos los usuarios con este rol para que el frontend reciba los nuevos en la próxima carga
+            $users = $role->users()->get(['id']);
+            foreach ($users as $user) {
+                Cache::forget("user_permissions_roles_{$user->id}");
+            }
 
             $permissionCount = count($request->permissions ?? []);
             return redirect()->route('admin.roles.index')

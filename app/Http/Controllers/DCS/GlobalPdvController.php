@@ -57,7 +57,7 @@ class GlobalPdvController extends Controller
             abort(403, 'No tienes permisos para ver los PDVs.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
 
         // Filtros básicos
         $searchFilter = $request->get('search');

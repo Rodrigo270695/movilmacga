@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, Contact, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck, CheckSquare } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 import { useMemo, useCallback } from 'react';
@@ -53,6 +53,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
         permission: 'menu-dcs',
         items: [
             {
+                title: 'Operadores',
+                href: '/dcs/operators',
+                icon: Contact,
+                permission: 'gestor-operador-acceso',
+            },
+            {
                 title: 'Gestor de zonal',
                 href: '/dcs/zonales',
                 icon: LayoutGrid,
@@ -75,6 +81,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/dcs/pdvs',
                 icon: MapPin,
                 permission: 'gestor-pdv-acceso',
+            },
+            {
+                title: 'PDV - Operadores',
+                href: '/dcs/pdv-operators',
+                icon: CheckSquare,
+                permission: 'gestor-pdv-operadores-acceso',
             },
             {
                 title: 'Supervisor-Zonal',

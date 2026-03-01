@@ -21,6 +21,7 @@ import {
     Route,
     Building2,
     MapPin,
+    Contact,
     UserCheck,
     Map,
     Navigation,
@@ -146,6 +147,20 @@ const menuStructure = [
         permission: 'menu-dcs',
         items: [
             {
+                id: 'operadores',
+                label: 'Operadores',
+                icon: Contact,
+                className: 'text-sky-600 bg-sky-100',
+                permission: 'gestor-operador-acceso',
+                actions: [
+                    { id: 'gestor-operador-ver', label: 'Ver operadores' },
+                    { id: 'gestor-operador-crear', label: 'Crear operadores' },
+                    { id: 'gestor-operador-editar', label: 'Editar operadores' },
+                    { id: 'gestor-operador-eliminar', label: 'Eliminar operadores' },
+                    { id: 'gestor-operador-cambiar-estado', label: 'Activar/Desactivar operadores' }
+                ]
+            },
+            {
                 id: 'zonales',
                 label: 'Gestión de Zonales',
                 icon: LayoutGrid,
@@ -196,6 +211,19 @@ const menuStructure = [
                     { id: 'gestor-pdv-crear', label: 'Crear PDVs' },
                     { id: 'gestor-pdv-editar', label: 'Editar PDVs' },
                     { id: 'gestor-pdv-cambiar-estado', label: 'Activar/Desactivar PDVs' }
+                ]
+            },
+            {
+                id: 'pdv-operadores',
+                label: 'PDV - Operadores',
+                icon: Contact,
+                className: 'text-sky-600 bg-sky-100',
+                permission: 'gestor-pdv-operadores-acceso',
+                actions: [
+                    { id: 'gestor-pdv-operadores-ver', label: 'Ver asignación' },
+                    { id: 'gestor-pdv-operadores-ver-mapa', label: 'Ver mapa' },
+                    { id: 'gestor-pdv-operadores-editar', label: 'Guardar asignaciones' },
+                    { id: 'gestor-pdv-operadores-exportar', label: 'Exportar Excel' }
                 ]
             },
             {
@@ -358,6 +386,17 @@ const actionLabels: Record<string, string> = {
     'gestor-pdv-editar': 'Editar PDVs existentes',
     'gestor-pdv-eliminar': 'Eliminar PDVs',
     'gestor-pdv-cambiar-estado': 'Activar/Desactivar PDVs',
+
+    'gestor-pdv-operadores-ver': 'Ver asignación PDV-Operadores',
+    'gestor-pdv-operadores-ver-mapa': 'Ver mapa PDV-Operadores',
+    'gestor-pdv-operadores-editar': 'Guardar asignaciones (checkboxes)',
+    'gestor-pdv-operadores-exportar': 'Exportar Excel con columnas de operadores',
+
+    'gestor-operador-ver': 'Ver operadores del sistema',
+    'gestor-operador-crear': 'Crear nuevos operadores',
+    'gestor-operador-editar': 'Editar operadores existentes',
+    'gestor-operador-eliminar': 'Eliminar operadores',
+    'gestor-operador-cambiar-estado': 'Activar/Desactivar operadores',
 
     'gestor-zonal-supervisor-ver': 'Ver asignaciones de supervisores a zonales',
     'gestor-zonal-supervisor-asignar': 'Asignar supervisores a zonales',

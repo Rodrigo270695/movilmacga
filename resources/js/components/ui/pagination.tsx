@@ -72,10 +72,11 @@ export function Pagination({ data, onPageChange, onPerPageChange }: PaginationPr
                             value={per_page.toString()}
                             onValueChange={(value) => onPerPageChange(parseInt(value))}
                             options={[
+                                { value: "50", label: "50" },
+                                { value: "100", label: "100" },
                                 { value: "5", label: "5" },
                                 { value: "10", label: "10" },
-                                { value: "25", label: "25" },
-                                { value: "50", label: "50" }
+                                { value: "25", label: "25" }
                             ]}
                             className="w-20 h-8"
                         />

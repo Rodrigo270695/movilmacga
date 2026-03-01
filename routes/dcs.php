@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\DCS\ZonalController;
+use App\Http\Controllers\DCS\OperatorController;
 use App\Http\Controllers\DCS\CircuitController;
 use App\Http\Controllers\DCS\GlobalCircuitController;
 use App\Http\Controllers\DCS\RouteController;
 use App\Http\Controllers\DCS\GlobalRouteController;
 use App\Http\Controllers\DCS\GlobalPdvController;
+use App\Http\Controllers\DCS\PdvOperatorsController;
 use App\Http\Controllers\DCS\ZonalSupervisorController;
 use App\Http\Controllers\DCS\VendorCircuitController;
 use App\Http\Controllers\DCS\RouteVisitDateController;
@@ -51,6 +53,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('zonales/{zonal}', [ZonalController::class, 'destroy'])
                 ->middleware('permission:gestor-zonal-eliminar')
                 ->name('zonales.destroy');
+
+        });
+
+        // Grupo de rutas para operadores
+        Route::middleware(['permission:gestor-operador-acceso'])->group(function () {
+
+            Route::get('operators', [OperatorController::class, 'index'])
+                ->middleware('permission:gestor-operador-ver')
+                ->name('operators.index');
+
+            Route::post('operators', [OperatorController::class, 'store'])
+                ->middleware('permission:gestor-operador-crear')
+                ->name('operators.store');
+
+            Route::patch('operators/{operator}', [OperatorController::class, 'update'])
+                ->middleware('permission:gestor-operador-editar')
+                ->name('operators.update');
+
+            Route::patch('operators/{operator}/toggle-status', [OperatorController::class, 'toggleStatus'])
+                ->middleware('permission:gestor-operador-cambiar-estado')
+                ->name('operators.toggle-status');
+
+            Route::delete('operators/{operator}', [OperatorController::class, 'destroy'])
+                ->middleware('permission:gestor-operador-eliminar')
+                ->name('operators.destroy');
 
         });
 
@@ -235,7 +262,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-pdv-ver')
                 ->name('pdvs.export');
 
+        });
 
+        // Grupo de rutas PDV - Operadores (asignación por checkboxes)
+        Route::middleware(['permission:gestor-pdv-operadores-acceso'])->group(function () {
+
+            Route::get('pdv-operators', [PdvOperatorsController::class, 'index'])
+                ->middleware('permission:gestor-pdv-operadores-ver')
+                ->name('pdv-operators.index');
+
+            Route::post('pdv-operators/sync', [PdvOperatorsController::class, 'sync'])
+                ->middleware('permission:gestor-pdv-operadores-editar')
+                ->name('pdv-operators.sync');
+
+            Route::get('pdv-operators/export', [PdvOperatorsController::class, 'export'])
+                ->middleware('permission:gestor-pdv-operadores-exportar')
+                ->name('pdv-operators.export');
+
+            Route::get('pdv-operators/map-data', [PdvOperatorsController::class, 'mapData'])
+                ->middleware('permission:gestor-pdv-operadores-ver-mapa')
+                ->name('pdv-operators.map-data');
 
         });
 

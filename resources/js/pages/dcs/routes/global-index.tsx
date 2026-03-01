@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { ExpandableButton } from '@/components/ui/expandable-button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,7 +19,8 @@ import {
     X,
     Filter,
     Plus,
-    Download
+    Download,
+    Route
 } from 'lucide-react';
 
 interface RouteModel {
@@ -513,15 +515,15 @@ export default function GlobalRoutesIndex({ routes, businesses, zonales, allZona
                                         Exportar Excel
                                     </Button>
 
-                                    {/* Botón de crear */}
+                                    {/* Botón de crear - Efecto expandible profesional */}
                                     {hasPermission('gestor-ruta-crear') && (
-                                        <Button
+                                        <ExpandableButton
+                                            icon={Route}
+                                            text="Nueva Ruta"
+                                            variant="glow"
                                             onClick={openCreateModal}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nueva Ruta
-                                        </Button>
+                                            className="bg-emerald-600 hover:bg-emerald-700"
+                                        />
                                     )}
                                 </div>
                             </div>

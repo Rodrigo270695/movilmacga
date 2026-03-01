@@ -27,7 +27,7 @@ class BusinessFormController extends Controller
             abort(403, 'No tienes permisos para ver los formularios.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $search = $request->get('search');
         $businessFilter = $request->get('business_filter');
         $statusFilter = $request->get('status_filter');

@@ -28,7 +28,7 @@ class RouteController extends Controller
             abort(404, 'Circuito no encontrado en este zonal.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
 
         $routes = Route::with(['circuit.zonal'])
             ->where('circuit_id', $circuit->id)

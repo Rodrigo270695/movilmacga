@@ -28,7 +28,7 @@ class ZonalSupervisorController extends Controller
         }
 
         // Obtener parámetros de filtrado y paginación
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $search = $request->get('search', '');
         $business = $request->get('business', '');
         $status = $request->get('status', '');

@@ -28,7 +28,7 @@ class GlobalRouteController extends Controller
             abort(403, 'No tienes permisos para ver las rutas.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $searchFilter = $request->get('search');
         $businessFilter = $request->get('business_id');
         $zonalFilter = $request->get('zonal_id');

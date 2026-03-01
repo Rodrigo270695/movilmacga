@@ -1,7 +1,8 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { ExpandableButton } from '@/components/ui/expandable-button';
+import { Plus, UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { UserForm } from '@/components/admin/users/user-form';
 import { UsersTable } from '@/components/admin/users/users-table';
@@ -181,16 +182,15 @@ export default function UsersIndex({ users, roles, filters = {}, flash }: Props)
                                     </div>
                                 </div>
 
-                                {/* Botón desktop - Solo mostrar en pantallas grandes */}
+                                {/* Botón desktop - Efecto expandible profesional */}
                                 {hasPermission('gestor-usuarios-crear') && (
                                     <div className="hidden sm:block">
-                                        <Button
+                                        <ExpandableButton
+                                            icon={UserPlus}
+                                            text="Nuevo Usuario"
+                                            variant="glow"
                                             onClick={openCreateUserDialog}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium cursor-pointer"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Nuevo Usuario
-                                        </Button>
+                                        />
                                     </div>
                                 )}
                             </div>

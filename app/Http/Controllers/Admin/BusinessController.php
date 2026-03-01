@@ -23,7 +23,7 @@ class BusinessController extends Controller
             abort(403, 'No tienes permisos para ver los negocios.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
         $page = $request->get('page', 1);
 
         $businesses = Business::withZonalesCount()

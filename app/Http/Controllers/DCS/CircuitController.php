@@ -24,7 +24,7 @@ class CircuitController extends Controller
             abort(403, 'No tienes permisos para ver los circuitos.');
         }
 
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 50);
 
         $circuits = Circuit::with('zonal')
             ->withCount('routes')
