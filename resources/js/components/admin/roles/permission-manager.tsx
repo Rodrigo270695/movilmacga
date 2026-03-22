@@ -28,7 +28,8 @@ import {
     BarChart3,
     FileText,
     Clock,
-    FileCheck
+    FileCheck,
+    Layers
 } from 'lucide-react';
 
 interface Permission {
@@ -227,6 +228,16 @@ const menuStructure = [
                 ]
             },
             {
+                id: 'negocio-operador',
+                label: 'Negocio - Operador',
+                icon: Layers,
+                className: 'text-orange-600 bg-orange-100',
+                permission: 'gestor-negocio-operador-ver',
+                actions: [
+                    { id: 'gestor-negocio-operador-ver', label: 'Ver vista' }
+                ]
+            },
+            {
                 id: 'supervisor-zonal',
                 label: 'Supervisor-Zonal',
                 icon: UserCheck,
@@ -313,6 +324,16 @@ const menuStructure = [
                     { id: 'reporte-jornadas-laborales-ver', label: 'Ver reporte de jornadas laborales' },
                     { id: 'reporte-jornadas-laborales-exportar', label: 'Exportar reporte a Excel/PDF' }
                 ]
+            },
+            {
+                id: 'tipo-negocio',
+                label: 'Tipo de negocio',
+                icon: Layers,
+                className: 'text-amber-600 bg-amber-100',
+                permission: 'reporte-tipo-negocio-acceso',
+                actions: [
+                    { id: 'reporte-tipo-negocio-ver', label: 'Ver reporte Tipo de negocio' },
+                ]
             }
         ]
     },
@@ -392,6 +413,8 @@ const actionLabels: Record<string, string> = {
     'gestor-pdv-operadores-editar': 'Guardar asignaciones (checkboxes)',
     'gestor-pdv-operadores-exportar': 'Exportar Excel con columnas de operadores',
 
+    'gestor-negocio-operador-ver': 'Ver vista Negocio - Operador (tipo de negocio y operadores)',
+
     'gestor-operador-ver': 'Ver operadores del sistema',
     'gestor-operador-crear': 'Crear nuevos operadores',
     'gestor-operador-editar': 'Editar operadores existentes',
@@ -418,6 +441,9 @@ const actionLabels: Record<string, string> = {
     'reporte-pdvs-visitados-exportar': 'Exportar reporte de PDVs visitados',
     'reporte-jornadas-laborales-ver': 'Ver reporte de jornadas laborales',
     'reporte-jornadas-laborales-exportar': 'Exportar reporte de jornadas laborales',
+
+    'reporte-tipo-negocio-acceso': 'Acceso al reporte Tipo de negocio (menú Reportes)',
+    'reporte-tipo-negocio-ver': 'Ver reporte Tipo de negocio',
 
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'

@@ -1,17 +1,18 @@
 <?php
 
-use App\Http\Controllers\DCS\ZonalController;
-use App\Http\Controllers\DCS\OperatorController;
 use App\Http\Controllers\DCS\CircuitController;
 use App\Http\Controllers\DCS\GlobalCircuitController;
-use App\Http\Controllers\DCS\RouteController;
-use App\Http\Controllers\DCS\GlobalRouteController;
 use App\Http\Controllers\DCS\GlobalPdvController;
-use App\Http\Controllers\DCS\PdvOperatorsController;
-use App\Http\Controllers\DCS\ZonalSupervisorController;
-use App\Http\Controllers\DCS\VendorCircuitController;
-use App\Http\Controllers\DCS\RouteVisitDateController;
+use App\Http\Controllers\DCS\GlobalRouteController;
+use App\Http\Controllers\DCS\NegocioOperadorController;
+use App\Http\Controllers\DCS\OperatorController;
 use App\Http\Controllers\DCS\PdvChangeRequestController;
+use App\Http\Controllers\DCS\PdvOperatorsController;
+use App\Http\Controllers\DCS\RouteController;
+use App\Http\Controllers\DCS\RouteVisitDateController;
+use App\Http\Controllers\DCS\VendorCircuitController;
+use App\Http\Controllers\DCS\ZonalController;
+use App\Http\Controllers\DCS\ZonalSupervisorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -197,8 +198,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('permission:gestor-ruta-eliminar')
                 ->name('routes.destroy');
 
-
-
             // Rutas para fechas de visita de rutas
             Route::get('routes/{route}/visit-dates', [RouteVisitDateController::class, 'index'])
                 ->middleware('permission:gestor-ruta-ver')
@@ -264,6 +263,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         });
 
+        // Negocio - Operador (tipo de negocio / prepago / pospago por operador)
+        Route::get('negocio-operador', [NegocioOperadorController::class, 'index'])
+            ->middleware('permission:gestor-negocio-operador-ver')
+            ->name('negocio-operador.index');
+
+        Route::post('negocio-operador/sync', [NegocioOperadorController::class, 'sync'])
+            ->middleware('permission:gestor-negocio-operador-ver')
+            ->name('negocio-operador.sync');
+
+        Route::get('negocio-operador/export', [NegocioOperadorController::class, 'export'])
+            ->middleware('permission:gestor-negocio-operador-ver')
+            ->name('negocio-operador.export');
+
+        // Mapa PDVs (PDV - Operadores + reporte Tipo de negocio; fuera del grupo de acceso PDV)
+        Route::get('pdv-operators/map-data', [PdvOperatorsController::class, 'mapData'])
+            ->middleware('permission:gestor-pdv-operadores-ver-mapa|reporte-tipo-negocio-ver')
+            ->name('pdv-operators.map-data');
+
         // Grupo de rutas PDV - Operadores (asignación por checkboxes)
         Route::middleware(['permission:gestor-pdv-operadores-acceso'])->group(function () {
 
@@ -278,10 +295,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('pdv-operators/export', [PdvOperatorsController::class, 'export'])
                 ->middleware('permission:gestor-pdv-operadores-exportar')
                 ->name('pdv-operators.export');
-
-            Route::get('pdv-operators/map-data', [PdvOperatorsController::class, 'mapData'])
-                ->middleware('permission:gestor-pdv-operadores-ver-mapa')
-                ->name('pdv-operators.map-data');
 
         });
 
@@ -398,4 +411,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
 });
-

@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, Contact, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck, CheckSquare } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, Contact, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck, CheckSquare, Layers } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 import { useMemo, useCallback } from 'react';
@@ -89,6 +89,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 permission: 'gestor-pdv-operadores-acceso',
             },
             {
+                title: 'Negocio - Operador',
+                href: '/dcs/negocio-operador',
+                icon: Layers,
+                permission: 'gestor-negocio-operador-ver',
+            },
+            {
                 title: 'Supervisor-Zonal',
                 href: '/dcs/zonal-supervisors',
                 icon: UserCheck,
@@ -138,6 +144,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/reportes/jornadas-laborales',
                 icon: Clock,
                 permission: 'reporte-jornadas-laborales-acceso',
+            },
+            {
+                title: 'Tipo de negocio',
+                href: '/reportes/tipo-de-negocio',
+                icon: Layers,
+                permission: 'reporte-tipo-negocio-acceso',
             },
         ],
     },

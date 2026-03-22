@@ -72,6 +72,14 @@ class Pdv extends Model
     }
 
     /**
+     * Configuración por tipo de negocio (prepago/pospago por operador).
+     */
+    public function pdvBusinessTypes(): HasMany
+    {
+        return $this->hasMany(PdvBusinessType::class);
+    }
+
+    /**
      * Get form assignments for this PDV
      */
     public function formAssignments(): HasMany
@@ -152,7 +160,7 @@ class Pdv extends Model
 
     public function getClassificationLabelAttribute(): string
     {
-        return match($this->classification) {
+        return match ($this->classification) {
             'telecomunicaciones' => 'Telecomunicaciones',
             'chalequeros' => 'Chalequeros',
             'bodega' => 'Bodega',
@@ -170,7 +178,7 @@ class Pdv extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'vende' => 'Vende',
             'no vende' => 'No Vende',
             'no existe' => 'No Existe',

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Reportes\PdvVisitadosController;
 use App\Http\Controllers\Reportes\PdvVisitFormResponsesController;
+use App\Http\Controllers\Reportes\TipoNegocioReportController;
 use App\Http\Controllers\Reportes\WorkingSessionsController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,5 +52,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('jornadas-laborales/{session}/mapa', [WorkingSessionsController::class, 'getMapData'])
             ->name('jornadas-laborales.mapa')
             ->middleware('permission:reporte-jornadas-laborales-ver');
+
+        // Reporte Tipo de negocio (menú + ver contenido)
+        Route::get('tipo-de-negocio/map-data', [TipoNegocioReportController::class, 'mapData'])
+            ->name('tipo-de-negocio.map-data')
+            ->middleware('permission:reporte-tipo-negocio-ver');
+
+        Route::get('tipo-de-negocio', [TipoNegocioReportController::class, 'index'])
+            ->name('tipo-de-negocio.index')
+            ->middleware(['permission:reporte-tipo-negocio-acceso', 'permission:reporte-tipo-negocio-ver']);
     });
 });

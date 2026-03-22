@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\DCS;
 
+use App\Exports\PdvsOperatorsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DCS\PdvOperatorsSyncRequest;
-use App\Models\Pdv;
 use App\Models\Operator;
+use App\Models\Pdv;
 use App\Models\Route;
 use App\Traits\HasBusinessScope;
-use App\Exports\PdvsOperatorsExport;
-use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PdvOperatorsController extends Controller
@@ -23,7 +23,7 @@ class PdvOperatorsController extends Controller
      */
     public function index(Request $request)
     {
-        if (!Auth::user()?->can('gestor-pdv-operadores-ver')) {
+        if (! Auth::user()?->can('gestor-pdv-operadores-ver')) {
             abort(403, 'No tienes permisos para ver la asignación PDV-Operadores.');
         }
 
@@ -85,12 +85,14 @@ class PdvOperatorsController extends Controller
         }
         $zonales = $zonales->values()->toArray();
 
-        $allCircuits = \Illuminate\Support\Facades\Cache::remember('pdv_operators_circuits_' . md5(json_encode($businessScope)), 300, function () {
+        $allCircuits = \Illuminate\Support\Facades\Cache::remember('pdv_operators_circuits_'.md5(json_encode($businessScope)), 300, function () {
             $q = \App\Models\Circuit::active()->with('zonal.business')->orderBy('name');
+
             return $this->applyFullScope($q, 'zonal.business', 'zonal')->get(['id', 'name', 'code', 'zonal_id']);
         });
-        $allRoutes = \Illuminate\Support\Facades\Cache::remember('pdv_operators_routes_' . md5(json_encode($businessScope)), 300, function () {
+        $allRoutes = \Illuminate\Support\Facades\Cache::remember('pdv_operators_routes_'.md5(json_encode($businessScope)), 300, function () {
             $q = Route::active()->with('circuit.zonal.business')->orderBy('name');
+
             return $this->applyFullScope($q, 'circuit.zonal.business', 'circuit.zonal')->get(['id', 'name', 'code', 'circuit_id']);
         });
 
@@ -172,7 +174,7 @@ class PdvOperatorsController extends Controller
      */
     public function export(Request $request)
     {
-        if (!Auth::user()?->can('gestor-pdv-operadores-exportar')) {
+        if (! Auth::user()?->can('gestor-pdv-operadores-exportar')) {
             abort(403, 'No tienes permisos para exportar.');
         }
 
@@ -188,7 +190,7 @@ class PdvOperatorsController extends Controller
             ->orderByRaw("CASE WHEN LOWER(name) = 'movistar' THEN 0 ELSE 1 END")
             ->orderBy('name')
             ->get(['id', 'name', 'color']);
-        $filename = 'pdvs_operadores_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+        $filename = 'pdvs_operadores_'.now()->format('Y-m-d_H-i-s').'.xlsx';
 
         return Excel::download(new PdvsOperatorsExport($filters, $operators), $filename);
     }
@@ -198,7 +200,10 @@ class PdvOperatorsController extends Controller
      */
     public function mapData(Request $request)
     {
-        if (!Auth::user()?->can('gestor-pdv-operadores-ver-mapa')) {
+        if (! (
+            Auth::user()?->can('gestor-pdv-operadores-ver-mapa')
+            || Auth::user()?->can('reporte-tipo-negocio-ver')
+        )) {
             abort(403, 'No tienes permisos para ver el mapa.');
         }
 

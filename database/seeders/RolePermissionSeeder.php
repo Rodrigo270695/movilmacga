@@ -2,12 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -140,6 +139,9 @@ class RolePermissionSeeder extends Seeder
             'reporte-jornadas-laborales-ver',
             'reporte-jornadas-laborales-exportar',
 
+            'reporte-tipo-negocio-acceso',
+            'reporte-tipo-negocio-ver',
+
             // Aplicación Móvil (Supervisores/Vendedores)
             'app-movil-acceso',
             'app-movil-gps-tracking',
@@ -181,7 +183,7 @@ class RolePermissionSeeder extends Seeder
             'gestor-ruta-ver',
             'gestor-ruta-fechas-visita',
 
-                        // Módulos específicos para supervisores
+            // Módulos específicos para supervisores
             'gestor-zonal-supervisor-acceso',
             'gestor-zonal-supervisor-ver',
             'gestor-zonal-supervisor-asignar',
@@ -245,12 +247,12 @@ class RolePermissionSeeder extends Seeder
         );
 
         // Solo asignar rol si no lo tiene ya
-        if (!$adminUser->hasRole('Administrador')) {
+        if (! $adminUser->hasRole('Administrador')) {
             $adminUser->assignRole('Administrador');
         }
 
         $this->command->info('🎉 ¡Sistema de permisos configurado exitosamente!');
-        $this->command->info('📋 Permisos totales creados: ' . Permission::count());
+        $this->command->info('📋 Permisos totales creados: '.Permission::count());
         $this->command->info('');
         $this->command->info('🆕 NUEVOS PERMISOS AGREGADOS:');
         $this->command->info('   • reporte-jornadas-laborales-acceso');
@@ -294,8 +296,8 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('🔒 Roles protegidos: Administrador, Supervisor y Vendedor no se pueden eliminar');
 
         // Ejecutar seeders de empresas y zonales
-        //$this->call([
+        // $this->call([
         //    BusinessZonalSeeder::class,
-        //]);
+        // ]);
     }
 }
