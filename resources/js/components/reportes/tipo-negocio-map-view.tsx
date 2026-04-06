@@ -10,6 +10,7 @@ import axios from 'axios';
 import { route } from 'ziggy-js';
 import { cn } from '@/lib/utils';
 import type { PdvOperatorsMapFilters } from '@/components/dcs/pdv-operators/pdv-operators-map-view';
+import { TipoNegocioDashboard } from '@/components/reportes/tipo-negocio-dashboard';
 
 export type TipoNegocioMapFilters = PdvOperatorsMapFilters & {
     /** Valor enum de pdv_business_types.business_type (ej. Telco, Bodega). */
@@ -741,6 +742,13 @@ export function TipoNegocioMapView({
                         </div>
                     </div>
                 </div>
+
+                <TipoNegocioDashboard
+                    filteredPdvs={filteredPdvs}
+                    saleModes={saleModes}
+                    selectedOperatorIds={selectedOperatorIds}
+                    loading={loading}
+                />
             </div>
         </div>
     );
