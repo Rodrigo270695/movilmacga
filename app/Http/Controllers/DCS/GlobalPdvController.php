@@ -66,6 +66,7 @@ class GlobalPdvController extends Controller
         $localityTextFilter = $request->get('locality');
         $statusFilter = $request->get('status');
         $classificationFilter = $request->get('classification');
+        $telegestionFilter = $request->get('telegestion');
 
         // Filtros jerárquicos
         $businessFilter = $request->get('business_id');
@@ -119,6 +120,16 @@ class GlobalPdvController extends Controller
 
         if ($classificationFilter) {
             $query->byClassification($classificationFilter);
+        }
+
+        if ($telegestionFilter !== null && $telegestionFilter !== '') {
+            $telegestionValue = filter_var($telegestionFilter, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            if ($telegestionValue !== null) {
+                $query->whereHas('route', function ($routeQuery) use ($telegestionValue) {
+                    $routeQuery->where('telegestion', $telegestionValue);
+                });
+            }
         }
 
         // Filtros jerárquicos
@@ -234,6 +245,7 @@ class GlobalPdvController extends Controller
                 'route_id' => $routeFilter,
                 'status' => $statusFilter,
                 'classification' => $classificationFilter,
+                'telegestion' => $telegestionFilter,
             ],
             'flash' => fn () => [
                 'success' => session('success'),
@@ -685,6 +697,7 @@ class GlobalPdvController extends Controller
                 'zonal_id' => $request->get('zonal_id'),
                 'circuit_id' => $request->get('circuit_id'),
                 'route_id' => $request->get('route_id'),
+                'telegestion' => $request->get('telegestion'),
             ];
 
             // Generar nombre del archivo con timestamp

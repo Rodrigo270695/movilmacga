@@ -126,6 +126,7 @@ interface Props {
         route_id?: string;
         status?: string;
         classification?: string;
+        telegestion?: string;
     };
     flash?: {
         success?: string;
@@ -147,6 +148,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
     const [selectedRoute, setSelectedRoute] = useState(filters.route_id || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedClassification, setSelectedClassification] = useState(filters.classification || '');
+    const [selectedTelegestion, setSelectedTelegestion] = useState(filters.telegestion || '');
 
     // Debounce para búsqueda automática
     const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
@@ -254,7 +256,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                 circuit_id: selectedCircuit || undefined,
                 route_id: selectedRoute || undefined,
                 status: selectedStatus || undefined,
-                classification: selectedClassification || undefined
+                classification: selectedClassification || undefined,
+                telegestion: selectedTelegestion || undefined
             }, {
                 preserveState: true,
                 preserveScroll: true,
@@ -267,7 +270,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
         return () => {
             if (timeout) clearTimeout(timeout);
         };
-    }, [searchQuery, selectedBusiness, selectedZonal, selectedCircuit, selectedRoute, selectedStatus, selectedClassification]);
+    }, [searchQuery, selectedBusiness, selectedZonal, selectedCircuit, selectedRoute, selectedStatus, selectedClassification, selectedTelegestion]);
 
     // Limpiar filtros cuando cambie el negocio
     useEffect(() => {
@@ -352,7 +355,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             business_id: businessId || undefined,
             zonal_id: undefined, // Reset zonal filter
             circuit_id: undefined, // Reset circuit filter
-            route_id: undefined // Reset route filter
+            route_id: undefined, // Reset route filter
+            telegestion: selectedTelegestion || undefined
         }, {
             preserveState: true,
             preserveScroll: true
@@ -371,7 +375,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             business_id: selectedBusiness || undefined,
             zonal_id: zonalId || undefined,
             circuit_id: undefined, // Reset circuit filter
-            route_id: undefined // Reset route filter
+            route_id: undefined, // Reset route filter
+            telegestion: selectedTelegestion || undefined
         }, {
             preserveState: true,
             preserveScroll: true
@@ -389,7 +394,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             business_id: selectedBusiness || undefined,
             zonal_id: selectedZonal || undefined,
             circuit_id: circuitId || undefined,
-            route_id: undefined // Reset route filter
+            route_id: undefined, // Reset route filter
+            telegestion: selectedTelegestion || undefined
         }, {
             preserveState: true,
             preserveScroll: true
@@ -403,7 +409,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             business_id: selectedBusiness || undefined,
             zonal_id: selectedZonal || undefined,
             circuit_id: selectedCircuit || undefined,
-            route_id: routeId || undefined
+            route_id: routeId || undefined,
+            telegestion: selectedTelegestion || undefined
         }, {
             preserveState: true,
             preserveScroll: true
@@ -420,6 +427,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             route_id: selectedRoute || undefined,
             status: selectedStatus || undefined,
             classification: selectedClassification || undefined,
+            telegestion: selectedTelegestion || undefined,
             page: page.toString()
         }, {
             preserveState: true,
@@ -438,6 +446,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
             route_id: selectedRoute || undefined,
             status: selectedStatus || undefined,
             classification: selectedClassification || undefined,
+            telegestion: selectedTelegestion || undefined,
             per_page: perPage.toString(),
             page: '1'
         }, {
@@ -455,6 +464,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
         setSelectedZonal('');
         setSelectedCircuit('');
         setSelectedRoute('');
+        setSelectedTelegestion('');
         router.get(route('dcs.pdvs.index'), {}, {
             preserveState: true,
             preserveScroll: true
@@ -532,6 +542,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
         if (selectedZonal?.trim()) params.set('zonal_id', selectedZonal);
         if (selectedCircuit?.trim()) params.set('circuit_id', selectedCircuit);
         if (selectedRoute?.trim()) params.set('route_id', selectedRoute);
+        if (selectedTelegestion?.trim()) params.set('telegestion', selectedTelegestion);
 
         // Crear URL de exportación
         const exportUrl = `${route('dcs.pdvs.export')}?${params.toString()}`;
@@ -563,7 +574,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
         }, 1000);
     };
 
-    const hasActiveFilters = selectedBusiness || selectedZonal || selectedCircuit || selectedRoute || searchQuery;
+    const hasActiveFilters = selectedBusiness || selectedZonal || selectedCircuit || selectedRoute || selectedTelegestion || searchQuery;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -672,7 +683,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                 </div>
 
                                 {/* Filtros Jerárquicos */}
-                                <div className={`grid gap-4 ${showMobileView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5'}`}>
+                                <div className={`grid gap-4 ${showMobileView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6'}`}>
                                     {/* Filtro por Negocio */}
                                     <Select
                                         value={selectedBusiness || "all"}
@@ -760,6 +771,21 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                         </SelectContent>
                                     </Select>
 
+                                    {/* Filtro por Telegestión */}
+                                    <Select
+                                        value={selectedTelegestion || "all"}
+                                        onValueChange={(value) => setSelectedTelegestion(value === "all" ? "" : value)}
+                                    >
+                                        <SelectTrigger className="w-full h-10">
+                                            <SelectValue placeholder="Telegestión" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Telegestión: Todos</SelectItem>
+                                            <SelectItem value="1">Telegestión: Sí</SelectItem>
+                                            <SelectItem value="0">Telegestión: No</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
                                     {/* Botón limpiar filtros */}
                                     {hasActiveFilters && (
                                         <div className="flex items-center">
@@ -799,6 +825,11 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
                                     {selectedRoute && (
                                         <Badge variant="outline" className="text-xs">
                                             Ruta: {Array.isArray(allRoutes) ? allRoutes.find(r => r.id.toString() === selectedRoute)?.name : ''}
+                                        </Badge>
+                                    )}
+                                    {selectedTelegestion && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Telegestión: {selectedTelegestion === '1' ? 'Sí' : 'No'}
                                         </Badge>
                                     )}
                                     {searchQuery && (
