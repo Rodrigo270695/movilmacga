@@ -16,7 +16,8 @@ import {
     Power,
     Trash2,
     MapPin,
-    CreditCard
+    CreditCard,
+    Radio
 } from 'lucide-react';
 
 interface PdvModel {
@@ -42,6 +43,7 @@ interface PdvModel {
         id: number;
         name: string;
         code: string;
+        telegestion?: boolean;
         circuit?: {
             id: number;
             name: string;
@@ -169,6 +171,9 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
                             <TableHead className="font-semibold text-gray-900">Clasificación</TableHead>
                             <TableHead className="font-semibold text-gray-900">Estado</TableHead>
                             {isGlobalView && (
+                                <TableHead className="font-semibold text-gray-900">Telegestión</TableHead>
+                            )}
+                            {isGlobalView && (
                                 <TableHead className="font-semibold text-gray-900">Ubicación</TableHead>
                             )}
                             <TableHead className="font-semibold text-gray-900 text-right">Acciones</TableHead>
@@ -216,6 +221,21 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
                                 <TableCell>
                                     {getStatusBadge(pdv.status)}
                                 </TableCell>
+                                {isGlobalView && (
+                                    <TableCell>
+                                        {pdv.route?.telegestion ? (
+                                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                                <Radio className="w-3 h-3 mr-1" />
+                                                Sí
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="text-gray-500 border-gray-300">
+                                                <Radio className="w-3 h-3 mr-1 opacity-50" />
+                                                No
+                                            </Badge>
+                                        )}
+                                    </TableCell>
+                                )}
                                 {isGlobalView && (
                                     <TableCell>
                                         <div className="space-y-1">

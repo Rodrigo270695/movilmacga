@@ -39,6 +39,7 @@ interface PdvModel {
         id: number;
         name: string;
         code: string;
+        telegestion?: boolean;
         circuit?: {
             id: number;
             name: string;

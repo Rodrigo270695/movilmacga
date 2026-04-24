@@ -9,6 +9,7 @@ import {
     User,
     Building2,
     Route,
+    Radio,
     MoreVertical,
     Edit,
     ToggleLeft,
@@ -45,6 +46,7 @@ interface PdvModel {
         id: number;
         name: string;
         code: string;
+        telegestion?: boolean;
         circuit?: {
             id: number;
             name: string;
@@ -321,6 +323,20 @@ export function PdvsMobileCards({
                                                             <span className="font-medium">{pdv.route.circuit.zonal.name}</span>
                                                         </div>
                                                     )}
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Telegestión:</span>
+                                                        {pdv.route.telegestion ? (
+                                                            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                                                                <Radio className="w-3 h-3 mr-1" />
+                                                                Sí
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs">
+                                                                <Radio className="w-3 h-3 mr-1 opacity-50" />
+                                                                No
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
