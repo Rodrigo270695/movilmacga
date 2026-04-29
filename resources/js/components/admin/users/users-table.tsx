@@ -194,6 +194,17 @@ export function UsersTable({ users, onEdit, userPermissions, currentUserRoles = 
 
     // Componente para las acciones de cada usuario
     const UserActions = ({ user }: { user: User }) => {
+        // El usuario admin del sistema no se puede editar ni desactivar
+        const isSystemAdmin = user.username === 'admin';
+
+        if (isSystemAdmin) {
+            return [
+                <span key="protected" className="text-xs text-gray-400 italic px-2">
+                    Protegido
+                </span>
+            ];
+        }
+
         const actions = [];
 
         if (hasPermission('gestor-usuarios-editar')) {
@@ -211,9 +222,7 @@ export function UsersTable({ users, onEdit, userPermissions, currentUserRoles = 
             );
         }
 
-
-
-                if (hasPermission('gestor-usuarios-cambiar-estado')) {
+        if (hasPermission('gestor-usuarios-cambiar-estado')) {
             actions.push(
                 <Button
                     key="toggle"

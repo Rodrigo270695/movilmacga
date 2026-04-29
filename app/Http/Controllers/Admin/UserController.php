@@ -134,6 +134,12 @@ class UserController extends Controller
             abort(403, 'No tienes permisos para editar usuarios.');
         }
 
+        // Proteger usuario admin del sistema
+        if ($user->username === 'admin') {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'El usuario administrador del sistema no puede ser modificado.');
+        }
+
         // Actualizar datos del usuario
         $user->update([
             'name' => $request->first_name . ' ' . $request->last_name,
@@ -169,6 +175,12 @@ class UserController extends Controller
         // Verificar permisos
         if (!request()->user()->can('gestor-usuarios-cambiar-estado')) {
             abort(403, 'No tienes permisos para cambiar el estado de usuarios.');
+        }
+
+        // Proteger usuario admin del sistema
+        if ($user->username === 'admin') {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'El usuario administrador del sistema no puede ser desactivado.');
         }
 
         // Prevenir desactivar el propio usuario
