@@ -177,18 +177,27 @@ return new class extends Migration
     }
 
     /**
-     * Verificar si un índice existe
+     * Verificar si un índice existe (compatible con MySQL y PostgreSQL)
      */
     private function indexExists(string $table, string $indexName): bool
     {
         $connection = Schema::getConnection();
-        $database = $connection->getDatabaseName();
+        $driver = $connection->getDriverName();
 
-        $result = $connection->select(
-            "SELECT COUNT(*) as count FROM information_schema.statistics
-             WHERE table_schema = ? AND table_name = ? AND index_name = ?",
-            [$database, $table, $indexName]
-        );
+        if ($driver === 'pgsql') {
+            $result = $connection->select(
+                "SELECT COUNT(*) as count FROM pg_indexes
+                 WHERE tablename = ? AND indexname = ?",
+                [$table, $indexName]
+            );
+        } else {
+            $database = $connection->getDatabaseName();
+            $result = $connection->select(
+                "SELECT COUNT(*) as count FROM information_schema.statistics
+                 WHERE table_schema = ? AND table_name = ? AND index_name = ?",
+                [$database, $table, $indexName]
+            );
+        }
 
         return $result[0]->count > 0;
     }
