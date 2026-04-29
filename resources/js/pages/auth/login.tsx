@@ -1,11 +1,13 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle, Eye, EyeOff, ArrowRight, Satellite, MapPin, User, Lock } from 'lucide-react';
 import { FormEventHandler, useState, useEffect } from 'react';
+import type { SharedData } from '@/types';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import LoginTreinta from './login-treinta';
 
 type LoginForm = {
     username: string;
@@ -19,6 +21,11 @@ interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword }: LoginProps) {
+    const { theme } = usePage<SharedData>().props;
+
+    if (theme.active === 'treinta') {
+        return <LoginTreinta status={status} canResetPassword={canResetPassword} />;
+    }
     const [showPassword, setShowPassword] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
@@ -40,7 +47,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     return (
         <>
-            <Head title="MonitorMacga - Acceso al Sistema" />
+            <Head title={`${theme.name} - Acceso al Sistema`} />
             
             {/* Container principal con gradiente dinámico */}
             <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
@@ -71,8 +78,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 {/* Satélite que siempre se mantiene derecho */}
                                 <div className="relative">
                                     <img 
-                                        src="/logo.png" 
-                                        alt="Macga Satellite" 
+                                        src={theme.logo} 
+                                        alt={`${theme.name} logo`}
                                         className="w-16 h-16 object-contain drop-shadow-2xl"
                                     />
                                     
@@ -97,7 +104,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         {/* Header del sistema */}
                         <div className="text-center mb-12">
                             <h1 className="text-4xl font-black text-white mb-3 tracking-tight">
-                                Monitor<span className="text-transparent bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text">Macga</span>
+                                <span className="text-transparent bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text">{theme.name}</span>
                             </h1>
                             
                             <div className="flex items-center justify-center gap-2 text-blue-200 mb-2">
@@ -262,7 +269,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </p>
                             <div className="flex items-center justify-center gap-2 text-white/40 text-xs">
                                 <span>©</span>
-                                <span>{new Date().getFullYear()} Macga</span>
+                                <span>{new Date().getFullYear()} {theme.company}</span>
                                 <span>•</span>
                                 <span>Todos los derechos reservados</span>
                             </div>

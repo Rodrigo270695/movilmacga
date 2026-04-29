@@ -56,10 +56,20 @@ class HandleInertiaRequests extends Middleware
             $roles = $cached['roles'];
         }
 
+        $activeTheme = config('theme.active', 'macga');
+        $themeConfig = config("theme.{$activeTheme}", config('theme.macga'));
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'theme' => [
+                'active'  => $activeTheme,
+                'name'    => $themeConfig['name'],
+                'company' => $themeConfig['company'],
+                'logo'    => $themeConfig['logo'],
+                'class'   => $themeConfig['class'],
+            ],
             'auth' => [
                 'user' => $user ? [
                     ...$user->toArray(),

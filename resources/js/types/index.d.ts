@@ -25,12 +25,21 @@ export interface NavItem {
     openInNewTab?: boolean;
 }
 
+export interface ThemeData {
+    active: string;
+    name: string;
+    company: string;
+    logo: string;
+    class: string;
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    theme: ThemeData;
     [key: string]: unknown;
 }
 

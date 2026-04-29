@@ -301,6 +301,114 @@ button[data-dialog-close] {
     --status-info-bg: oklch(0.20 0.08 265);
 }
 
+/* ============================================================
+   TEMAS POR EMPRESA
+   - .theme-macga  → colores originales (sin cambio)
+   - .theme-treinta → paleta propia de Treinta
+   ============================================================ */
+
+/* --- TREINTA: fondo claro con acentos rojos --- */
+.theme-treinta {
+    /* Fondos: blanco/gris muy claro para el contenido */
+    --background: oklch(0.97 0 0);
+    --foreground: oklch(0.12 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.12 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.12 0 0);
+
+    /* Primario: rojo corporativo */
+    --primary: oklch(0.42 0.22 27);
+    --primary-foreground: oklch(0.98 0 0);
+
+    --secondary: oklch(0.93 0 0);
+    --secondary-foreground: oklch(0.20 0 0);
+
+    --muted: oklch(0.93 0 0);
+    --muted-foreground: oklch(0.50 0 0);
+
+    --accent: oklch(0.90 0.01 27);
+    --accent-foreground: oklch(0.20 0 0);
+
+    --destructive: oklch(0.50 0.22 27);
+    --destructive-foreground: oklch(0.98 0 0);
+
+    --border: oklch(0.88 0 0);
+    --input: oklch(0.88 0 0);
+    --ring: oklch(0.55 0.20 27);
+
+    /* Sidebar: gris oscuro */
+    --sidebar: oklch(0.22 0 0);
+    --sidebar-foreground: oklch(0.92 0 0);
+    --sidebar-primary: oklch(0.92 0 0);
+    --sidebar-primary-foreground: oklch(0.22 0 0);
+    --sidebar-accent: oklch(0.30 0 0);
+    --sidebar-accent-foreground: oklch(0.92 0 0);
+    --sidebar-border: oklch(0.28 0 0);
+    --sidebar-ring: oklch(0.42 0.22 27);
+
+    /* Paleta de monitoreo: tonos rojos/grises */
+    --primary-900: oklch(0.15 0.05 27);
+    --primary-800: oklch(0.22 0.08 27);
+    --primary-700: oklch(0.30 0.12 27);
+    --primary-600: oklch(0.38 0.17 27);
+    --primary-500: oklch(0.46 0.20 27);
+
+    --accent-700: oklch(0.35 0 0);
+    --accent-600: oklch(0.45 0 0);
+    --accent-500: oklch(0.55 0 0);
+    --accent-400: oklch(0.65 0 0);
+}
+
+/* --- TREINTA: modo oscuro (negro + rojo) --- */
+.theme-treinta.dark {
+    --background: oklch(0.10 0 0);
+    --foreground: oklch(0.92 0 0);
+    --card: oklch(0.13 0 0);
+    --card-foreground: oklch(0.92 0 0);
+    --popover: oklch(0.13 0 0);
+    --popover-foreground: oklch(0.92 0 0);
+
+    --primary: oklch(0.52 0.24 27);
+    --primary-foreground: oklch(0.98 0 0);
+
+    --secondary: oklch(0.20 0 0);
+    --secondary-foreground: oklch(0.88 0 0);
+
+    --muted: oklch(0.18 0 0);
+    --muted-foreground: oklch(0.55 0 0);
+
+    --accent: oklch(0.22 0.03 27);
+    --accent-foreground: oklch(0.90 0 0);
+
+    --destructive: oklch(0.45 0.22 27);
+    --destructive-foreground: oklch(0.92 0 0);
+
+    --border: oklch(0.22 0 0);
+    --input: oklch(0.20 0 0);
+    --ring: oklch(0.48 0.22 27);
+
+    --sidebar: oklch(0.18 0 0);
+    --sidebar-foreground: oklch(0.90 0 0);
+    --sidebar-primary: oklch(0.90 0 0);
+    --sidebar-primary-foreground: oklch(0.18 0 0);
+    --sidebar-accent: oklch(0.26 0 0);
+    --sidebar-accent-foreground: oklch(0.90 0 0);
+    --sidebar-border: oklch(0.23 0 0);
+    --sidebar-ring: oklch(0.42 0.22 27);
+
+    --primary-900: oklch(0.10 0.03 27);
+    --primary-800: oklch(0.16 0.06 27);
+    --primary-700: oklch(0.24 0.10 27);
+    --primary-600: oklch(0.33 0.15 27);
+    --primary-500: oklch(0.44 0.20 27);
+
+    --accent-700: oklch(0.30 0 0);
+    --accent-600: oklch(0.40 0 0);
+    --accent-500: oklch(0.50 0 0);
+    --accent-400: oklch(0.60 0 0);
+}
+
 .leaflet-container {
   width: 100% !important;
   height: 70vh !important;
