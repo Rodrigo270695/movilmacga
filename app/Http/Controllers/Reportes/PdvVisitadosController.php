@@ -705,6 +705,11 @@ class PdvVisitadosController extends Controller
                 $fechaDesde . ' 00:00:00',
                 $fechaHasta . ' 23:59:59',
             ])
+            ->where('pdvs.status',      'vende')
+            ->where('routes.status',    true)
+            ->where('circuits.status',  true)
+            ->where('zonales.status',   true)
+            ->where('businesses.status', true)
             ->orderBy('pdv_visits.check_in_at', 'desc');
 
         // Scope automático de negocio/zonal
