@@ -650,101 +650,121 @@ class PdvVisitadosController extends Controller
 
     /**
      * Exportar reporte a Excel/PDF
+     * Usa JOIN directo en lugar de Eloquent with() para evitar agotamiento de memoria.
      */
     public function exportar(Request $request)
     {
-        // Obtener filtros con valores por defecto del día actual en Perú
+        ini_set('memory_limit', '512M');
+        set_time_limit(180);
+
         $fechaDesde = $request->get('fecha_desde', now()->format('Y-m-d'));
         $fechaHasta = $request->get('fecha_hasta', now()->format('Y-m-d'));
         $vendedorId = $request->get('vendedor_id');
-        $pdvId = $request->get('pdv_id');
-        $estado = $request->get('estado');
+        $pdvId      = $request->get('pdv_id');
+        $estado     = $request->get('estado');
         $mockLocation = $request->get('mock_location');
         $businessId = $request->get('business_id');
-        $zonalId = $request->get('zonal_id');
-        $circuitId = $request->get('circuit_id');
-        $routeId = $request->get('route_id');
-        $formato = $request->get('formato', 'excel');
+        $zonalId    = $request->get('zonal_id');
+        $circuitId  = $request->get('circuit_id');
+        $routeId    = $request->get('route_id');
+        $formato    = $request->get('formato', 'excel');
         $incluirFormularios = $request->get('incluir_formularios', 'true') === 'true';
 
-        // Query para exportación con filtros
-        $query = PdvVisit::with([
-            'user:id,first_name,last_name,username',
-            'pdv:id,point_name,client_name,classification,status,route_id',
-            'pdv.route:id,name,circuit_id',
-            'pdv.route.circuit:id,name,code,zonal_id',
-            'pdv.route.circuit.zonal:id,name,business_id',
-            'pdv.route.circuit.zonal.business:id,name'
-        ])
-        ->whereBetween('check_in_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
+        // JOIN directo: no carga relaciones Eloquent, usa mucho menos memoria
+        $query = DB::table('pdv_visits')
+            ->select([
+                'pdv_visits.id',
+                'pdv_visits.check_in_at',
+                'pdv_visits.check_out_at',
+                'pdv_visits.visit_status',
+                'pdv_visits.duration_minutes',
+                'pdv_visits.distance_to_pdv',
+                'pdv_visits.latitude',
+                'pdv_visits.longitude',
+                'pdv_visits.used_mock_location',
+                'users.first_name',
+                'users.last_name',
+                'users.username',
+                'pdvs.point_name',
+                'pdvs.client_name',
+                'pdvs.classification',
+                'pdvs.status as pdv_status',
+                'routes.name as route_name',
+                'circuits.name as circuit_name',
+                'circuits.code as circuit_code',
+                'zonales.name as zonal_name',
+                'businesses.name as business_name',
+            ])
+            ->join('users',      'pdv_visits.user_id',  '=', 'users.id')
+            ->join('pdvs',       'pdv_visits.pdv_id',   '=', 'pdvs.id')
+            ->join('routes',     'pdvs.route_id',       '=', 'routes.id')
+            ->join('circuits',   'routes.circuit_id',   '=', 'circuits.id')
+            ->join('zonales',    'circuits.zonal_id',   '=', 'zonales.id')
+            ->join('businesses', 'zonales.business_id', '=', 'businesses.id')
+            ->whereBetween('pdv_visits.check_in_at', [
+                $fechaDesde . ' 00:00:00',
+                $fechaHasta . ' 23:59:59',
+            ])
+            ->orderBy('pdv_visits.check_in_at', 'desc');
 
-        // Aplicar filtros de scope automáticos (negocio y zonal)
-        $query = $this->applyFullScope($query, 'pdv.route.circuit.zonal.business', 'pdv.route.circuit.zonal');
-
-        // Aplicar filtros
-        if ($vendedorId && $vendedorId !== 'todos') {
-            $query->where('user_id', $vendedorId);
-        }
-
-        if ($pdvId && $pdvId !== 'todos') {
-            $query->where('pdv_id', $pdvId);
-        }
-
-        if ($estado && $estado !== 'todos') {
-            $query->where('visit_status', $estado);
-        }
-
-        if ($mockLocation && $mockLocation !== 'todos') {
-            if ($mockLocation === 'real') {
-                $query->where(function($q) {
-                    $q->where('used_mock_location', false)
-                      ->orWhereNull('used_mock_location');
-                });
-            } elseif ($mockLocation === 'mock') {
-                $query->where('used_mock_location', true);
+        // Scope automático de negocio/zonal
+        $businessScope = $this->getBusinessScope();
+        if (!$businessScope['is_admin']) {
+            if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                $query->whereIn('businesses.id', $businessScope['business_ids']);
+            }
+            if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+                $query->whereIn('zonales.id', $businessScope['zonal_ids']);
             }
         }
 
+        // Filtros opcionales
+        if ($vendedorId && $vendedorId !== 'todos') {
+            $query->where('pdv_visits.user_id', $vendedorId);
+        }
+        if ($pdvId && $pdvId !== 'todos') {
+            $query->where('pdv_visits.pdv_id', $pdvId);
+        }
+        if ($estado && $estado !== 'todos') {
+            $query->where('pdv_visits.visit_status', $estado);
+        }
+        if ($mockLocation && $mockLocation !== 'todos') {
+            if ($mockLocation === 'real') {
+                $query->where(function ($q) {
+                    $q->where('pdv_visits.used_mock_location', false)
+                      ->orWhereNull('pdv_visits.used_mock_location');
+                });
+            } elseif ($mockLocation === 'mock') {
+                $query->where('pdv_visits.used_mock_location', true);
+            }
+        }
         if ($businessId && $businessId !== 'todos') {
-            $query->whereHas('pdv.route.circuit.zonal', function($q) use ($businessId) {
-                $q->where('business_id', $businessId);
-            });
+            $query->where('businesses.id', $businessId);
         }
-
         if ($zonalId && $zonalId !== 'todos') {
-            $query->whereHas('pdv.route.circuit', function($q) use ($zonalId) {
-                $q->where('zonal_id', $zonalId);
-            });
+            $query->where('zonales.id', $zonalId);
         }
-
         if ($circuitId && $circuitId !== 'todos') {
-            $query->whereHas('pdv.route', function($q) use ($circuitId) {
-                $q->where('circuit_id', $circuitId);
-            });
+            $query->where('circuits.id', $circuitId);
         }
-
         if ($routeId && $routeId !== 'todos') {
-            $query->whereHas('pdv', function($q) use ($routeId) {
-                $q->where('route_id', $routeId);
-            });
+            $query->where('routes.id', $routeId);
         }
 
-        $visitas = $query->orderBy('check_in_at', 'desc')->get();
-
-        // Generar nombre del archivo
         $nombreArchivo = "pdvs_visitados_{$fechaDesde}_a_{$fechaHasta}";
 
         if ($formato === 'pdf') {
-            // TODO: Implementar exportación a PDF
             return response()->json(['message' => 'Exportación a PDF próximamente']);
-        } else {
-            // Exportar a Excel usando la clase de exportación apropiada
-            if ($incluirFormularios) {
-                return Excel::download(new PdvVisitadosWithFormResponsesExport($visitas), "{$nombreArchivo}_con_formularios.xlsx");
-            } else {
-                return Excel::download(new PdvVisitadosExport($visitas), "{$nombreArchivo}.xlsx");
-            }
         }
+
+        if ($incluirFormularios) {
+            return Excel::download(
+                new PdvVisitadosWithFormResponsesExport($query->get()),
+                "{$nombreArchivo}_con_formularios.xlsx"
+            );
+        }
+
+        return Excel::download(new PdvVisitadosExport($query), "{$nombreArchivo}.xlsx");
     }
 
     /**

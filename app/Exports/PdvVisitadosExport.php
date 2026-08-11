@@ -2,30 +2,35 @@
 
 namespace App\Exports;
 
-use App\Models\PdvVisit;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Query\Builder;
 
-class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
+class PdvVisitadosExport implements FromQuery, WithHeadings, WithMapping, WithStyles, WithColumnWidths, WithChunkReading
 {
-    protected $visitas;
+    protected Builder $queryBuilder;
 
-    public function __construct(Collection $visitas)
+    public function __construct(Builder $queryBuilder)
     {
-        $this->visitas = $visitas;
+        $this->queryBuilder = $queryBuilder;
     }
 
-    public function collection(): Collection
+    public function query(): Builder
     {
-        return $this->visitas;
+        return $this->queryBuilder;
+    }
+
+    public function chunkSize(): int
+    {
+        return 300;
     }
 
     public function headings(): array
@@ -50,84 +55,79 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
             'Distancia (m)',
             'Check-out',
             'Latitud',
-            'Longitud'
+            'Longitud',
         ];
     }
 
-    public function map($visita): array
+    public function map($row): array
     {
+        $checkIn  = $row->check_in_at  ? new \DateTime($row->check_in_at)  : null;
+        $checkOut = $row->check_out_at ? new \DateTime($row->check_out_at) : null;
+
         return [
-            $visita->id,
-            $visita->check_in_at->format('d/m/Y'),
-            $visita->check_in_at->format('H:i:s'),
-            $visita->user->first_name . ' ' . $visita->user->last_name,
-            $visita->user->username,
-            $visita->pdv->point_name,
-            $visita->pdv->client_name,
-            $visita->pdv->classification,
-            $this->formatMockLocation($visita->used_mock_location ?? null),
-            $visita->pdv->status,
-            $visita->pdv->route->circuit->zonal->business->name ?? 'N/A',
-            $visita->pdv->route->circuit->zonal->name ?? 'N/A',
-            $visita->pdv->route->circuit->name ?? 'N/A',
-            $visita->pdv->route->name ?? 'N/A',
-            $this->getEstadoLabel($visita->visit_status),
-            $visita->duration_minutes ?? 'N/A',
-            $visita->distance_to_pdv ?? 'N/A',
-            $visita->check_out_at ? $visita->check_out_at->format('d/m/Y H:i:s') : 'N/A',
-            $visita->latitude,
-            $visita->longitude
+            $row->id,
+            $checkIn  ? $checkIn->format('d/m/Y')    : 'N/A',
+            $checkIn  ? $checkIn->format('H:i:s')    : 'N/A',
+            trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+            $row->username ?? 'N/A',
+            $row->point_name  ?? 'N/A',
+            $row->client_name ?? 'N/A',
+            $row->classification ?? 'N/A',
+            $this->formatMockLocation($row->used_mock_location),
+            $row->pdv_status ?? 'N/A',
+            $row->business_name ?? 'N/A',
+            $row->zonal_name    ?? 'N/A',
+            $row->circuit_name  ?? 'N/A',
+            $row->route_name    ?? 'N/A',
+            $this->getEstadoLabel($row->visit_status),
+            $row->duration_minutes ?? 'N/A',
+            $row->distance_to_pdv  ?? 'N/A',
+            $checkOut ? $checkOut->format('d/m/Y H:i:s') : 'N/A',
+            $row->latitude  ?? '',
+            $row->longitude ?? '',
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): Worksheet
     {
-        // Estilo para el encabezado
-        $sheet->getStyle('A1:S1')->applyFromArray([
+        $sheet->getStyle('A1:T1')->applyFromArray([
             'font' => [
-                'bold' => true,
+                'bold'  => true,
                 'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
-                'fillType' => Fill::FILL_SOLID,
+                'fillType'   => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '4472C4'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
             ],
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
+                    'color'       => ['rgb' => '000000'],
                 ],
             ],
         ]);
 
-        // Estilo para todas las celdas de datos
         $lastRow = $sheet->getHighestRow();
         if ($lastRow > 1) {
-            $sheet->getStyle('A2:S' . $lastRow)->applyFromArray([
+            $sheet->getStyle('A2:T' . $lastRow)->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => 'D3D3D3'],
+                        'color'       => ['rgb' => 'D3D3D3'],
                     ],
                 ],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
             ]);
 
-            // Centrar columnas específicas
-            $sheet->getStyle('A:A')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // ID
-            $sheet->getStyle('B:B')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fecha
-            $sheet->getStyle('C:C')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Hora
-            $sheet->getStyle('N:N')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Mock
-            $sheet->getStyle('O:O')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado Visita
-            $sheet->getStyle('P:P')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Duración
-            $sheet->getStyle('Q:Q')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Distancia
-            $sheet->getStyle('R:S')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Coordenadas
+            foreach (['A', 'B', 'C', 'I', 'J', 'O', 'P', 'Q', 'S', 'T'] as $col) {
+                $sheet->getStyle($col . ':' . $col)
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            }
         }
 
         return $sheet;
@@ -136,44 +136,45 @@ class PdvVisitadosExport implements FromCollection, WithHeadings, WithMapping, W
     public function columnWidths(): array
     {
         return [
-            'A' => 10,  // ID Visita
-            'B' => 12,  // Fecha
-            'C' => 10,  // Hora
-            'D' => 20,  // Vendedor
-            'E' => 15,  // Usuario
-            'F' => 25,  // PDV
-            'G' => 25,  // Cliente
-            'H' => 15,  // Clasificación
-            'I' => 16,  // Mock Location
-            'J' => 20,  // Negocio
-            'K' => 15,  // Zonal
-            'L' => 15,  // Circuito
-            'M' => 15,  // Ruta
-            'N' => 15,  // Estado Visita
-            'O' => 12,  // Duración
-            'P' => 12,  // Distancia
-            'Q' => 18,  // Check-out
-            'R' => 12,  // Latitud
-            'S' => 12,  // Longitud
+            'A' => 10,
+            'B' => 12,
+            'C' => 10,
+            'D' => 20,
+            'E' => 15,
+            'F' => 25,
+            'G' => 25,
+            'H' => 15,
+            'I' => 16,
+            'J' => 20,
+            'K' => 15,
+            'L' => 15,
+            'M' => 15,
+            'N' => 15,
+            'O' => 12,
+            'P' => 12,
+            'Q' => 18,
+            'R' => 12,
+            'S' => 12,
+            'T' => 12,
         ];
     }
 
-    private function getEstadoLabel($estado)
+    private function getEstadoLabel(?string $estado): string
     {
-        return match($estado) {
+        return match ($estado) {
             'in_progress' => 'En Progreso',
-            'completed' => 'Completada',
-            'cancelled' => 'Cancelada',
-            default => 'Desconocido'
+            'completed'   => 'Completada',
+            'cancelled'   => 'Cancelada',
+            default       => 'Desconocido',
         };
     }
 
-    private function formatMockLocation($value)
+    private function formatMockLocation($value): string
     {
-        return match(true) {
-            $value === true => 'Mock detectado',
-            $value === false => 'Ubicación real',
-            default => 'Sin dato'
+        return match (true) {
+            $value == 1, $value === true  => 'Mock detectado',
+            $value == 0, $value === false => 'Ubicación real',
+            default                       => 'Sin dato',
         };
     }
 }
