@@ -763,8 +763,79 @@ class PdvVisitadosController extends Controller
         }
 
         if ($incluirFormularios) {
+            // "Con formularios" necesita modelos Eloquent para cargar relaciones de formularios.
+            // Usamos JOINs directos (más eficiente que whereHas) pero mantenemos Eloquent.
+            $eloquentQuery = PdvVisit::with([
+                    'user:id,first_name,last_name,username',
+                    'pdv:id,point_name,client_name,classification,status,route_id',
+                    'pdv.route:id,name,circuit_id',
+                    'pdv.route.circuit:id,name,code,zonal_id',
+                    'pdv.route.circuit.zonal:id,name,business_id',
+                    'pdv.route.circuit.zonal.business:id,name',
+                ])
+                ->select('pdv_visits.*')
+                ->join('pdvs',       'pdv_visits.pdv_id',   '=', 'pdvs.id')
+                ->join('routes',     'pdvs.route_id',       '=', 'routes.id')
+                ->join('circuits',   'routes.circuit_id',   '=', 'circuits.id')
+                ->join('zonales',    'circuits.zonal_id',   '=', 'zonales.id')
+                ->join('businesses', 'zonales.business_id', '=', 'businesses.id')
+                ->whereBetween('pdv_visits.check_in_at', [
+                    $fechaDesde . ' 00:00:00',
+                    $fechaHasta . ' 23:59:59',
+                ])
+                ->where('pdvs.status',       'vende')
+                ->where('routes.status',     true)
+                ->where('circuits.status',   true)
+                ->where('zonales.status',    true)
+                ->where('businesses.status', true)
+                ->orderBy('pdv_visits.check_in_at', 'desc');
+
+            // Scope de negocio/zonal
+            if (!$businessScope['is_admin']) {
+                if ($businessScope['has_business_restriction'] && !empty($businessScope['business_ids'])) {
+                    $eloquentQuery->whereIn('businesses.id', $businessScope['business_ids']);
+                }
+                if ($businessScope['has_zonal_restriction'] && !empty($businessScope['zonal_ids'])) {
+                    $eloquentQuery->whereIn('zonales.id', $businessScope['zonal_ids']);
+                }
+            }
+
+            // Filtros opcionales
+            if ($vendedorId && $vendedorId !== 'todos') {
+                $eloquentQuery->where('pdv_visits.user_id', $vendedorId);
+            }
+            if ($pdvId && $pdvId !== 'todos') {
+                $eloquentQuery->where('pdv_visits.pdv_id', $pdvId);
+            }
+            if ($estado && $estado !== 'todos') {
+                $eloquentQuery->where('pdv_visits.visit_status', $estado);
+            }
+            if ($mockLocation && $mockLocation !== 'todos') {
+                if ($mockLocation === 'real') {
+                    $eloquentQuery->where(function ($q) {
+                        $q->where('pdv_visits.used_mock_location', false)
+                          ->orWhereNull('pdv_visits.used_mock_location');
+                    });
+                } elseif ($mockLocation === 'mock') {
+                    $eloquentQuery->where('pdv_visits.used_mock_location', true);
+                }
+            }
+            if ($businessId && $businessId !== 'todos') {
+                $eloquentQuery->where('businesses.id', $businessId);
+            }
+            if ($zonalId && $zonalId !== 'todos') {
+                $eloquentQuery->where('zonales.id', $zonalId);
+            }
+            if ($circuitId && $circuitId !== 'todos') {
+                $eloquentQuery->where('circuits.id', $circuitId);
+            }
+            if ($routeId && $routeId !== 'todos') {
+                $eloquentQuery->where('routes.id', $routeId);
+            }
+
+            $visitas = $eloquentQuery->get();
             return Excel::download(
-                new PdvVisitadosWithFormResponsesExport($query->get()),
+                new PdvVisitadosWithFormResponsesExport($visitas),
                 "{$nombreArchivo}_con_formularios.xlsx"
             );
         }
