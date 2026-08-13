@@ -53,6 +53,14 @@ interface WorkingSession {
         name: string;
         code: string;
     };
+    assigned_routes?: Array<{
+        id: number;
+        name: string;
+        code: string;
+        circuit_id?: number;
+        circuit_name?: string;
+        circuit_code?: string;
+    }>;
     route_pdvs_count: number;
     visited_pdvs_count: number;
 }
@@ -144,7 +152,7 @@ export default function WorkingSessionsIndex({ sessions, filtros, opciones, stat
 
     const [isExporting, setIsExporting] = useState(false);
     const [isPdvModalOpen, setIsPdvModalOpen] = useState(false);
-    const [selectedRoute, setSelectedRoute] = useState<any>(null);
+    const [selectedRoutes, setSelectedRoutes] = useState<Array<{ id: number; name: string; code: string }>>([]);
     const [selectedVisitDate, setSelectedVisitDate] = useState('');
     const [selectedUserId, setSelectedUserId] = useState(0);
     const [selectedWorkingSession, setSelectedWorkingSession] = useState<any>(null);
@@ -229,8 +237,8 @@ export default function WorkingSessionsIndex({ sessions, filtros, opciones, stat
         }
     };
 
-    const handleViewPdvRoute = (route: any, visitDate: string, userId: number, workingSession?: any) => {
-        setSelectedRoute(route);
+    const handleViewPdvRoute = (routes: any[], visitDate: string, userId: number, workingSession?: any) => {
+        setSelectedRoutes(routes || []);
         setSelectedVisitDate(visitDate);
         setSelectedUserId(userId);
         setSelectedWorkingSession(workingSession);
@@ -429,12 +437,12 @@ export default function WorkingSessionsIndex({ sessions, filtros, opciones, stat
                 isOpen={isPdvModalOpen}
                 onClose={() => {
                     setIsPdvModalOpen(false);
-                    setSelectedRoute(null);
+                    setSelectedRoutes([]);
                     setSelectedVisitDate('');
                     setSelectedUserId(0);
                     setSelectedWorkingSession(null);
                 }}
-                route={selectedRoute}
+                routes={selectedRoutes}
                 visitDate={selectedVisitDate}
                 userId={selectedUserId}
                 workingSession={selectedWorkingSession}

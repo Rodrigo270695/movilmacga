@@ -25,6 +25,9 @@ interface Route {
     id: number;
     name: string;
     code: string;
+    circuit_id?: number;
+    circuit_name?: string;
+    circuit_code?: string;
 }
 
 interface WorkingSession {
@@ -48,6 +51,7 @@ interface WorkingSession {
     user: User;
     active_circuit?: Circuit;
     assigned_route?: Route;
+    assigned_routes?: Route[];
     route_pdvs_count: number;
     visited_pdvs_count: number;
 }
@@ -65,7 +69,7 @@ interface PaginatedSessions {
 interface WorkingSessionsTableProps {
     sessions: PaginatedSessions;
     userPermissions: string[];
-    onViewPdvRoute?: (route: Route, visitDate: string, userId: number, workingSession?: any) => void;
+    onViewPdvRoute?: (routes: Route[], visitDate: string, userId: number, workingSession?: any) => void;
 }
 
 export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute }: WorkingSessionsTableProps) {
@@ -96,6 +100,31 @@ export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute
             default:
                 return <Clock className="w-3 h-3" />;
         }
+    };
+
+    const getAssignedRoutes = (session: WorkingSession): Route[] => {
+        if (session.assigned_routes && session.assigned_routes.length > 0) {
+            return session.assigned_routes;
+        }
+        return session.assigned_route ? [session.assigned_route] : [];
+    };
+
+    const getSessionPayload = (session: WorkingSession) => ({
+        id: session.id,
+        start_latitude: session.start_latitude,
+        start_longitude: session.start_longitude,
+        end_latitude: session.end_latitude,
+        end_longitude: session.end_longitude,
+        started_at: session.started_at,
+        ended_at: session.ended_at
+    });
+
+    const uniqueCircuitNames = (routes: Route[], fallback?: Circuit) => {
+        const names = routes.map((route) => route.circuit_name).filter(Boolean) as string[];
+        if (names.length > 0) {
+            return [...new Set(names)];
+        }
+        return fallback?.name ? [fallback.name] : [];
     };
 
     return (
@@ -193,33 +222,48 @@ export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute
 
                                 {/* Ruta Asignada */}
                                 <td className="px-6 py-4 text-center">
-                                    {session.assigned_route ? (
-                                        <div className="flex flex-col items-center">
-                                            <div className="flex items-center gap-1">
-                                                <CircuitBoard className="w-3 h-3 text-blue-500" />
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {session.assigned_route.name}
-                                                </span>
-                                            </div>
-                                            <div className="text-xs text-gray-500">
-                                                {session.assigned_route.code}
-                                            </div>
-                                            {session.active_circuit && (
-                                                <div className="text-xs text-blue-600">
-                                                    {session.active_circuit.name}
+                                    {(() => {
+                                        const routes = getAssignedRoutes(session);
+                                        const circuits = uniqueCircuitNames(routes, session.active_circuit);
+
+                                        if (routes.length === 0) {
+                                            return (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-xs text-gray-400">Sin ruta asignada</span>
+                                                    {circuits.map((name) => (
+                                                        <div key={name} className="text-xs text-gray-500">
+                                                            {name}
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-xs text-gray-400">Sin ruta asignada</span>
-                                            {session.active_circuit && (
-                                                <div className="text-xs text-gray-500">
-                                                    {session.active_circuit.name}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="flex flex-col items-center gap-1">
+                                                {routes.map((route) => (
+                                                    <div key={route.id} className="flex flex-col items-center">
+                                                        <div className="flex items-center gap-1">
+                                                            <CircuitBoard className="w-3 h-3 text-blue-500" />
+                                                            <span className="text-sm font-medium text-gray-900">
+                                                                {route.name}
+                                                            </span>
+                                                        </div>
+                                                        {route.code && route.code !== route.name && (
+                                                            <div className="text-xs text-gray-500">
+                                                                {route.code}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {circuits.map((name) => (
+                                                    <div key={name} className="text-xs text-blue-600">
+                                                        {name}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                 </td>
 
                                 {/* Estado */}
@@ -250,20 +294,12 @@ export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute
                                                     size="sm"
                                                     className="h-8 px-3 border-gray-200 hover:bg-gray-50 cursor-pointer"
                                                     onClick={() => {
-                                                        if (onViewPdvRoute && session.assigned_route) {
+                                                        if (onViewPdvRoute) {
                                                             onViewPdvRoute(
-                                                                session.assigned_route,
+                                                                getAssignedRoutes(session),
                                                                 session.formatted_start_date,
                                                                 session.user.id,
-                                                                {
-                                                                    id: session.id,
-                                                                    start_latitude: session.start_latitude,
-                                                                    start_longitude: session.start_longitude,
-                                                                    end_latitude: session.end_latitude,
-                                                                    end_longitude: session.end_longitude,
-                                                                    started_at: session.started_at,
-                                                                    ended_at: session.ended_at
-                                                                }
+                                                                getSessionPayload(session)
                                                             );
                                                         }
                                                     }}
@@ -351,21 +387,30 @@ export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute
                         </div>
 
                         {/* Ruta Asignada */}
-                        <div className="flex items-center gap-1 text-xs">
-                            <CircuitBoard className="w-3 h-3 text-blue-500" />
-                            <span className="text-gray-500">Ruta:</span>
-                            <span className="text-gray-900 font-medium">
-                                {session.assigned_route ? `${session.assigned_route.name} (${session.assigned_route.code})` : 'Sin ruta asignada'}
-                            </span>
-                        </div>
-                        {session.active_circuit && (
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-gray-500">Circuito:</span>
-                                <span className="text-blue-600 font-medium">
-                                    {session.active_circuit.name}
-                                </span>
-                            </div>
-                        )}
+                        {(() => {
+                            const routes = getAssignedRoutes(session);
+                            const circuits = uniqueCircuitNames(routes, session.active_circuit);
+
+                            return (
+                                <>
+                                    <div className="flex items-start gap-1 text-xs">
+                                        <CircuitBoard className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                                        <span className="text-gray-500">Ruta:</span>
+                                        <span className="text-gray-900 font-medium">
+                                            {routes.length > 0
+                                                ? routes.map((route) => route.name).join(', ')
+                                                : 'Sin ruta asignada'}
+                                        </span>
+                                    </div>
+                                    {circuits.map((name) => (
+                                        <div key={name} className="flex items-center gap-1 text-xs">
+                                            <span className="text-gray-500">Circuito:</span>
+                                            <span className="text-blue-600 font-medium">{name}</span>
+                                        </div>
+                                    ))}
+                                </>
+                            );
+                        })()}
 
                         {/* Métricas */}
                         <div className="flex flex-col gap-2">
@@ -382,20 +427,12 @@ export function WorkingSessionsTable({ sessions, userPermissions, onViewPdvRoute
                                             size="sm"
                                             className="h-6 px-2 border-gray-200 hover:bg-gray-50 cursor-pointer text-xs"
                                             onClick={() => {
-                                                if (onViewPdvRoute && session.assigned_route) {
+                                                if (onViewPdvRoute) {
                                                     onViewPdvRoute(
-                                                        session.assigned_route,
+                                                        getAssignedRoutes(session),
                                                         session.formatted_start_date,
                                                         session.user.id,
-                                                        {
-                                                            id: session.id,
-                                                            start_latitude: session.start_latitude,
-                                                            start_longitude: session.start_longitude,
-                                                            end_latitude: session.end_latitude,
-                                                            end_longitude: session.end_longitude,
-                                                            started_at: session.started_at,
-                                                            ended_at: session.ended_at
-                                                        }
+                                                        getSessionPayload(session)
                                                     );
                                                 }
                                             }}

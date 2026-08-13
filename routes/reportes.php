@@ -41,6 +41,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('jornadas-laborales.pdv-visits')
             ->middleware('permission:reporte-jornadas-laborales-ver');
 
+        Route::get('jornadas-laborales/session-pdvs', [WorkingSessionsController::class, 'getSessionPdvs'])
+            ->name('jornadas-laborales.session-pdvs')
+            ->middleware('permission:reporte-jornadas-laborales-ver');
+
         Route::get('jornadas-laborales/gps-tracking', [WorkingSessionsController::class, 'getGpsTracking'])
             ->name('jornadas-laborales.gps-tracking')
             ->middleware('permission:reporte-jornadas-laborales-ver');

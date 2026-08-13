@@ -6,8 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { MapPin, Navigation, X, Loader2, Info } from 'lucide-react';
+import { MapPin, Navigation, X, Loader2, Info, CircuitBoard } from 'lucide-react';
 import axios from 'axios';
+
+interface Route {
+    id: number;
+    name: string;
+    code: string;
+    circuit_name?: string;
+}
 
 interface Pdv {
     id: number;
@@ -23,17 +30,12 @@ interface Pdv {
     district?: {
         name: string;
     };
+    route?: Route;
     is_visited?: boolean;
     visit_data?: {
         check_in_at: string;
         check_out_at: string;
     };
-}
-
-interface Route {
-    id: number;
-    name: string;
-    code: string;
 }
 
 interface WorkingSessionData {
@@ -61,15 +63,16 @@ interface GpsTrackingPoint {
 interface PdvRouteModalProps {
     isOpen: boolean;
     onClose: () => void;
-    route: Route | null;
+    routes?: Route[];
     visitDate: string;
     userId: number;
     workingSession?: WorkingSessionData;
 }
 
-export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, workingSession }: PdvRouteModalProps) {
+export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId, workingSession }: PdvRouteModalProps) {
     const { addToast } = useToast();
     const [pdvs, setPdvs] = useState<Pdv[]>([]);
+    const [loadedRoutes, setLoadedRoutes] = useState<Route[]>(routes);
     const [gpsTracking, setGpsTracking] = useState<GpsTrackingPoint[]>([]);
     const [loading, setLoading] = useState(false);
     const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
@@ -81,10 +84,10 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
 
     // Cargar PDVs cuando se abre el modal
     useEffect(() => {
-        if (isOpen && route) {
+        if (isOpen && userId && visitDate) {
             loadPdvs();
         }
-    }, [isOpen, route]);
+    }, [isOpen, userId, visitDate]);
 
     // Inicializar mapa cuando se cargan los PDVs
     useEffect(() => {
@@ -121,44 +124,26 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
     }, [isOpen, map]);
 
     const loadPdvs = async () => {
-        if (!route) return;
+        if (!userId || !visitDate) return;
 
         setLoading(true);
         try {
-            // Obtener PDVs de la ruta
-            const routeResponse = await axios.get(`/dcs/routes/${route.id}/pdvs`);
-            const routePdvs = routeResponse.data.pdvs || [];
-
-            // Convertir fecha de dd/mm/yyyy a yyyy-mm-dd
             const dateParts = visitDate.split('/');
             const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
 
-            // Obtener PDVs visitados en la fecha específica
-            const visitedResponse = await axios.get(`/reportes/jornadas-laborales/pdv-visits`, {
+            const response = await axios.get(`/reportes/jornadas-laborales/session-pdvs`, {
                 params: {
                     user_id: userId,
                     visit_date: formattedDate,
-                    route_id: route.id
                 }
             });
-            const visitedPdvs = visitedResponse.data.visits || [];
 
-            // Marcar PDVs como visitados y agregar datos de visita
-            const pdvsWithVisitStatus = routePdvs.map((pdv: Pdv) => {
-                const visit = visitedPdvs.find((v: any) => v.pdv_id === pdv.id);
-                return {
-                    ...pdv,
-                    is_visited: !!visit,
-                    visit_data: visit ? {
-                        check_in_at: visit.check_in_at,
-                        check_out_at: visit.check_out_at
-                    } : undefined
-                };
-            });
+            const sessionPdvs = response.data.pdvs || [];
+            const sessionRoutes = response.data.routes || routes || [];
 
-            setPdvs(pdvsWithVisitStatus);
+            setPdvs(sessionPdvs);
+            setLoadedRoutes(sessionRoutes);
 
-            // Cargar GPS tracking si hay datos de jornada laboral
             if (workingSession?.id) {
                 await loadGpsTracking();
             }
@@ -167,7 +152,7 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
             addToast({
                 type: 'error',
                 title: 'Error',
-                message: 'No se pudieron cargar los PDVs de la ruta.',
+                message: 'No se pudieron cargar los PDVs de las rutas.',
                 duration: 4000
             });
         } finally {
@@ -405,6 +390,7 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                             <h3 class="font-semibold text-sm">${pdv.point_name}</h3>
                             <p class="text-xs text-gray-600">${pdv.client_name}</p>
                             <p class="text-xs text-gray-500">${pdv.address}</p>
+                            ${pdv.route ? `<p class="text-xs text-blue-600 mt-1">Ruta: ${pdv.route.name}</p>` : ''}
                             ${pdv.locality ? `<p class="text-xs text-gray-400">${pdv.locality}</p>` : ''}
                             <div class="mt-2">
                                 <span class="inline-block px-2 py-1 text-xs rounded ${statusClass}">
@@ -509,6 +495,7 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
         }
         setMarkers([]);
         setPdvs([]);
+        setLoadedRoutes([]);
         setMapError(null);
         setMapLayers({});
         setSelectedMapType('streets');
@@ -517,6 +504,24 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
 
     const visitedCount = pdvs.filter(pdv => pdv.is_visited).length;
     const totalCount = pdvs.length;
+    const displayRoutes = loadedRoutes.length > 0 ? loadedRoutes : routes;
+    const routesTitle = displayRoutes.length === 0
+        ? 'PDVs del día'
+        : displayRoutes.length === 1
+            ? `PDVs de la Ruta: ${displayRoutes[0].name}`
+            : `PDVs de las Rutas (${displayRoutes.length})`;
+    const routesSubtitle = displayRoutes.map((r) => r.name).join(', ');
+
+    const groupedPdvs = pdvs.reduce((groups: { route: Route | null; items: { pdv: Pdv; index: number }[] }[], pdv, index) => {
+        const routeId = pdv.route?.id ?? 0;
+        let group = groups.find((g) => (g.route?.id ?? 0) === routeId);
+        if (!group) {
+            group = { route: pdv.route ?? null, items: [] };
+            groups.push(group);
+        }
+        group.items.push({ pdv, index });
+        return groups;
+    }, []);
 
     return (
         <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -533,10 +538,10 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                             </div>
                             <div className="min-w-0 flex-1">
                                 <DialogTitle className="text-base sm:text-lg lg:text-xl font-semibold truncate">
-                                    PDVs de la Ruta: {route?.name}
+                                    {routesTitle}
                                 </DialogTitle>
                                 <DialogDescription className="text-xs lg:text-sm text-gray-600 truncate">
-                                    {route?.code} • Fecha: {visitDate} • {visitedCount}/{totalCount} visitados
+                                    {routesSubtitle ? `${routesSubtitle} • ` : ''}Fecha: {visitDate} • {visitedCount}/{totalCount} visitados
                                 </DialogDescription>
                             </div>
                         </div>
@@ -557,7 +562,7 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span>{totalCount} PDVs en la ruta</span>
+                                <span>{totalCount} PDVs en {displayRoutes.length || 1} ruta{displayRoutes.length === 1 ? '' : 's'}</span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
@@ -679,7 +684,7 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                         <div className="w-full lg:w-80 bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 flex flex-col min-h-[180px] sm:min-h-[220px] lg:min-h-[300px] mt-1">
                             <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 flex-shrink-0 text-sm sm:text-base">
                                 <Navigation className="w-3 h-3 sm:w-4 sm:h-4" />
-                                PDVs de la Ruta
+                                PDVs por Ruta
                             </h3>
 
                             <div className="flex-1 overflow-y-auto min-h-0">
@@ -695,11 +700,23 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                                 ) : pdvs.length === 0 ? (
                                     <div className="text-center py-6 sm:py-8">
                                         <Info className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
-                                        <p className="text-xs sm:text-sm text-gray-600">No hay PDVs en esta ruta</p>
+                                        <p className="text-xs sm:text-sm text-gray-600">No hay PDVs programados para este día</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2 sm:space-y-3">
-                                        {pdvs.map((pdv, index) => (
+                                    <div className="space-y-3 sm:space-y-4">
+                                        {groupedPdvs.map((group) => (
+                                            <div key={group.route?.id ?? 'sin-ruta'}>
+                                                <div className="flex items-center gap-1 mb-2 px-1">
+                                                    <CircuitBoard className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                                    <span className="text-xs font-semibold text-blue-700 truncate">
+                                                        {group.route?.name || 'Sin ruta'}
+                                                    </span>
+                                                    <span className="text-xs text-gray-400 flex-shrink-0">
+                                                        · {group.items.length}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2 sm:space-y-3">
+                                                    {group.items.map(({ pdv, index }) => (
                                             <Card
                                                 key={pdv.id}
                                                 className="p-2 sm:p-3 hover:shadow-md transition-shadow cursor-pointer"
@@ -767,6 +784,9 @@ export function PdvRouteModal({ isOpen, onClose, route, visitDate, userId, worki
                                                     </Badge>
                                                 </div>
                                             </Card>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 )}

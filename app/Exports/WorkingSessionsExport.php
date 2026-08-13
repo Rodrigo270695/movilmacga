@@ -59,7 +59,15 @@ class WorkingSessionsExport implements FromCollection, WithHeadings, WithMapping
             $session->ended_at ? $session->ended_at->format('H:i') : '-',
             $session->duration_formatted,
             $session->status_label,
-            $session->assigned_route ? $session->assigned_route->name . ' (' . $session->assigned_route->code . ')' : 'Sin ruta asignada',
+            $session->assigned_routes
+                ? collect($session->assigned_routes)->map(function ($route) {
+                    $name = is_array($route) ? ($route['name'] ?? '') : ($route->name ?? '');
+                    $code = is_array($route) ? ($route['code'] ?? '') : ($route->code ?? '');
+                    return trim($name . ($code ? " ({$code})" : ''));
+                })->filter()->implode(', ')
+                : ($session->assigned_route
+                    ? $session->assigned_route['name'] . ' (' . $session->assigned_route['code'] . ')'
+                    : 'Sin ruta asignada'),
             $session->active_circuit ? $session->active_circuit->name : '-',
             $session->route_pdvs_count,
             $session->visited_pdvs_count,
