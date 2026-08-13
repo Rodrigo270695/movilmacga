@@ -849,8 +849,9 @@ class WorkingSessionsController extends Controller
     }
 
     /**
-     * Rutas programadas para vendedores en fechas dadas.
-     * Misma consulta que UserDataController::getTodayPdvs (API APK).
+     * Rutas programadas para vendedores en las fechas dadas.
+     * Usa la misma base que la API APK (route_visit_dates + user_circuits)
+     * y limita a la fecha de la jornada, vigencia de asignación y frecuencia del circuito.
      */
     private function getAssignedRoutesForUsers(array $userIds, array $dates)
     {
@@ -864,9 +865,34 @@ class WorkingSessionsController extends Controller
             ->join('circuits as c', 'r.circuit_id', '=', 'c.id')
             ->whereIn('uc.user_id', $userIds)
             ->where('uc.is_active', true)
-            ->whereIn('rvd.visit_date', $dates)
             ->where('rvd.is_active', true)
             ->where('r.status', true)
+            ->where('c.status', true)
+            ->where(function ($q) use ($dates) {
+                foreach ($dates as $date) {
+                    $q->orWhereDate('rvd.visit_date', $date);
+                }
+            })
+            ->where(function ($q) {
+                $q->whereNull('uc.valid_from')
+                    ->orWhereRaw('DATE(uc.valid_from) <= DATE(rvd.visit_date)');
+            })
+            ->where(function ($q) {
+                $q->whereNull('uc.valid_until')
+                    ->orWhereRaw('DATE(uc.valid_until) >= DATE(rvd.visit_date)');
+            })
+            ->where(function ($q) {
+                $q->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('circuit_frequencies as cf')
+                        ->whereColumn('cf.circuit_id', 'r.circuit_id');
+                })->orWhereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('circuit_frequencies as cf')
+                        ->whereColumn('cf.circuit_id', 'r.circuit_id')
+                        ->whereRaw("cf.day_of_week = ELT(DAYOFWEEK(rvd.visit_date), 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday')");
+                });
+            })
             ->select([
                 'uc.user_id',
                 DB::raw('DATE(rvd.visit_date) as visit_date'),

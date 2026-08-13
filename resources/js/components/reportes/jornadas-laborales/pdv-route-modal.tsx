@@ -505,12 +505,6 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
     const visitedCount = pdvs.filter(pdv => pdv.is_visited).length;
     const totalCount = pdvs.length;
     const displayRoutes = loadedRoutes.length > 0 ? loadedRoutes : routes;
-    const routesTitle = displayRoutes.length === 0
-        ? 'PDVs del día'
-        : displayRoutes.length === 1
-            ? `PDVs de la Ruta: ${displayRoutes[0].name}`
-            : `PDVs de las Rutas (${displayRoutes.length})`;
-    const routesSubtitle = displayRoutes.map((r) => r.name).join(', ');
 
     const groupedPdvs = pdvs.reduce((groups: { route: Route | null; items: { pdv: Pdv; index: number }[] }[], pdv, index) => {
         const routeId = pdv.route?.id ?? 0;
@@ -522,6 +516,11 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
         group.items.push({ pdv, index });
         return groups;
     }, []);
+
+    const routesInView = groupedPdvs.length > 0 ? groupedPdvs.length : displayRoutes.length;
+    const routesTitle = routesInView <= 1
+        ? `PDVs de la Ruta${groupedPdvs[0]?.route?.name ? `: ${groupedPdvs[0].route.name}` : ''}`
+        : `PDVs del día (${routesInView} rutas)`;
 
     return (
         <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -541,7 +540,7 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                                     {routesTitle}
                                 </DialogTitle>
                                 <DialogDescription className="text-xs lg:text-sm text-gray-600 truncate">
-                                    {routesSubtitle ? `${routesSubtitle} • ` : ''}Fecha: {visitDate} • {visitedCount}/{totalCount} visitados
+                                    Fecha: {visitDate} • {visitedCount}/{totalCount} visitados
                                 </DialogDescription>
                             </div>
                         </div>
@@ -562,7 +561,7 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span>{totalCount} PDVs en {displayRoutes.length || 1} ruta{displayRoutes.length === 1 ? '' : 's'}</span>
+                                <span>{totalCount} PDVs en {routesInView || 1} ruta{routesInView === 1 ? '' : 's'}</span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2">
                                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
@@ -681,7 +680,7 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                         </div>
 
                         {/* Lista de PDVs */}
-                        <div className="w-full lg:w-80 bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 flex flex-col min-h-[180px] sm:min-h-[220px] lg:min-h-[300px] mt-1">
+                        <div className="w-full lg:w-96 bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 flex flex-col min-h-[180px] sm:min-h-[220px] lg:min-h-[300px] mt-1">
                             <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 flex-shrink-0 text-sm sm:text-base">
                                 <Navigation className="w-3 h-3 sm:w-4 sm:h-4" />
                                 PDVs por Ruta
@@ -703,20 +702,32 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                                         <p className="text-xs sm:text-sm text-gray-600">No hay PDVs programados para este día</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3 sm:space-y-4">
-                                        {groupedPdvs.map((group) => (
-                                            <div key={group.route?.id ?? 'sin-ruta'}>
-                                                <div className="flex items-center gap-1 mb-2 px-1">
-                                                    <CircuitBoard className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                                                    <span className="text-xs font-semibold text-blue-700 truncate">
-                                                        {group.route?.name || 'Sin ruta'}
-                                                    </span>
-                                                    <span className="text-xs text-gray-400 flex-shrink-0">
-                                                        · {group.items.length}
-                                                    </span>
+                                    <div className="space-y-4">
+                                        {groupedPdvs.map((group) => {
+                                            const visitedInRoute = group.items.filter(({ pdv }) => pdv.is_visited).length;
+
+                                            return (
+                                            <section key={group.route?.id ?? 'sin-ruta'} className="rounded-lg border border-blue-200 bg-white overflow-hidden">
+                                                <div className="bg-blue-600 text-white px-3 py-2">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <CircuitBoard className="w-4 h-4 flex-shrink-0" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-semibold truncate">
+                                                                {group.route?.name || 'Sin ruta'}
+                                                            </p>
+                                                            {group.route?.code && group.route.code !== group.route.name && (
+                                                                <p className="text-[11px] text-blue-100 truncate">
+                                                                    {group.route.code}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-blue-100 mt-1">
+                                                        {visitedInRoute}/{group.items.length} visitados
+                                                    </p>
                                                 </div>
-                                                <div className="space-y-2 sm:space-y-3">
-                                                    {group.items.map(({ pdv, index }) => (
+                                                <div className="p-2 space-y-2 bg-gray-50">
+                                                    {group.items.map(({ pdv }, localIndex) => (
                                             <Card
                                                 key={pdv.id}
                                                 className="p-2 sm:p-3 hover:shadow-md transition-shadow cursor-pointer"
@@ -732,7 +743,7 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                                                             <div className={`w-4 h-4 sm:w-5 sm:h-5 text-white text-xs rounded-full flex items-center justify-center font-medium ${
                                                                 pdv.is_visited ? 'bg-green-600' : 'bg-blue-600'
                                                             }`}>
-                                                                {index + 1}
+                                                                {localIndex + 1}
                                                             </div>
                                                             <h4 className="font-medium text-xs sm:text-sm text-gray-900 truncate">
                                                                 {pdv.point_name}
@@ -749,7 +760,6 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                                                                 {pdv.locality}
                                                             </p>
                                                         )}
-                                                        {/* Mostrar horas de visita solo si está visitado */}
                                                         {pdv.is_visited && pdv.visit_data && (
                                                             <div className="mt-2 pt-2 border-t border-gray-200">
                                                                 <div className="flex items-center gap-2 text-xs">
@@ -786,8 +796,9 @@ export function PdvRouteModal({ isOpen, onClose, routes = [], visitDate, userId,
                                             </Card>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            </section>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
