@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\BusinessUserController;
 use App\Http\Controllers\Admin\BusinessFormController;
+use App\Http\Controllers\Admin\VisitSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -65,6 +66,17 @@ Route::middleware(['auth', 'verified'])
             Route::get('businesses/{business}', [BusinessController::class, 'show'])
                 ->middleware('permission:gestor-business-ver')
                 ->name('businesses.show');
+
+            // Configuración de visitas por negocio (distancia máxima y tiempo
+            // mínimo para finalizar). Reutiliza los permisos de "gestor-business"
+            // porque es una extensión de la configuración del negocio.
+            Route::get('visit-settings', [VisitSettingsController::class, 'index'])
+                ->middleware('permission:gestor-business-ver')
+                ->name('visit-settings.index');
+
+            Route::patch('visit-settings/{business}', [VisitSettingsController::class, 'update'])
+                ->middleware('permission:gestor-business-editar')
+                ->name('visit-settings.update');
 
         });
 

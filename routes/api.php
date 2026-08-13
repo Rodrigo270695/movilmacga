@@ -115,6 +115,7 @@ Route::prefix('pdv-forms')->group(function () {
     // VISITAS A PDVs
     // ========================================
     Route::prefix('pdv-visits')->group(function () {
+        Route::get('visit-settings/{pdv}', [PdvVisitController::class, 'visitSettings'])->name('api.pdv-visits.visit-settings');
         Route::post('check-in', [PdvVisitController::class, 'checkIn'])->name('api.pdv-visits.check-in');
         Route::post('check-out', [PdvVisitController::class, 'checkOut'])->name('api.pdv-visits.check-out');
         Route::post('upload-photo', [PdvVisitController::class, 'uploadPhoto'])->name('api.pdv-visits.upload-photo');

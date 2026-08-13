@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, Contact, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck, CheckSquare, Layers } from 'lucide-react';
+import { Folder, LayoutGrid, Shield, Users, CircuitBoard, Route, Building2, MapPin, Contact, UserCheck, Map, Navigation, BarChart3, Clock, FileCheck, CheckSquare, Layers, Timer } from 'lucide-react';
 import AppLogo from './app-logo';
 import { usePage } from '@inertiajs/react';
 import { useMemo, useCallback } from 'react';
@@ -44,6 +44,12 @@ const allNavItems: (NavItem & { permission?: string })[] = [
                 href: '/admin/users',
                 icon: Users,
                 permission: 'gestor-usuarios-acceso',
+            },
+            {
+                title: 'Config. de Visitas',
+                href: '/admin/visit-settings',
+                icon: Timer,
+                permission: 'gestor-business-acceso',
             },
         ],
     },

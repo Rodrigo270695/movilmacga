@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\Geofence;
 use App\Models\Pdv;
 use App\Models\PdvVisit;
@@ -13,6 +14,34 @@ use Carbon\Carbon;
 
 class PdvVisitController extends Controller
 {
+    /**
+     * Valores por defecto cuando el PDV no tiene un negocio resuelto
+     * (cadena Pdv->Route->Circuit->Zonal->Business incompleta).
+     */
+    private const DEFAULT_MAX_DISTANCE_METERS = 20;
+    private const DEFAULT_MIN_DURATION_MINUTES = 10;
+
+    /**
+     * Obtiene la configuración de visita (distancia máxima y tiempo mínimo
+     * para finalizar) para un PDV, según el negocio (Business/marca) al que
+     * pertenece. Es configurable desde el panel web (admin/visit-settings)
+     * y puede ser distinta para cada marca (ej. macga, treinta).
+     */
+    public function visitSettings(Request $request, Pdv $pdv)
+    {
+        $business = $pdv->resolvedBusiness();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'business_id' => $business?->id,
+                'business_name' => $business?->name,
+                'max_distance_meters' => $business?->max_visit_distance_meters ?? self::DEFAULT_MAX_DISTANCE_METERS,
+                'min_duration_minutes' => $business?->min_visit_duration_minutes ?? self::DEFAULT_MIN_DURATION_MINUTES,
+            ]
+        ]);
+    }
+
     /**
      * Hacer check-in en un PDV
      */
@@ -197,6 +226,25 @@ class PdvVisitController extends Controller
             ->where('user_id', $user->id)
             ->where('visit_status', 'in_progress')
             ->firstOrFail();
+
+        // Validar tiempo mínimo de visita (configurable por negocio). Esta
+        // regla ya se aplica en la app móvil (deshabilita el botón), pero se
+        // repite aquí para que no pueda saltarse llamando al API directo.
+        $durationMinutesSoFar = now()->diffInMinutes($visit->check_in_at);
+        $minDurationMinutes = $visit->pdv?->resolvedBusiness()?->min_visit_duration_minutes
+            ?? self::DEFAULT_MIN_DURATION_MINUTES;
+
+        if ($durationMinutesSoFar < $minDurationMinutes) {
+            return response()->json([
+                'success' => false,
+                'message' => "Debes permanecer al menos {$minDurationMinutes} minutos en el PDV antes de finalizar la visita.",
+                'data' => [
+                    'min_duration_minutes' => $minDurationMinutes,
+                    'elapsed_minutes' => $durationMinutesSoFar,
+                    'remaining_minutes' => $minDurationMinutes - $durationMinutesSoFar,
+                ]
+            ], 400);
+        }
 
         try {
             DB::beginTransaction();

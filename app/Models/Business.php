@@ -19,6 +19,8 @@ class Business extends Model
     protected $fillable = [
         'name',
         'status',
+        'max_visit_distance_meters',
+        'min_visit_duration_minutes',
     ];
 
     /**
@@ -28,6 +30,8 @@ class Business extends Model
      */
     protected $casts = [
         'status' => 'boolean',
+        'max_visit_distance_meters' => 'integer',
+        'min_visit_duration_minutes' => 'integer',
     ];
 
     /**

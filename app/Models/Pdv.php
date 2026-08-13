@@ -61,6 +61,18 @@ class Pdv extends Model
     }
 
     /**
+     * Resuelve el Business (empresa/marca) al que pertenece este PDV,
+     * siguiendo la cadena Pdv -> Route -> Circuit -> Zonal -> Business.
+     * Devuelve null si algún eslabón de la cadena no está asignado.
+     */
+    public function resolvedBusiness(): ?Business
+    {
+        $this->loadMissing('route.circuit.zonal.business');
+
+        return $this->route?->circuit?->zonal?->business;
+    }
+
+    /**
      * Get the operators associated with this PDV (many-to-many).
      */
     public function operators(): BelongsToMany
