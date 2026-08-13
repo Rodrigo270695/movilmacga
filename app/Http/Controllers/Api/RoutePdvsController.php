@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\PdvVisit;
 use App\Models\Route;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class RoutePdvsController extends Controller
 {
@@ -71,8 +71,10 @@ class RoutePdvsController extends Controller
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {
                 // Verificar visitas del PDV hoy
-                $visitToday = DB::table('pdv_visits')
-                    ->where('pdv_id', $pdv->id)
+                // Se usa el modelo Eloquent (en vez de DB::table) para que check_in_at/
+                // check_out_at se serialicen con el mismo formato ISO8601 con offset de
+                // zona horaria que usa el resto del API (getMyVisits, getTodayVisits, etc.).
+                $visitToday = PdvVisit::where('pdv_id', $pdv->id)
                     ->where('user_id', $user->id)
                     ->whereDate('check_in_at', $todayDate)
                     ->orderBy('check_in_at', 'desc')
@@ -104,6 +106,11 @@ class RoutePdvsController extends Controller
                     'visited_today' => $visitedToday,
                     'visit_in_progress' => $visitInProgress,
                     'visit_id' => $visitId,
+                    // Horarios reales de la última visita de hoy (check-in/check-out),
+                    // para mostrar "Inicio", "Fin" y duración en el listado de PDVs.
+                    'visit_check_in_at' => $visitToday?->check_in_at,
+                    'visit_check_out_at' => $visitToday?->check_out_at,
+                    'visit_duration_minutes' => $visitToday?->duration_minutes,
                     // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
@@ -198,8 +205,10 @@ class RoutePdvsController extends Controller
             ->get()
             ->map(function ($pdv) use ($user, $todayDate) {
                 // Verificar visitas del PDV hoy
-                $visitToday = DB::table('pdv_visits')
-                    ->where('pdv_id', $pdv->id)
+                // Se usa el modelo Eloquent (en vez de DB::table) para que check_in_at/
+                // check_out_at se serialicen con el mismo formato ISO8601 con offset de
+                // zona horaria que usa el resto del API (getMyVisits, getTodayVisits, etc.).
+                $visitToday = PdvVisit::where('pdv_id', $pdv->id)
                     ->where('user_id', $user->id)
                     ->whereDate('check_in_at', $todayDate)
                     ->orderBy('check_in_at', 'desc')
@@ -231,6 +240,11 @@ class RoutePdvsController extends Controller
                     'visited_today' => $visitedToday,
                     'visit_in_progress' => $visitInProgress,
                     'visit_id' => $visitId,
+                    // Horarios reales de la última visita de hoy (check-in/check-out),
+                    // para mostrar "Inicio", "Fin" y duración en el listado de PDVs.
+                    'visit_check_in_at' => $visitToday?->check_in_at,
+                    'visit_check_out_at' => $visitToday?->check_out_at,
+                    'visit_duration_minutes' => $visitToday?->duration_minutes,
                     // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
