@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
 import { type BreadcrumbItem } from '@/types';
-import { Building2, MapPin, Timer, Save } from 'lucide-react';
+import { Building2, MapPin, Repeat2, Timer, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface Business {
@@ -15,6 +15,7 @@ interface Business {
     status: boolean | number;
     max_visit_distance_meters: number;
     min_visit_duration_minutes: number;
+    max_visits_per_pdv_per_day: number;
 }
 
 interface Props {
@@ -35,11 +36,13 @@ function BusinessSettingsCard({ business }: { business: Business }) {
     const { addToast } = useToast();
     const [maxDistance, setMaxDistance] = useState(String(business.max_visit_distance_meters));
     const [minDuration, setMinDuration] = useState(String(business.min_visit_duration_minutes));
+    const [maxVisitsPerDay, setMaxVisitsPerDay] = useState(String(business.max_visits_per_pdv_per_day ?? 2));
     const [saving, setSaving] = useState(false);
 
     const isDirty =
         Number(maxDistance) !== business.max_visit_distance_meters ||
-        Number(minDuration) !== business.min_visit_duration_minutes;
+        Number(minDuration) !== business.min_visit_duration_minutes ||
+        Number(maxVisitsPerDay) !== (business.max_visits_per_pdv_per_day ?? 2);
 
     const handleSave = () => {
         setSaving(true);
@@ -48,6 +51,7 @@ function BusinessSettingsCard({ business }: { business: Business }) {
             {
                 max_visit_distance_meters: Number(maxDistance),
                 min_visit_duration_minutes: Number(minDuration),
+                max_visits_per_pdv_per_day: Number(maxVisitsPerDay),
             },
             {
                 preserveScroll: true,
@@ -88,7 +92,7 @@ function BusinessSettingsCard({ business }: { business: Business }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor={`distance-${business.id}`} className="flex items-center gap-1.5 text-gray-700">
                         <MapPin className="h-4 w-4 text-gray-400" />
@@ -122,6 +126,24 @@ function BusinessSettingsCard({ business }: { business: Business }) {
                     />
                     <p className="text-xs text-gray-500">
                         El botón "Finalizar Visita" permanecerá bloqueado hasta cumplir este tiempo.
+                    </p>
+                </div>
+
+                <div className="space-y-1.5">
+                    <Label htmlFor={`visits-${business.id}`} className="flex items-center gap-1.5 text-gray-700">
+                        <Repeat2 className="h-4 w-4 text-gray-400" />
+                        Visitas máximas al mismo PDV (por día)
+                    </Label>
+                    <Input
+                        id={`visits-${business.id}`}
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={maxVisitsPerDay}
+                        onChange={(e) => setMaxVisitsPerDay(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500">
+                        Cuántas veces el vendedor puede visitar el mismo PDV en un mismo día. Por defecto 2.
                     </p>
                 </div>
             </div>
@@ -159,8 +181,8 @@ export default function VisitSettingsIndex({ businesses, flash }: Props) {
                             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Configuración de Visitas</h1>
                             <p className="text-xs sm:text-sm text-gray-600 mt-1">
                                 Define, por cada marca/negocio, la distancia máxima permitida para registrar una
-                                visita y el tiempo mínimo que debe transcurrir antes de poder finalizarla. Los
-                                cambios aplican de inmediato en la app móvil.
+                                visita, el tiempo mínimo para finalizarla y cuántas veces se puede visitar el mismo
+                                PDV en un mismo día. Los cambios aplican de inmediato en la app móvil.
                             </p>
                         </div>
                     </div>

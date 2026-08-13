@@ -20,16 +20,23 @@ class PdvVisitController extends Controller
      */
     private const DEFAULT_MAX_DISTANCE_METERS = 20;
     private const DEFAULT_MIN_DURATION_MINUTES = 10;
+    private const DEFAULT_MAX_VISITS_PER_PDV_PER_DAY = 2;
 
     /**
-     * Obtiene la configuración de visita (distancia máxima y tiempo mínimo
-     * para finalizar) para un PDV, según el negocio (Business/marca) al que
-     * pertenece. Es configurable desde el panel web (admin/visit-settings)
-     * y puede ser distinta para cada marca (ej. macga, treinta).
+     * Obtiene la configuración de visita (distancia máxima, tiempo mínimo
+     * para finalizar y máximo de visitas al mismo PDV por día) según el
+     * negocio (Business/marca) al que pertenece el PDV.
      */
     public function visitSettings(Request $request, Pdv $pdv)
     {
         $business = $pdv->resolvedBusiness();
+        $todayDate = now()->toDateString();
+        $visitsTodayCount = PdvVisit::where('user_id', $request->user()->id)
+            ->where('pdv_id', $pdv->id)
+            ->whereDate('check_in_at', $todayDate)
+            ->where('visit_status', 'completed')
+            ->count();
+        $maxVisitsPerDay = $business?->max_visits_per_pdv_per_day ?? self::DEFAULT_MAX_VISITS_PER_PDV_PER_DAY;
 
         return response()->json([
             'success' => true,
@@ -38,6 +45,9 @@ class PdvVisitController extends Controller
                 'business_name' => $business?->name,
                 'max_distance_meters' => $business?->max_visit_distance_meters ?? self::DEFAULT_MAX_DISTANCE_METERS,
                 'min_duration_minutes' => $business?->min_visit_duration_minutes ?? self::DEFAULT_MIN_DURATION_MINUTES,
+                'max_visits_per_pdv_per_day' => $maxVisitsPerDay,
+                'visits_today_count' => $visitsTodayCount,
+                'can_start_visit' => $visitsTodayCount < $maxVisitsPerDay,
             ]
         ]);
     }
@@ -68,20 +78,24 @@ class PdvVisitController extends Controller
             ], 400);
         }
 
-        // Verificar que no haya visitado este PDV hoy
-        $todayVisit = PdvVisit::where('user_id', $user->id)
+        // Verificar que no haya superado el máximo de visitas a este PDV hoy
+        // (configurable por marca; por defecto 2).
+        $maxVisitsPerDay = $pdv->resolvedBusiness()?->max_visits_per_pdv_per_day
+            ?? self::DEFAULT_MAX_VISITS_PER_PDV_PER_DAY;
+
+        $todayCompletedCount = PdvVisit::where('user_id', $user->id)
             ->where('pdv_id', $pdv->id)
             ->whereDate('check_in_at', now()->toDateString())
             ->where('visit_status', 'completed')
-            ->first();
+            ->count();
 
-        if ($todayVisit) {
+        if ($todayCompletedCount >= $maxVisitsPerDay) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ya has visitado este PDV hoy. No puedes hacer otra visita en el mismo día.',
+                'message' => "Ya alcanzaste el máximo de {$maxVisitsPerDay} visitas a este PDV hoy.",
                 'data' => [
-                    'previous_visit_id' => $todayVisit->id,
-                    'previous_visit_time' => $todayVisit->check_in_at,
+                    'visits_today_count' => $todayCompletedCount,
+                    'max_visits_per_day' => $maxVisitsPerDay,
                 ]
             ], 400);
         }

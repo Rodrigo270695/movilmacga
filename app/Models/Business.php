@@ -21,6 +21,7 @@ class Business extends Model
         'status',
         'max_visit_distance_meters',
         'min_visit_duration_minutes',
+        'max_visits_per_pdv_per_day',
     ];
 
     /**
@@ -32,6 +33,7 @@ class Business extends Model
         'status' => 'boolean',
         'max_visit_distance_meters' => 'integer',
         'min_visit_duration_minutes' => 'integer',
+        'max_visits_per_pdv_per_day' => 'integer',
     ];
 
     /**

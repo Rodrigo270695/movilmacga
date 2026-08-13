@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class RoutePdvsController extends Controller
 {
+    private const DEFAULT_MAX_VISITS_PER_PDV_PER_DAY = 2;
+
     /**
      * Obtener PDVs de una ruta específica
      * Parámetro 'today_only' para filtrar solo PDVs de rutas con visita programada para hoy
@@ -65,35 +67,15 @@ class RoutePdvsController extends Controller
         // }
 
         // Obtener PDVs de la ruta (excluyendo los que no venden)
+        $maxVisitsPerDay = $this->maxVisitsPerDayForRoute($route);
         $pdvs = $route->pdvs()
             ->where('status', '!=', 'no vende') // Excluir PDVs que no venden
             ->with(['route:id,name,code', 'locality:id,name', 'district:id,name'])
             ->get()
-            ->map(function ($pdv) use ($user, $todayDate) {
-                // Verificar visitas del PDV hoy
-                // Se usa el modelo Eloquent (en vez de DB::table) para que check_in_at/
-                // check_out_at se serialicen con el mismo formato ISO8601 con offset de
-                // zona horaria que usa el resto del API (getMyVisits, getTodayVisits, etc.).
-                $visitToday = PdvVisit::where('pdv_id', $pdv->id)
-                    ->where('user_id', $user->id)
-                    ->whereDate('check_in_at', $todayDate)
-                    ->orderBy('check_in_at', 'desc')
-                    ->first();
-                
-                $visitedToday = false;
-                $visitInProgress = false;
-                $visitId = null;
-                
-                if ($visitToday) {
-                    if ($visitToday->visit_status === 'completed' && $visitToday->is_valid) {
-                        $visitedToday = true;
-                    } elseif ($visitToday->visit_status === 'in_progress') {
-                        $visitInProgress = true;
-                        $visitId = $visitToday->id;
-                    }
-                }
+            ->map(function ($pdv) use ($user, $todayDate, $maxVisitsPerDay) {
+                $visitStatus = $this->visitStatusForPdv($pdv, $user, $todayDate, $maxVisitsPerDay);
 
-                return [
+                return array_merge([
                     'id' => $pdv->id,
                     'name' => $pdv->point_name,
                     'pos_id' => $pdv->pos_id,
@@ -103,15 +85,6 @@ class RoutePdvsController extends Controller
                     'longitude' => $pdv->longitude,
                     'locality_name' => $pdv->locality->name ?? null,
                     'district_name' => $pdv->district->name ?? null,
-                    'visited_today' => $visitedToday,
-                    'visit_in_progress' => $visitInProgress,
-                    'visit_id' => $visitId,
-                    // Horarios reales de la última visita de hoy (check-in/check-out),
-                    // para mostrar "Inicio", "Fin" y duración en el listado de PDVs.
-                    'visit_check_in_at' => $visitToday?->check_in_at,
-                    'visit_check_out_at' => $visitToday?->check_out_at,
-                    'visit_duration_minutes' => $visitToday?->duration_minutes,
-                    // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
                     'document_number' => $pdv->document_number,
@@ -124,9 +97,9 @@ class RoutePdvsController extends Controller
                         'id' => $pdv->route->id,
                         'name' => $pdv->route->name,
                         'code' => $pdv->route->code,
-                        'telegestion' => (bool)($pdv->route->telegestion ?? false), // Asegurar que sea boolean
-                    ]
-                ];
+                        'telegestion' => (bool)($pdv->route->telegestion ?? false),
+                    ],
+                ], $visitStatus);
             });
 
         return response()->json([
@@ -199,35 +172,15 @@ class RoutePdvsController extends Controller
         }
 
         // Obtener PDVs de la ruta (excluyendo los que no venden)
+        $maxVisitsPerDay = $this->maxVisitsPerDayForRoute($route);
         $pdvs = $route->pdvs()
             ->where('status', '!=', 'no vende') // Excluir PDVs que no venden
             ->with(['locality:id,name', 'district:id,name'])
             ->get()
-            ->map(function ($pdv) use ($user, $todayDate) {
-                // Verificar visitas del PDV hoy
-                // Se usa el modelo Eloquent (en vez de DB::table) para que check_in_at/
-                // check_out_at se serialicen con el mismo formato ISO8601 con offset de
-                // zona horaria que usa el resto del API (getMyVisits, getTodayVisits, etc.).
-                $visitToday = PdvVisit::where('pdv_id', $pdv->id)
-                    ->where('user_id', $user->id)
-                    ->whereDate('check_in_at', $todayDate)
-                    ->orderBy('check_in_at', 'desc')
-                    ->first();
-                
-                $visitedToday = false;
-                $visitInProgress = false;
-                $visitId = null;
-                
-                if ($visitToday) {
-                    if ($visitToday->visit_status === 'completed' && $visitToday->is_valid) {
-                        $visitedToday = true;
-                    } elseif ($visitToday->visit_status === 'in_progress') {
-                        $visitInProgress = true;
-                        $visitId = $visitToday->id;
-                    }
-                }
+            ->map(function ($pdv) use ($user, $todayDate, $maxVisitsPerDay) {
+                $visitStatus = $this->visitStatusForPdv($pdv, $user, $todayDate, $maxVisitsPerDay);
 
-                return [
+                return array_merge([
                     'id' => $pdv->id,
                     'name' => $pdv->point_name,
                     'pos_id' => $pdv->pos_id,
@@ -237,15 +190,6 @@ class RoutePdvsController extends Controller
                     'longitude' => $pdv->longitude,
                     'locality_name' => $pdv->locality->name ?? null,
                     'district_name' => $pdv->district->name ?? null,
-                    'visited_today' => $visitedToday,
-                    'visit_in_progress' => $visitInProgress,
-                    'visit_id' => $visitId,
-                    // Horarios reales de la última visita de hoy (check-in/check-out),
-                    // para mostrar "Inicio", "Fin" y duración en el listado de PDVs.
-                    'visit_check_in_at' => $visitToday?->check_in_at,
-                    'visit_check_out_at' => $visitToday?->check_out_at,
-                    'visit_duration_minutes' => $visitToday?->duration_minutes,
-                    // Campos adicionales para la pantalla de visita
                     'client_name' => $pdv->client_name,
                     'document_type' => $pdv->document_type,
                     'document_number' => $pdv->document_number,
@@ -254,7 +198,7 @@ class RoutePdvsController extends Controller
                     'email' => $pdv->email,
                     'sells_recharge' => $pdv->sells_recharge,
                     'reference' => $pdv->reference,
-                ];
+                ], $visitStatus);
             });
 
             return response()->json([
@@ -275,5 +219,46 @@ class RoutePdvsController extends Controller
                 'pdvs' => $pdvs->values()
             ]
         ]);
+    }
+
+    private function maxVisitsPerDayForRoute(Route $route): int
+    {
+        $route->loadMissing('circuit.zonal.business');
+
+        return $route->circuit?->zonal?->business?->max_visits_per_pdv_per_day
+            ?? self::DEFAULT_MAX_VISITS_PER_PDV_PER_DAY;
+    }
+
+    /**
+     * Estado de visita de un PDV para el usuario en la fecha indicada,
+     * incluyendo si aún puede volver a visitarlo según el tope del negocio.
+     */
+    private function visitStatusForPdv($pdv, $user, string $todayDate, int $maxVisitsPerDay): array
+    {
+        $visitsToday = PdvVisit::where('pdv_id', $pdv->id)
+            ->where('user_id', $user->id)
+            ->whereDate('check_in_at', $todayDate)
+            ->orderBy('check_in_at', 'desc')
+            ->get();
+
+        $completedVisits = $visitsToday->where('visit_status', 'completed');
+        $validCompletedVisits = $completedVisits->filter(fn ($visit) => $visit->is_valid);
+        $inProgressVisit = $visitsToday->firstWhere('visit_status', 'in_progress');
+        $latestVisit = $visitsToday->first();
+        $completedCount = $completedVisits->count();
+        $visitedToday = $validCompletedVisits->isNotEmpty();
+        $visitInProgress = (bool) $inProgressVisit;
+
+        return [
+            'visited_today' => $visitedToday,
+            'visit_in_progress' => $visitInProgress,
+            'visit_id' => $inProgressVisit?->id,
+            'visit_check_in_at' => $latestVisit?->check_in_at,
+            'visit_check_out_at' => $latestVisit?->check_out_at,
+            'visit_duration_minutes' => $latestVisit?->duration_minutes,
+            'visits_today_count' => $completedCount,
+            'max_visits_per_day' => $maxVisitsPerDay,
+            'can_revisit' => $visitedToday && !$visitInProgress && $completedCount < $maxVisitsPerDay,
+        ];
     }
 }
