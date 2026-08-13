@@ -227,7 +227,7 @@ class PdvVisitController extends Controller
     public function checkOut(Request $request)
     {
         $request->validate([
-            'visit_id' => 'required|exists:pdv_visits,id',
+            'visit_id' => 'required|integer',
             'notes' => 'nullable|string|max:500',
             'visit_data' => 'nullable|array', // Datos adicionales del formulario
             'latitude' => 'nullable|numeric|between:-90,90',
@@ -242,8 +242,32 @@ class PdvVisitController extends Controller
         $user = $request->user();
         $visit = PdvVisit::where('id', $request->visit_id)
             ->where('user_id', $user->id)
-            ->where('visit_status', 'in_progress')
-            ->firstOrFail();
+            ->first();
+
+        // Si el ID que manda la app ya no está en curso (visita anterior del
+        // mismo día, ID desactualizado, etc.), usar la visita in_progress real.
+        if (!$visit || $visit->visit_status !== 'in_progress') {
+            $pdvId = $visit?->pdv_id;
+            $visit = PdvVisit::where('user_id', $user->id)
+                ->where('visit_status', 'in_progress')
+                ->when($pdvId, fn ($query) => $query->where('pdv_id', $pdvId))
+                ->latest('check_in_at')
+                ->first();
+        }
+
+        if (!$visit) {
+            $visit = PdvVisit::where('user_id', $user->id)
+                ->where('visit_status', 'in_progress')
+                ->latest('check_in_at')
+                ->first();
+        }
+
+        if (!$visit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una visita en curso para finalizar. Puede que ya se haya cerrado.',
+            ], 400);
+        }
 
         $pdvClosed = $request->boolean('pdv_closed');
 

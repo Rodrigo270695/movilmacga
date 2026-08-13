@@ -200,25 +200,9 @@ class PdvFormController extends Controller
             ], 403);
         }
 
-        // Verificar que no haya una visita completada hoy para este PDV
-        $todayVisit = DB::table('pdv_visits')
-            ->where('user_id', $user->id)
-            ->where('pdv_id', $pdv->id)
-            ->whereDate('check_in_at', now()->toDateString())
-            ->where('visit_status', 'completed')
-            ->first();
-
-        if ($todayVisit) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ya has visitado este PDV hoy. No puedes hacer otra visita en el mismo día.',
-                'data' => [
-                    'previous_visit_id' => $todayVisit->id,
-                    'previous_visit_time' => $todayVisit->check_in_at,
-                ]
-            ], 400);
-        }
-
+        // El límite de visitas por día se valida en el check-in. Aquí solo se
+        // guardan respuestas de la visita en curso; no debe bloquearse porque
+        // ya exista otra visita completada hoy al mismo PDV.
         $request->validate([
             'visit_id' => 'required|exists:pdv_visits,id',
             'responses' => 'required|array',
