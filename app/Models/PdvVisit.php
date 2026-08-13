@@ -26,6 +26,8 @@ class PdvVisit extends Model
         'used_mock_location',
         'duration_minutes',
         'visit_status',
+        'pdv_closed',
+        'closed_reason',
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class PdvVisit extends Model
         'is_valid' => 'boolean',
         'used_mock_location' => 'boolean',
         'duration_minutes' => 'integer',
+        'pdv_closed' => 'boolean',
     ];
 
     // Relationships

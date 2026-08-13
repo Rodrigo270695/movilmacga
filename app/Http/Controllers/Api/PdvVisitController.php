@@ -219,6 +219,10 @@ class PdvVisitController extends Controller
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'is_mock_location' => 'nullable|boolean',
+            // PDV cerrado: permite finalizar sin cumplir el tiempo mínimo,
+            // siempre que se deje evidencia (foto + observación).
+            'pdv_closed' => 'nullable|boolean',
+            'closed_reason' => 'required_if:pdv_closed,true|nullable|string|max:500',
         ]);
 
         $user = $request->user();
@@ -227,23 +231,39 @@ class PdvVisitController extends Controller
             ->where('visit_status', 'in_progress')
             ->firstOrFail();
 
-        // Validar tiempo mínimo de visita (configurable por negocio). Esta
-        // regla ya se aplica en la app móvil (deshabilita el botón), pero se
-        // repite aquí para que no pueda saltarse llamando al API directo.
-        $durationMinutesSoFar = now()->diffInMinutes($visit->check_in_at);
-        $minDurationMinutes = $visit->pdv?->resolvedBusiness()?->min_visit_duration_minutes
-            ?? self::DEFAULT_MIN_DURATION_MINUTES;
+        $pdvClosed = $request->boolean('pdv_closed');
 
-        if ($durationMinutesSoFar < $minDurationMinutes) {
-            return response()->json([
-                'success' => false,
-                'message' => "Debes permanecer al menos {$minDurationMinutes} minutos en el PDV antes de finalizar la visita.",
-                'data' => [
-                    'min_duration_minutes' => $minDurationMinutes,
-                    'elapsed_minutes' => $durationMinutesSoFar,
-                    'remaining_minutes' => $minDurationMinutes - $durationMinutesSoFar,
-                ]
-            ], 400);
+        // Si se reporta el PDV como cerrado, se exige evidencia (foto ya
+        // subida vía /pdv-visits/upload-photo) y una observación, pero se
+        // omite la validación de tiempo mínimo: no tiene sentido esperar los
+        // minutos configurados si el local está cerrado y no se puede
+        // completar la visita.
+        if ($pdvClosed) {
+            if (empty($visit->visit_photo)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debes capturar una foto de evidencia antes de finalizar la visita como "PDV cerrado".',
+                ], 400);
+            }
+        } else {
+            // Validar tiempo mínimo de visita (configurable por negocio). Esta
+            // regla ya se aplica en la app móvil (deshabilita el botón), pero se
+            // repite aquí para que no pueda saltarse llamando al API directo.
+            $durationMinutesSoFar = now()->diffInMinutes($visit->check_in_at);
+            $minDurationMinutes = $visit->pdv?->resolvedBusiness()?->min_visit_duration_minutes
+                ?? self::DEFAULT_MIN_DURATION_MINUTES;
+
+            if ($durationMinutesSoFar < $minDurationMinutes) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Debes permanecer al menos {$minDurationMinutes} minutos en el PDV antes de finalizar la visita.",
+                    'data' => [
+                        'min_duration_minutes' => $minDurationMinutes,
+                        'elapsed_minutes' => $durationMinutesSoFar,
+                        'remaining_minutes' => $minDurationMinutes - $durationMinutesSoFar,
+                    ]
+                ], 400);
+            }
         }
 
         try {
@@ -269,28 +289,45 @@ class PdvVisitController extends Controller
                 ];
             }
 
+            if ($pdvClosed) {
+                $visitData['pdv_closed_at'] = now();
+            }
+
             $usedMockLocation = $visit->used_mock_location || $request->boolean('is_mock_location');
+
+            // Si el PDV se reporta como cerrado, la observación ya viaja en
+            // `closed_reason`; se evita duplicarla también como "Salida: ...".
+            if ($pdvClosed) {
+                $notes = trim($visit->notes . "\n\n🔒 PDV CERRADO: " . $request->closed_reason);
+            } else {
+                $notes = $visit->notes . ($request->notes ? "\n\nSalida: " . $request->notes : '');
+            }
 
             $visit->update([
                 'check_out_at' => now(),
                 'visit_status' => 'completed',
                 'duration_minutes' => $durationMinutes,
-                'notes' => $visit->notes . ($request->notes ? "\n\nSalida: " . $request->notes : ''),
+                'notes' => $notes,
                 'used_mock_location' => $usedMockLocation,
                 'visit_data' => $visitData,
+                'pdv_closed' => $pdvClosed,
+                'closed_reason' => $pdvClosed ? $request->closed_reason : null,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Check-out realizado exitosamente',
+                'message' => $pdvClosed
+                    ? 'Visita finalizada como "PDV cerrado". Evidencia registrada correctamente.'
+                    : 'Check-out realizado exitosamente',
                 'data' => [
                     'visit_id' => $visit->id,
                     'check_out_at' => $visit->check_out_at,
                     'duration_minutes' => $durationMinutes,
                     'status' => 'completed',
-                'used_mock_location' => $visit->used_mock_location,
+                    'pdv_closed' => $pdvClosed,
+                    'used_mock_location' => $visit->used_mock_location,
                 ]
             ]);
 
