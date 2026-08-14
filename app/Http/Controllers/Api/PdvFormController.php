@@ -219,18 +219,21 @@ class PdvFormController extends Controller
             ->where('pdv_id', $pdv->id)
             ->first();
 
+        // Si el ID ya no está en curso (visita anterior del mismo día),
+        // guardar las respuestas en la visita in_progress real de este PDV.
+        if (!$visit || $visit->visit_status !== 'in_progress') {
+            $visit = PdvVisit::where('user_id', $user->id)
+                ->where('pdv_id', $pdv->id)
+                ->where('visit_status', 'in_progress')
+                ->latest('check_in_at')
+                ->first();
+        }
+
         if (!$visit) {
             return response()->json([
                 'success' => false,
-                'message' => 'Visita no encontrada para este PDV.',
+                'message' => 'No hay una visita en curso para guardar el formulario.',
             ], 404);
-        }
-
-        if ($visit->visit_status !== 'in_progress') {
-            return response()->json([
-                'success' => false,
-                'message' => 'La visita ya fue completada o cancelada.',
-            ], 409);
         }
 
         $responses = $request->input('responses');
@@ -271,19 +274,16 @@ class PdvFormController extends Controller
                     );
                 }
 
-                $endedAtPeru = now('America/Lima');
-                $durationMinutes = $lockedVisit->check_in_at?->diffInMinutes($endedAtPeru);
-
                 $visitData = $lockedVisit->visit_data ?? [];
                 $visitData['form_submission'] = [
-                    'submitted_at' => $endedAtPeru->toIso8601String(),
+                    'submitted_at' => now('America/Lima')->toIso8601String(),
                     'responses_count' => count($responses),
                 ];
 
+                // Solo se guardan las respuestas. El check-out es quien cierra
+                // la visita; si se completa aquí, Finalizar Visita falla porque
+                // ya no encuentra una visita in_progress.
                 $lockedVisit->fill([
-                    'visit_status' => 'completed',
-                    'check_out_at' => $endedAtPeru,
-                    'duration_minutes' => $durationMinutes,
                     'visit_data' => $visitData,
                 ]);
 
@@ -298,7 +298,7 @@ class PdvFormController extends Controller
                 'data' => [
                     'visit_id' => $result->id,
                     'responses_count' => count($responses),
-                    'visit_completed' => true
+                    'visit_completed' => false,
                 ]
             ]);
 

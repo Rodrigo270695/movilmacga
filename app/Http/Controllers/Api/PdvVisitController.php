@@ -263,6 +263,24 @@ class PdvVisitController extends Controller
         }
 
         if (!$visit) {
+            $alreadyDone = PdvVisit::where('user_id', $user->id)
+                ->where('id', $request->visit_id)
+                ->where('visit_status', 'completed')
+                ->first();
+
+            if ($alreadyDone) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'La visita ya estaba finalizada.',
+                    'data' => [
+                        'visit_id' => $alreadyDone->id,
+                        'check_out_at' => $alreadyDone->check_out_at,
+                        'duration_minutes' => $alreadyDone->duration_minutes,
+                        'status' => 'completed',
+                    ]
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'No hay una visita en curso para finalizar. Puede que ya se haya cerrado.',
