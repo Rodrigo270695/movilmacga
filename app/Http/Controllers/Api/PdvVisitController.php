@@ -305,7 +305,7 @@ class PdvVisitController extends Controller
             // Validar tiempo mínimo de visita (configurable por negocio). Esta
             // regla ya se aplica en la app móvil (deshabilita el botón), pero se
             // repite aquí para que no pueda saltarse llamando al API directo.
-            $durationMinutesSoFar = now()->diffInMinutes($visit->check_in_at);
+            $durationMinutesSoFar = $this->elapsedMinutesSinceCheckIn($visit);
             $minDurationMinutes = $visit->pdv?->resolvedBusiness()?->min_visit_duration_minutes
                 ?? self::DEFAULT_MIN_DURATION_MINUTES;
 
@@ -316,7 +316,7 @@ class PdvVisitController extends Controller
                     'data' => [
                         'min_duration_minutes' => $minDurationMinutes,
                         'elapsed_minutes' => $durationMinutesSoFar,
-                        'remaining_minutes' => $minDurationMinutes - $durationMinutesSoFar,
+                        'remaining_minutes' => max(0, $minDurationMinutes - $durationMinutesSoFar),
                     ]
                 ], 400);
             }
@@ -325,7 +325,7 @@ class PdvVisitController extends Controller
         try {
             DB::beginTransaction();
 
-            $durationMinutes = now()->diffInMinutes($visit->check_in_at);
+            $durationMinutes = $this->elapsedMinutesSinceCheckIn($visit);
 
             $visitData = $visit->visit_data ?? [];
             $visitData = array_merge($visitData, [
@@ -772,6 +772,20 @@ class PdvVisitController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Minutos reales desde el check-in. Carbon 3 devuelve un diff con signo
+     * (now()->diffInMinutes($pasado) sale negativo), y eso hacía rechazar
+     * visitas que ya cumplían el tiempo mínimo.
+     */
+    private function elapsedMinutesSinceCheckIn(PdvVisit $visit): float
+    {
+        if (!$visit->check_in_at) {
+            return 0;
+        }
+
+        return abs((float) $visit->check_in_at->diffInMinutes(now()));
     }
 
     /**

@@ -113,7 +113,7 @@ class PdvVisit extends Model
 
         // Calcular duración automáticamente si hay check_in y check_out
         if ($this->check_in_at && $value) {
-            $this->attributes['duration_minutes'] = $this->check_in_at->diffInMinutes($value);
+            $this->attributes['duration_minutes'] = abs($this->check_in_at->diffInMinutes($value));
 
             // Marcar como completada si no está ya
             if ($this->visit_status === 'in_progress') {
