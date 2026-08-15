@@ -111,7 +111,7 @@ class UserDataController extends Controller
             $visitedTodayPdvs = DB::table('pdv_visits')
                 ->where('user_id', $user->id)
                 ->whereDate('check_in_at', today())
-                ->where('is_valid', true)
+                ->where('visit_status', 'completed')
                 ->whereIn('pdv_id', $pdvIds)
                 ->pluck('pdv_id')
                 ->toArray();

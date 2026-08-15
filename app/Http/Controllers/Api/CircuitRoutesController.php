@@ -74,7 +74,7 @@ class CircuitRoutesController extends Controller
                     ->where('p.route_id', $route->id)
                     ->where('pv.user_id', $user->id)
                     ->whereDate('pv.check_in_at', $todayDate)
-                    ->where('pv.is_valid', true)
+                    ->where('pv.visit_status', 'completed')
                     ->count();
 
                 return [
@@ -176,7 +176,7 @@ class CircuitRoutesController extends Controller
                     ->where('p.route_id', $route->id)
                     ->where('pv.user_id', $user->id)
                     ->whereDate('pv.check_in_at', $todayDate)
-                    ->where('pv.is_valid', true)
+                    ->where('pv.visit_status', 'completed')
                     ->count();
 
                 return [

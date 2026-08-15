@@ -246,7 +246,10 @@ class RoutePdvsController extends Controller
         $inProgressVisit = $visitsToday->firstWhere('visit_status', 'in_progress');
         $latestVisit = $visitsToday->first();
         $completedCount = $completedVisits->count();
-        $visitedToday = $validCompletedVisits->isNotEmpty();
+        // Visitado = hay check-out completado hoy, igual que el reporte web.
+        // Antes se exigía is_valid (dentro del geofence); una visita a 49 km
+        // quedaba Completada en web y Pendiente en la APK.
+        $visitedToday = $completedVisits->isNotEmpty();
         $visitInProgress = (bool) $inProgressVisit;
 
         return [
@@ -258,6 +261,7 @@ class RoutePdvsController extends Controller
             'visit_duration_minutes' => $latestVisit?->duration_minutes,
             'visits_today_count' => $completedCount,
             'max_visits_per_day' => $maxVisitsPerDay,
+            'is_valid' => $validCompletedVisits->isNotEmpty(),
             'can_revisit' => $visitedToday && !$visitInProgress && $completedCount < $maxVisitsPerDay,
         ];
     }
