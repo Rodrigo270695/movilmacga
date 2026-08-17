@@ -97,7 +97,7 @@ class WorkingSession extends Model
 
         // Calcular duración total automáticamente
         if ($this->started_at && $value) {
-            $this->attributes['total_duration_minutes'] = $this->started_at->diffInMinutes($value);
+            $this->attributes['total_duration_minutes'] = (int) round(abs($this->started_at->diffInMinutes($value)));
 
             // Marcar como completada si no está ya
             if ($this->status === 'active') {

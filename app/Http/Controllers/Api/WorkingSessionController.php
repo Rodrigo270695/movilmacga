@@ -141,7 +141,7 @@ class WorkingSessionController extends Controller
                     'notes' => $sessionNotes,
                     'total_distance_km' => $totalDistanceKm,
                     'total_pdvs_visited' => $totalPdvsVisited,
-                    'total_duration_minutes' => $activeSession->started_at->diffInMinutes($endedAtPeru),
+                    'total_duration_minutes' => (int) round(abs($activeSession->started_at->diffInMinutes($endedAtPeru))),
                     'session_data' => $sessionData,
                     'status' => 'completed',
                 ]);

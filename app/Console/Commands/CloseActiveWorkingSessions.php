@@ -49,7 +49,7 @@ class CloseActiveWorkingSessions extends Command
                 DB::beginTransaction();
                 
                 // Calcular duración total
-                $totalDuration = $session->started_at->diffInMinutes($closeDateTime);
+                $totalDuration = (int) round(abs($session->started_at->diffInMinutes($closeDateTime)));
                 
                 // Contar PDVs visitados en esta jornada
                 $pdvsVisited = DB::table('pdv_visits')

@@ -779,13 +779,13 @@ class PdvVisitController extends Controller
      * (now()->diffInMinutes($pasado) sale negativo), y eso hacía rechazar
      * visitas que ya cumplían el tiempo mínimo.
      */
-    private function elapsedMinutesSinceCheckIn(PdvVisit $visit): float
+    private function elapsedMinutesSinceCheckIn(PdvVisit $visit): int
     {
         if (!$visit->check_in_at) {
             return 0;
         }
 
-        return abs((float) $visit->check_in_at->diffInMinutes(now()));
+        return (int) round(abs((float) $visit->check_in_at->diffInMinutes(now())));
     }
 
     /**
