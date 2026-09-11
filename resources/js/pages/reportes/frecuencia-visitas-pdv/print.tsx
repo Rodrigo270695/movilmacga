@@ -26,6 +26,11 @@ function nDec(value: number) {
     return value.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
+function pct(part: number, total: number) {
+    if (total <= 0) return 0;
+    return Math.round((part / total) * 100);
+}
+
 function BarRow({ label, value, max, extra }: { label: string; value: number; max: number; extra?: string }) {
     const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
 
@@ -52,6 +57,10 @@ export default function FrecuenciaVisitasPdvPrint({ kpis, charts, periodo, alcan
     const weekMax = Math.max(...weekRows.map((w) => w.pdvs), 1);
     const weekdayMax = Math.max(...charts.by_weekday.map((d) => d.pdvs), 1);
     const zonalMax = Math.max(...charts.by_zonal.map((z) => z.q_month), 1);
+    const once = charts.by_week.find((w) => w.key === '1')?.pdvs ?? 0;
+    const twice = charts.by_week.find((w) => w.key === '2')?.pdvs ?? 0;
+    const threePlus = charts.by_week.filter((w) => ['3', '4', '5'].includes(w.key)).reduce((s, w) => s + w.pdvs, 0);
+    const none = charts.by_week.find((w) => w.key === '0')?.pdvs ?? 0;
 
     return (
         <>
@@ -102,12 +111,37 @@ export default function FrecuenciaVisitasPdvPrint({ kpis, charts, periodo, alcan
                         </div>
                     </header>
 
-                    <section className="grid grid-cols-4 gap-3 mb-5">
-                        <KpiBox label="PDVs activos" value={nInt(kpis.total_pdvs)} />
-                        <KpiBox label="Promedio / semana" value={nDec(kpis.avg_week)} />
-                        <KpiBox label="Promedio Q / mes" value={nDec(kpis.avg_month)} />
-                        <KpiBox label="Q total del mes" value={nInt(kpis.q_month_total)} />
+                    <section className="mb-4 text-[11px] bg-blue-50 text-blue-900 rounded px-3 py-2">
+                        Así se lee: el porcentaje es la parte de PDVs que se visita 1, 2 o 3+ veces por semana.
+                        1 vez/semana = 4 visitas al mes · 2 veces = 8 · 3 veces = 12.
                     </section>
+
+                    <section className="grid grid-cols-4 gap-3 mb-5">
+                        <KpiBox
+                            label="PDVs activos"
+                            value={nInt(kpis.total_pdvs)}
+                            hint="Puntos de venta que venden"
+                        />
+                        <KpiBox
+                            label="1 visita / semana"
+                            value={`${pct(once, kpis.total_pdvs)}%`}
+                            hint={`${nInt(once)} PDVs · 4 visitas al mes`}
+                        />
+                        <KpiBox
+                            label="2 visitas / semana"
+                            value={`${pct(twice, kpis.total_pdvs)}%`}
+                            hint={`${nInt(twice)} PDVs · 8 visitas al mes`}
+                        />
+                        <KpiBox
+                            label="3 o más / semana"
+                            value={`${pct(threePlus, kpis.total_pdvs)}%`}
+                            hint={`${nInt(threePlus)} PDVs · 12 o más al mes`}
+                        />
+                    </section>
+                    <p className="text-xs text-gray-600 -mt-3 mb-5">
+                        Q Integratel del mes: <strong>{nInt(kpis.q_month_total)}</strong> visitas programadas
+                        {none > 0 ? ` · ${pct(none, kpis.total_pdvs)}% sin visita este mes` : ''}.
+                    </p>
 
                     <section className="grid grid-cols-2 gap-6 mb-5">
                         <div>
@@ -203,11 +237,12 @@ export default function FrecuenciaVisitasPdvPrint({ kpis, charts, periodo, alcan
     );
 }
 
-function KpiBox({ label, value }: { label: string; value: string }) {
+function KpiBox({ label, value, hint }: { label: string; value: string; hint?: string }) {
     return (
         <div className="border border-slate-200 rounded-md px-3 py-2 bg-slate-50">
             <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
             <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
+            {hint ? <p className="text-[10px] text-gray-500 mt-0.5">{hint}</p> : null}
         </div>
     );
 }

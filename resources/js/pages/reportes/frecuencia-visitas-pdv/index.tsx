@@ -155,12 +155,7 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-break">
-                        <Kpi icon={<MapPin className="w-5 h-5 text-blue-600" />} color="bg-blue-100" label="PDVs activos" value={kpis.total_pdvs} />
-                        <Kpi icon={<Repeat className="w-5 h-5 text-indigo-600" />} color="bg-indigo-100" label="Promedio / semana" value={kpis.avg_week} />
-                        <Kpi icon={<CalendarDays className="w-5 h-5 text-sky-600" />} color="bg-sky-100" label="Promedio Q / mes" value={kpis.avg_month} />
-                        <Kpi icon={<BarChart3 className="w-5 h-5 text-violet-600" />} color="bg-violet-100" label="Q total del mes" value={kpis.q_month_total} />
-                    </div>
+                    <HowToRead charts={charts} totalPdvs={kpis.total_pdvs} qMonth={kpis.q_month_total} />
 
                     <FrecuenciaFilters filtros={filtros} opciones={opciones} />
 
@@ -190,18 +185,102 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
     );
 }
 
-function Kpi({ icon, color, label, value }: { icon: ReactNode; color: string; label: string; value: number }) {
+function pct(part: number, total: number) {
+    if (total <= 0) return 0;
+    return Math.round((part / total) * 100);
+}
+
+function weekCount(charts: ChartPayload, keys: string[]) {
+    return charts.by_week
+        .filter((row) => keys.includes(row.key))
+        .reduce((sum, row) => sum + row.pdvs, 0);
+}
+
+function HowToRead({ charts, totalPdvs, qMonth }: { charts: ChartPayload; totalPdvs: number; qMonth: number }) {
+    const once = weekCount(charts, ['1']);
+    const twice = weekCount(charts, ['2']);
+    const threePlus = weekCount(charts, ['3', '4', '5']);
+    const none = weekCount(charts, ['0']);
+
     return (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm print-break">
-            <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center`}>
+        <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-900">
+                <p className="font-medium">Cómo leer este reporte</p>
+                <p className="text-blue-800 mt-1">
+                    Cada PDV tiene una frecuencia de visita en su ruta. Si se visita <strong>1 vez por semana</strong>,
+                    en el mes son <strong>4 visitas</strong>. Si son 2 por semana, son 8 al mes. Si son 3, son 12.
+                    El porcentaje indica cuántos PDVs están en cada ritmo.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <Kpi
+                    icon={<MapPin className="w-5 h-5 text-blue-600" />}
+                    color="bg-blue-100"
+                    value={totalPdvs.toLocaleString('es-PE')}
+                    label="PDVs activos"
+                    hint="Puntos de venta que venden en el filtro"
+                />
+                <Kpi
+                    icon={<Repeat className="w-5 h-5 text-sky-600" />}
+                    color="bg-sky-100"
+                    value={`${pct(once, totalPdvs)}%`}
+                    label="1 visita por semana"
+                    hint={`${once.toLocaleString('es-PE')} PDVs · 4 visitas al mes`}
+                />
+                <Kpi
+                    icon={<CalendarDays className="w-5 h-5 text-indigo-600" />}
+                    color="bg-indigo-100"
+                    value={`${pct(twice, totalPdvs)}%`}
+                    label="2 visitas por semana"
+                    hint={`${twice.toLocaleString('es-PE')} PDVs · 8 visitas al mes`}
+                />
+                <Kpi
+                    icon={<BarChart3 className="w-5 h-5 text-violet-600" />}
+                    color="bg-violet-100"
+                    value={`${pct(threePlus, totalPdvs)}%`}
+                    label="3 o más visitas por semana"
+                    hint={`${threePlus.toLocaleString('es-PE')} PDVs · 12 o más al mes`}
+                />
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span>
+                    <strong className="text-gray-900">{qMonth.toLocaleString('es-PE')}</strong> visitas programadas en el mes (Q Integratel)
+                </span>
+                {none > 0 && (
+                    <span className="text-gray-500">
+                        {pct(none, totalPdvs)}% ({none.toLocaleString('es-PE')}) sin fecha de visita este mes
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function Kpi({
+    icon,
+    color,
+    label,
+    value,
+    hint,
+}: {
+    icon: ReactNode;
+    color: string;
+    label: string;
+    value: string;
+    hint: string;
+}) {
+    return (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center flex-shrink-0`}>
                     {icon}
                 </div>
-                <div>
-                    <p className="text-sm text-gray-600">{label}</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                        {typeof value === 'number' ? value.toLocaleString('es-PE') : value}
-                    </p>
+                <div className="min-w-0">
+                    <p className="text-xs text-gray-500">{label}</p>
+                    <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
+                    <p className="text-xs text-gray-500 mt-1">{hint}</p>
                 </div>
             </div>
         </div>
