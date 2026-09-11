@@ -13,6 +13,7 @@ interface Filtros {
     zonal_id?: string;
     circuit_id?: string;
     route_id?: string;
+    pdv_status?: string;
     per_page?: string;
 }
 
@@ -38,11 +39,16 @@ export function FrecuenciaFilters({ filtros, opciones }: Props) {
         zonal_id: filtros.zonal_id || '',
         circuit_id: filtros.circuit_id || '',
         route_id: filtros.route_id || '',
+        pdv_status: filtros.pdv_status || 'vende',
     });
 
     const apply = (next: typeof local) => {
         const params: Record<string, string> = {};
         Object.entries(next).forEach(([key, value]) => {
+            if (key === 'pdv_status') {
+                if (value) params[key] = value;
+                return;
+            }
             if (value && value !== 'todos') params[key] = value;
         });
         if (filtros.per_page) params.per_page = filtros.per_page;
@@ -53,7 +59,7 @@ export function FrecuenciaFilters({ filtros, opciones }: Props) {
     };
 
     const update = (key: keyof typeof local, value: string) => {
-        const next = { ...local, [key]: value === 'todos' ? '' : value };
+        const next = { ...local, [key]: key === 'pdv_status' ? value : (value === 'todos' ? '' : value) };
         if (key === 'business_id') {
             next.zonal_id = '';
             next.circuit_id = '';
@@ -78,12 +84,15 @@ export function FrecuenciaFilters({ filtros, opciones }: Props) {
             zonal_id: '',
             circuit_id: '',
             route_id: '',
+            pdv_status: 'vende',
         };
         setLocal(next);
         apply(next);
     };
 
-    const hasFilters = Boolean(local.business_id || local.zonal_id || local.circuit_id || local.route_id);
+    const hasFilters = Boolean(
+        local.business_id || local.zonal_id || local.circuit_id || local.route_id || (local.pdv_status && local.pdv_status !== 'vende')
+    );
 
     return (
         <Card className="p-4 no-print">
@@ -100,7 +109,7 @@ export function FrecuenciaFilters({ filtros, opciones }: Props) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                 <div>
                     <Label className="text-xs text-gray-600">Mes</Label>
                     <Select value={local.month} onValueChange={(v) => update('month', v)}>
@@ -168,6 +177,17 @@ export function FrecuenciaFilters({ filtros, opciones }: Props) {
                             {opciones.routes.map((r) => (
                                 <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
                             ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <Label className="text-xs text-gray-600">Estado PDV</Label>
+                    <Select value={local.pdv_status || 'vende'} onValueChange={(v) => update('pdv_status', v)}>
+                        <SelectTrigger className="mt-1"><SelectValue placeholder="Vende" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="vende">Vende</SelectItem>
+                            <SelectItem value="no vende">No vende</SelectItem>
+                            <SelectItem value="todos">Vende y no vende</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

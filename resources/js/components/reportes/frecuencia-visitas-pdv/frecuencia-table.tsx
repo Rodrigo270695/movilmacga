@@ -6,6 +6,7 @@ interface PdvRow {
     id: number;
     point_name: string;
     client_name: string;
+    status?: string;
     visits_week: number;
     visits_month: number;
     programmed_month: number;
@@ -51,6 +52,7 @@ export function FrecuenciaTable({ pdvs }: Props) {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">PDV</th>
+                            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Estado</th>
                             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Ruta / Circuito</th>
                             <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Días</th>
                             <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Semana</th>
@@ -69,6 +71,13 @@ export function FrecuenciaTable({ pdvs }: Props) {
                                             <div className="text-xs text-gray-500">{pdv.client_name}</div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Badge className={pdv.status === 'vende'
+                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                        : 'bg-amber-50 text-amber-700 border-amber-200'}>
+                                        {pdv.status === 'vende' ? 'Vende' : 'No vende'}
+                                    </Badge>
                                 </td>
                                 <td className="px-4 py-3">
                                     <div className="text-sm text-gray-900">{pdv.route?.name || '-'}</div>

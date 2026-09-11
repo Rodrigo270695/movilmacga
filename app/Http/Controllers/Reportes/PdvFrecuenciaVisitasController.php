@@ -76,6 +76,7 @@ class PdvFrecuenciaVisitasController extends Controller
                 'zonal_id' => $request->zonal_id,
                 'circuit_id' => $request->circuit_id,
                 'route_id' => $request->route_id,
+                'pdv_status' => $this->resolvedPdvStatus($request),
                 'per_page' => (string) $perPage,
             ],
             'opciones' => $this->filterOptions($request),
@@ -161,23 +162,42 @@ class PdvFrecuenciaVisitasController extends Controller
         return Excel::download(new PdvFrecuenciaVisitasExport($pdvs), $fileName);
     }
 
+    private function resolvedPdvStatus(Request $request): string
+    {
+        $status = (string) $request->get('pdv_status', 'vende');
+
+        return in_array($status, ['vende', 'no vende', 'todos'], true) ? $status : 'vende';
+    }
+
     private function basePdvsQuery(Request $request)
     {
-        $query = Pdv::query()
-            ->where('pdvs.status', 'vende')
-            ->whereNotNull('pdvs.route_id');
+        $query = Pdv::query()->whereNotNull('pdvs.route_id');
+
+        $pdvStatus = $this->resolvedPdvStatus($request);
+        if ($pdvStatus !== 'todos') {
+            $query->where('pdvs.status', $pdvStatus);
+        } else {
+            $query->whereIn('pdvs.status', ['vende', 'no vende']);
+        }
+
+        // Solo zonales activas: las desactivadas no entran al reporte ni a los gráficos
+        $query->whereHas('route.circuit.zonal', function ($q) {
+            $q->where('status', true);
+        });
 
         $query = $this->applyFullScope($query, 'route.circuit.zonal.business', 'route.circuit.zonal');
 
         if ($request->filled('business_id')) {
             $query->whereHas('route.circuit.zonal', function ($q) use ($request) {
-                $q->where('business_id', $request->business_id);
+                $q->where('business_id', $request->business_id)
+                    ->where('status', true);
             });
         }
 
         if ($request->filled('zonal_id')) {
-            $query->whereHas('route.circuit', function ($q) use ($request) {
-                $q->where('zonal_id', $request->zonal_id);
+            $query->whereHas('route.circuit.zonal', function ($q) use ($request) {
+                $q->where('id', $request->zonal_id)
+                    ->where('status', true);
             });
         }
 
@@ -203,8 +223,10 @@ class PdvFrecuenciaVisitasController extends Controller
         return DB::table('route_visit_dates as rvd')
             ->join('routes as r', 'rvd.route_id', '=', 'r.id')
             ->join('circuits as c', 'r.circuit_id', '=', 'c.id')
+            ->join('zonales as z', 'c.zonal_id', '=', 'z.id')
             ->where('rvd.is_active', true)
             ->where('r.status', true)
+            ->where('z.status', true)
             ->whereDate('rvd.visit_date', '>=', $start->toDateString())
             ->whereDate('rvd.visit_date', '<=', $end->toDateString())
             ->where(function ($q) {
@@ -248,6 +270,7 @@ class PdvFrecuenciaVisitasController extends Controller
             ->join('routes', 'pdvs.route_id', '=', 'routes.id')
             ->join('circuits', 'routes.circuit_id', '=', 'circuits.id')
             ->join('zonales', 'circuits.zonal_id', '=', 'zonales.id')
+            ->where('zonales.status', true)
             ->selectRaw('zonales.id as zonal_id, zonales.name as zonal_name, circuits.id as circuit_id, circuits.name as circuit_name, pdvs.route_id, COUNT(pdvs.id) as cnt')
             ->groupBy('zonales.id', 'zonales.name', 'circuits.id', 'circuits.name', 'pdvs.route_id')
             ->get();
@@ -359,8 +382,10 @@ class PdvFrecuenciaVisitasController extends Controller
         $rows = DB::table('pdvs')
             ->join('route_visit_dates as rvd', 'rvd.route_id', '=', 'pdvs.route_id')
             ->join('routes as r', 'rvd.route_id', '=', 'r.id')
+            ->join('circuits as c', 'r.circuit_id', '=', 'c.id')
+            ->join('zonales as z', 'c.zonal_id', '=', 'z.id')
             ->whereIn('pdvs.id', $pdvIds)
-            ->where('pdvs.status', 'vende')
+            ->where('z.status', true)
             ->where('rvd.is_active', true)
             ->where('r.status', true)
             ->whereDate('rvd.visit_date', '>=', $start->toDateString())
@@ -436,7 +461,14 @@ class PdvFrecuenciaVisitasController extends Controller
             }
         }
 
-        return $parts ? implode(' · ', $parts) : 'Todos los PDVs activos (vende)';
+        $status = $this->resolvedPdvStatus($request);
+        $parts[] = match ($status) {
+            'no vende' => 'Estado PDV: No vende',
+            'todos' => 'Estado PDV: Vende y no vende',
+            default => 'Estado PDV: Vende',
+        };
+
+        return implode(' · ', $parts);
     }
 
     private function filterOptions(Request $request): array
@@ -446,8 +478,11 @@ class PdvFrecuenciaVisitasController extends Controller
 
         $businessesQuery = Business::where('status', true);
         $zonalesQuery = Zonal::with('business:id,name')->where('status', true);
-        $circuitsQuery = Circuit::with('zonal:id,name')->where('status', true);
-        $routesQuery = Route::where('status', true);
+        $circuitsQuery = Circuit::with('zonal:id,name')
+            ->where('status', true)
+            ->whereHas('zonal', fn ($q) => $q->where('status', true));
+        $routesQuery = Route::where('status', true)
+            ->whereHas('circuit.zonal', fn ($q) => $q->where('status', true));
 
         if (! $scope['is_admin']) {
             if ($scope['has_business_restriction'] && ! empty($scope['business_ids'])) {

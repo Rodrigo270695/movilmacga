@@ -66,7 +66,9 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
     const queryParams = () => {
         const params = new URLSearchParams();
         Object.entries(filtros).forEach(([key, value]) => {
-            if (value && value !== 'todos' && key !== 'per_page') params.set(key, value);
+            if (!value || key === 'per_page') return;
+            if (key !== 'pdv_status' && value === 'todos') return;
+            params.set(key, value);
         });
         return params.toString();
     };
@@ -101,7 +103,9 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
     const visitPage = (page: number, perPage?: number) => {
         const params = new URLSearchParams();
         Object.entries(filtros).forEach(([key, value]) => {
-            if (value && value !== 'todos' && key !== 'per_page') params.set(key, value);
+            if (!value || key === 'per_page') return;
+            if (key !== 'pdv_status' && value === 'todos') return;
+            params.set(key, value);
         });
         params.set('per_page', String(perPage ?? pdvs.per_page));
         params.set('page', String(page));
@@ -219,7 +223,7 @@ function HowToRead({ charts, totalPdvs, qMonth }: { charts: ChartPayload; totalP
                     color="bg-blue-100"
                     value={totalPdvs.toLocaleString('es-PE')}
                     label="PDVs activos"
-                    hint="Puntos de venta que venden en el filtro"
+                    hint="PDVs del filtro (solo zonales activas)"
                 />
                 <Kpi
                     icon={<Repeat className="w-5 h-5 text-sky-600" />}
