@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Reportes\PdvFrecuenciaVisitasController;
 use App\Http\Controllers\Reportes\PdvVisitadosController;
 use App\Http\Controllers\Reportes\PdvVisitFormResponsesController;
 use App\Http\Controllers\Reportes\TipoNegocioReportController;
@@ -65,5 +66,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('tipo-de-negocio', [TipoNegocioReportController::class, 'index'])
             ->name('tipo-de-negocio.index')
             ->middleware(['permission:reporte-tipo-negocio-acceso', 'permission:reporte-tipo-negocio-ver']);
+
+        Route::get('frecuencia-visitas-pdv', [PdvFrecuenciaVisitasController::class, 'index'])
+            ->name('frecuencia-visitas-pdv.index')
+            ->middleware('permission:reporte-frecuencia-visitas-pdv-acceso');
+
+        Route::get('frecuencia-visitas-pdv/exportar', [PdvFrecuenciaVisitasController::class, 'export'])
+            ->name('frecuencia-visitas-pdv.exportar')
+            ->middleware('permission:reporte-frecuencia-visitas-pdv-exportar');
     });
 });

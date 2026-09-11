@@ -142,6 +142,10 @@ class RolePermissionSeeder extends Seeder
             'reporte-tipo-negocio-acceso',
             'reporte-tipo-negocio-ver',
 
+            'reporte-frecuencia-visitas-pdv-acceso',
+            'reporte-frecuencia-visitas-pdv-ver',
+            'reporte-frecuencia-visitas-pdv-exportar',
+
             // Aplicación Móvil (Supervisores/Vendedores)
             'app-movil-acceso',
             'app-movil-gps-tracking',
@@ -218,6 +222,9 @@ class RolePermissionSeeder extends Seeder
             'reporte-pdvs-visitados-acceso',
             'reporte-pdvs-visitados-ver',
             'reporte-pdvs-visitados-exportar',
+            'reporte-frecuencia-visitas-pdv-acceso',
+            'reporte-frecuencia-visitas-pdv-ver',
+            'reporte-frecuencia-visitas-pdv-exportar',
         ];
         $supervisorRole->syncPermissions($supervisorPermissions);
 

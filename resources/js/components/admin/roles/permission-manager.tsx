@@ -29,7 +29,8 @@ import {
     FileText,
     Clock,
     FileCheck,
-    Layers
+    Layers,
+    Repeat
 } from 'lucide-react';
 
 interface Permission {
@@ -334,6 +335,17 @@ const menuStructure = [
                 actions: [
                     { id: 'reporte-tipo-negocio-ver', label: 'Ver reporte Tipo de negocio' },
                 ]
+            },
+            {
+                id: 'frecuencia-visitas-pdv',
+                label: 'Frecuencia visitas PDV',
+                icon: Repeat,
+                className: 'text-blue-600 bg-blue-100',
+                permission: 'reporte-frecuencia-visitas-pdv-acceso',
+                actions: [
+                    { id: 'reporte-frecuencia-visitas-pdv-ver', label: 'Ver reporte de frecuencia de visitas' },
+                    { id: 'reporte-frecuencia-visitas-pdv-exportar', label: 'Exportar reporte a Excel/PDF' }
+                ]
             }
         ]
     },
@@ -444,6 +456,10 @@ const actionLabels: Record<string, string> = {
 
     'reporte-tipo-negocio-acceso': 'Acceso al reporte Tipo de negocio (menú Reportes)',
     'reporte-tipo-negocio-ver': 'Ver reporte Tipo de negocio',
+
+    'reporte-frecuencia-visitas-pdv-acceso': 'Acceso al reporte Frecuencia visitas PDV',
+    'reporte-frecuencia-visitas-pdv-ver': 'Ver reporte de frecuencia de visitas PDV',
+    'reporte-frecuencia-visitas-pdv-exportar': 'Exportar reporte de frecuencia de visitas',
 
     'configuracion-general': 'Configuración general del sistema',
     'configuracion-seguridad': 'Configuración de seguridad'
