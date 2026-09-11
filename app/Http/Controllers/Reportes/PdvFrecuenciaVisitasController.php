@@ -89,6 +89,39 @@ class PdvFrecuenciaVisitasController extends Controller
         ]);
     }
 
+    /**
+     * Vista limpia para imprimir / guardar como PDF.
+     */
+    public function print(Request $request)
+    {
+        Carbon::setLocale('es');
+        $lima = now()->setTimezone('America/Lima');
+        $year = (int) ($request->year ?: $lima->year);
+        $month = (int) ($request->month ?: $lima->month);
+        $year = max(2020, min(2100, $year));
+        $month = max(1, min(12, $month));
+
+        $start = Carbon::create($year, $month, 1, 0, 0, 0, 'America/Lima')->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $routeStats = $this->routeFrequencyStats($start, $end);
+        $pdvsQuery = $this->basePdvsQuery($request);
+        $chartData = $this->buildChartData(clone $pdvsQuery, $routeStats, $start, $end);
+        $kpis = $this->buildKpis($chartData);
+
+        return Inertia::render('reportes/frecuencia-visitas-pdv/print', [
+            'kpis' => $kpis,
+            'charts' => $chartData,
+            'periodo' => [
+                'label' => $start->locale('es')->translatedFormat('F Y'),
+                'start' => $start->format('d/m/Y'),
+                'end' => $end->format('d/m/Y'),
+            ],
+            'alcance' => $this->scopeLabel($request),
+            'generado' => now('America/Lima')->format('d/m/Y H:i'),
+        ]);
+    }
+
     public function export(Request $request)
     {
         $lima = now()->setTimezone('America/Lima');
@@ -372,6 +405,38 @@ class PdvFrecuenciaVisitasController extends Controller
             'avg_month' => $chartData['avg_month'],
             'q_month_total' => $chartData['q_month_total'],
         ];
+    }
+
+    private function scopeLabel(Request $request): string
+    {
+        $parts = [];
+
+        if ($request->filled('business_id')) {
+            $name = Business::find($request->business_id)?->name;
+            if ($name) {
+                $parts[] = 'Negocio: '.$name;
+            }
+        }
+        if ($request->filled('zonal_id')) {
+            $name = Zonal::find($request->zonal_id)?->name;
+            if ($name) {
+                $parts[] = 'Zonal: '.$name;
+            }
+        }
+        if ($request->filled('circuit_id')) {
+            $name = Circuit::find($request->circuit_id)?->name;
+            if ($name) {
+                $parts[] = 'Circuito: '.$name;
+            }
+        }
+        if ($request->filled('route_id')) {
+            $name = Route::find($request->route_id)?->name;
+            if ($name) {
+                $parts[] = 'Ruta: '.$name;
+            }
+        }
+
+        return $parts ? implode(' · ', $parts) : 'Todos los PDVs activos (vende)';
     }
 
     private function filterOptions(Request $request): array

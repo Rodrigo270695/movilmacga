@@ -66,7 +66,7 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
     const queryParams = () => {
         const params = new URLSearchParams();
         Object.entries(filtros).forEach(([key, value]) => {
-            if (value && value !== 'todos') params.set(key, value);
+            if (value && value !== 'todos' && key !== 'per_page') params.set(key, value);
         });
         return params.toString();
     };
@@ -93,7 +93,9 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
     };
 
     const handlePrint = () => {
-        window.print();
+        const params = queryParams();
+        const url = `/reportes/frecuencia-visitas-pdv/imprimir${params ? `?${params}` : ''}`;
+        window.open(url, '_blank', 'noopener');
     };
 
     const visitPage = (page: number, perPage?: number) => {
@@ -113,37 +115,9 @@ export default function FrecuenciaVisitasPdvIndex({ pdvs, kpis, charts, filtros,
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Frecuencia de visitas PDV" />
 
-            <style>{`
-                @media print {
-                    aside, [data-sidebar], header, .no-print, nav {
-                        display: none !important;
-                    }
-                    main, [data-slot="sidebar-inset"] {
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        width: 100% !important;
-                        max-width: 100% !important;
-                    }
-                    body { background: white !important; }
-                    .print-only { display: block !important; }
-                    .print-break { break-inside: avoid; page-break-inside: avoid; }
-                }
-                .print-only { display: none; }
-            `}</style>
-
             <div className="min-h-screen bg-gray-50/30 p-3 sm:p-6">
-                <div className="space-y-4 sm:space-y-6 print:space-y-4">
-                    <div className="print-only mb-4">
-                        <h1 className="text-xl font-bold text-gray-900">Frecuencia de visitas PDV — Integratel</h1>
-                        <p className="text-sm text-gray-600">
-                            Período: {periodo.label} ({periodo.start} al {periodo.end})
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Fórmula: visitas por semana × 4 = Q de visitas al mes. Ejemplo: 3/semana = 12/mes.
-                        </p>
-                    </div>
-
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm no-print">
+                <div className="space-y-4 sm:space-y-6">
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
                         <div className="px-4 sm:px-6 py-4 sm:py-5">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div>

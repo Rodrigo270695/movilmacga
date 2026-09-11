@@ -71,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('frecuencia-visitas-pdv.index')
             ->middleware('permission:reporte-frecuencia-visitas-pdv-acceso');
 
+        Route::get('frecuencia-visitas-pdv/imprimir', [PdvFrecuenciaVisitasController::class, 'print'])
+            ->name('frecuencia-visitas-pdv.imprimir')
+            ->middleware('permission:reporte-frecuencia-visitas-pdv-acceso');
+
         Route::get('frecuencia-visitas-pdv/exportar', [PdvFrecuenciaVisitasController::class, 'export'])
             ->name('frecuencia-visitas-pdv.exportar')
             ->middleware('permission:reporte-frecuencia-visitas-pdv-exportar');
