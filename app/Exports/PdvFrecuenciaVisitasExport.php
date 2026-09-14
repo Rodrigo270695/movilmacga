@@ -29,6 +29,8 @@ class PdvFrecuenciaVisitasExport implements FromCollection, WithHeadings, WithMa
         return [
             'PDV',
             'Cliente',
+            'Número de documento',
+            'Vendedor asignado',
             'Estado',
             'Ruta',
             'Circuito',
@@ -46,6 +48,8 @@ class PdvFrecuenciaVisitasExport implements FromCollection, WithHeadings, WithMa
         return [
             $pdv->point_name,
             $pdv->client_name,
+            $this->documentNumber($pdv),
+            $this->assignedVendor($pdv),
             $pdv->status === 'vende' ? 'Vende' : 'No vende',
             $pdv->route?->name ?? '-',
             $pdv->route?->circuit?->name ?? '-',
@@ -58,9 +62,37 @@ class PdvFrecuenciaVisitasExport implements FromCollection, WithHeadings, WithMa
         ];
     }
 
+    private function documentNumber($pdv): string
+    {
+        $number = trim((string) ($pdv->document_number ?? ''));
+
+        return $number !== '' ? $number : '-';
+    }
+
+    private function assignedVendor($pdv): string
+    {
+        $users = $pdv->route?->circuit?->userCircuits
+            ?->where('is_active', true)
+            ->map(function ($assignment) {
+                $user = $assignment->user;
+                if (! $user) {
+                    return null;
+                }
+
+                $name = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+
+                return $name !== '' ? $name : ($user->name ?? null);
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $users?->isNotEmpty() ? $users->implode(', ') : 'Sin asignar';
+    }
+
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:K1')->applyFromArray([
+        $sheet->getStyle('A1:M1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -73,7 +105,7 @@ class PdvFrecuenciaVisitasExport implements FromCollection, WithHeadings, WithMa
         ]);
 
         $last = $this->pdvs->count() + 1;
-        $sheet->getStyle('A1:K'.$last)->applyFromArray([
+        $sheet->getStyle('A1:M'.$last)->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
@@ -89,15 +121,17 @@ class PdvFrecuenciaVisitasExport implements FromCollection, WithHeadings, WithMa
         return [
             'A' => 32,
             'B' => 28,
-            'C' => 14,
-            'D' => 22,
-            'E' => 22,
-            'F' => 20,
-            'G' => 20,
-            'H' => 22,
-            'I' => 16,
+            'C' => 20,
+            'D' => 28,
+            'E' => 14,
+            'F' => 22,
+            'G' => 22,
+            'H' => 20,
+            'I' => 20,
             'J' => 22,
-            'K' => 24,
+            'K' => 16,
+            'L' => 22,
+            'M' => 24,
         ];
     }
 

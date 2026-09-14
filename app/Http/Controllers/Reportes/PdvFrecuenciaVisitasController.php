@@ -138,6 +138,8 @@ class PdvFrecuenciaVisitasController extends Controller
                 'route.circuit:id,name,code,zonal_id',
                 'route.circuit.zonal:id,name,business_id',
                 'route.circuit.zonal.business:id,name',
+                'route.circuit.userCircuits' => fn ($q) => $q->where('is_active', true),
+                'route.circuit.userCircuits.user:id,first_name,last_name,name',
             ])
             ->orderBy('point_name')
             ->get()
