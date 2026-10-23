@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests\DCS;
 
+use App\Support\PdvCatalogs;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class PdvRequest extends FormRequest
 {
@@ -58,25 +59,74 @@ class PdvRequest extends FormRequest
             'client_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:15'],
+            'contacto_referencial' => ['nullable', 'string', 'max:20'],
+            'firmo_contrato' => ['boolean'],
+            'tipo_contrato' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposContrato()))],
+            'tiene_huellero' => ['boolean'],
+            'propiedad_huellero' => ['nullable', Rule::in(array_keys(PdvCatalogs::propiedadesHuellero()))],
             'sells_recharge' => ['boolean'],
             'classification' => [
                 'required',
-                Rule::in(['telecomunicaciones', 'chalequeros', 'bodega', 'otras tiendas', 'desconocida', 'pusher', 'minimarket', 'botica', 'farmacia', 'tambo', 'cencosud'])
+                Rule::in(array_keys(PdvCatalogs::rubros())),
             ],
             'status' => [
                 'required',
-                Rule::in(['vende', 'no vende', 'no existe', 'pdv autoactivado', 'pdv impulsador'])
+                Rule::in(['vende', 'no vende', 'no existe', 'pdv autoactivado', 'pdv impulsador']),
             ],
+            'estado_comercial' => ['nullable', Rule::in(array_keys(PdvCatalogs::estadosComerciales()))],
+            'motivo_no_activo' => [
+                Rule::requiredIf($this->input('estado_comercial') === 'no_activo'),
+                'nullable',
+                Rule::in(array_keys(PdvCatalogs::motivosNoActivo())),
+            ],
+            'clasificacion_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::clasificacionesPdv()))],
+            'tipo_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposPdv()))],
+            'detalle_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::detallesPdv()))],
+            'tipo_portal' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposPortal()))],
+            'comercializacion' => ['nullable', Rule::in(array_keys(PdvCatalogs::comercializaciones()))],
             'address' => ['required', 'string'],
             'reference' => ['nullable', 'string'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'tipo_zona' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposZona()))],
+            'tipo_zona_urbana' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposZonaUrbana()))],
+            'detalle_zona_urbana' => ['nullable', Rule::in(array_keys(PdvCatalogs::detallesZonaUrbana()))],
+            'tipo_senal' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposSenal()))],
             'route_id' => ['required', 'exists:routes,id'],
+            'visita_presencial' => ['boolean'],
+            'frecuencia_visita' => ['nullable', Rule::in(array_keys(PdvCatalogs::frecuenciasVisita()))],
             'district_id' => ['required', 'exists:distritos,id'],
             'locality' => ['required', 'string', 'max:255'],
         ];
 
         return $rules;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $nullable = [
+            'estado_comercial', 'motivo_no_activo', 'clasificacion_pdv', 'tipo_pdv',
+            'detalle_pdv', 'tipo_portal', 'comercializacion', 'contacto_referencial',
+            'tipo_contrato', 'propiedad_huellero', 'frecuencia_visita', 'tipo_zona',
+            'tipo_zona_urbana', 'detalle_zona_urbana', 'tipo_senal',
+        ];
+
+        $merge = [];
+        foreach ($nullable as $field) {
+            if ($this->has($field) && $this->input($field) === '') {
+                $merge[$field] = null;
+            }
+        }
+
+        foreach (['sells_recharge', 'firmo_contrato', 'tiene_huellero', 'visita_presencial'] as $field) {
+            if ($this->has($field)) {
+                $merge[$field] = filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        if ($merge) {
+            $this->merge($merge);
+        }
     }
 
     /**

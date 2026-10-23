@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Pdv;
+use App\Support\PdvCatalogs;
 use App\Traits\HasBusinessScope;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -113,14 +114,32 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'Número de Documento',
             'Nombre del Cliente',
             'Teléfono',
-            'Clasificación',
-            'Estado',
+            'Contacto referencial',
+            'Rubro principal',
+            'Estado de venta',
+            'Estado comercial',
+            'Motivo de no activo',
+            'Clasificación PDV',
+            'Tipo de PDV',
+            'Detalle del PDV',
+            'Tipo de portal',
+            'Comercialización',
+            'Firmó contrato',
+            'Tipo de contrato',
+            'Tiene huellero',
+            'Estatus huellero',
             'Telegestión',
             'Vende Recarga',
+            'Visita presencial',
+            'Frecuencia de visita',
             'Dirección',
             'Referencia',
             'Latitud',
             'Longitud',
+            'Tipo de zona',
+            'Tipo de zona urbana',
+            'Detalle zona urbana',
+            'Tipo de señal',
             'Ruta',
             'Código de Ruta',
             'Circuito',
@@ -133,7 +152,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'Localidad',
             'Fecha de Creación',
             'Última Actualización',
-            'Frecuencia'
+            'Frecuencia mes actual',
         ];
     }
 
@@ -158,14 +177,32 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             $pdv->document_number,
             $pdv->client_name,
             $pdv->phone,
-            $pdv->classification,
+            $pdv->contacto_referencial,
+            PdvCatalogs::label(PdvCatalogs::rubros(), $pdv->classification),
             $pdv->status,
+            PdvCatalogs::label(PdvCatalogs::estadosComerciales(), $pdv->estado_comercial),
+            PdvCatalogs::label(PdvCatalogs::motivosNoActivo(), $pdv->motivo_no_activo),
+            PdvCatalogs::label(PdvCatalogs::clasificacionesPdv(), $pdv->clasificacion_pdv),
+            PdvCatalogs::label(PdvCatalogs::tiposPdv(), $pdv->tipo_pdv),
+            PdvCatalogs::label(PdvCatalogs::detallesPdv(), $pdv->detalle_pdv),
+            PdvCatalogs::label(PdvCatalogs::tiposPortal(), $pdv->tipo_portal),
+            PdvCatalogs::label(PdvCatalogs::comercializaciones(), $pdv->comercializacion),
+            $pdv->firmo_contrato ? 'Sí' : 'No',
+            PdvCatalogs::label(PdvCatalogs::tiposContrato(), $pdv->tipo_contrato),
+            $pdv->tiene_huellero ? 'Sí' : 'No',
+            PdvCatalogs::label(PdvCatalogs::propiedadesHuellero(), $pdv->propiedad_huellero),
             $pdv->route?->telegestion ? 'Sí' : 'No',
             $pdv->sells_recharge ? 'Sí' : 'No',
+            $pdv->visita_presencial ? 'Sí' : 'No',
+            PdvCatalogs::label(PdvCatalogs::frecuenciasVisita(), $pdv->frecuencia_visita),
             $pdv->address,
             $pdv->reference,
             $pdv->latitude,
             $pdv->longitude,
+            PdvCatalogs::label(PdvCatalogs::tiposZona(), $pdv->tipo_zona),
+            PdvCatalogs::label(PdvCatalogs::tiposZonaUrbana(), $pdv->tipo_zona_urbana),
+            PdvCatalogs::label(PdvCatalogs::detallesZonaUrbana(), $pdv->detalle_zona_urbana),
+            PdvCatalogs::label(PdvCatalogs::tiposSenal(), $pdv->tipo_senal),
             $pdv->route?->name ?? 'Sin ruta',
             $pdv->route?->code ?? 'Sin código',
             $pdv->route?->circuit?->name ?? 'Sin circuito',
@@ -227,7 +264,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
     public function styles(Worksheet $sheet)
     {
         // Estilo para el encabezado
-        $sheet->getStyle('A1:AB1')->applyFromArray([
+        $headerRange = 'A1:'.$sheet->getHighestColumn().'1';
+        $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -259,13 +297,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
         ]);
 
         // Centrar columnas específicas
-        $sheet->getStyle("A:A")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // ID
-        $sheet->getStyle("I:I")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Estado
-        $sheet->getStyle("J:J")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Telegestión
-        $sheet->getStyle("K:K")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Vende Recarga
-        $sheet->getStyle("U:U")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Vendedor Asignado
-        $sheet->getStyle("Z:AA")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Fechas
-        $sheet->getStyle("AB:AB")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Frecuencia
+        $sheet->getStyle('A:A')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         return $sheet;
     }

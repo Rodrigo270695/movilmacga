@@ -367,6 +367,24 @@ class GlobalPdvController extends Controller
             'route_id' => $pdv->route_id,
             'district_id' => $pdv->district_id,
             'locality' => $pdv->locality,
+            'estado_comercial' => $pdv->estado_comercial,
+            'motivo_no_activo' => $pdv->motivo_no_activo,
+            'clasificacion_pdv' => $pdv->clasificacion_pdv,
+            'tipo_pdv' => $pdv->tipo_pdv,
+            'detalle_pdv' => $pdv->detalle_pdv,
+            'tipo_portal' => $pdv->tipo_portal,
+            'comercializacion' => $pdv->comercializacion,
+            'contacto_referencial' => $pdv->contacto_referencial,
+            'firmo_contrato' => $pdv->firmo_contrato,
+            'tipo_contrato' => $pdv->tipo_contrato,
+            'tiene_huellero' => $pdv->tiene_huellero,
+            'propiedad_huellero' => $pdv->propiedad_huellero,
+            'visita_presencial' => $pdv->visita_presencial,
+            'frecuencia_visita' => $pdv->frecuencia_visita,
+            'tipo_zona' => $pdv->tipo_zona,
+            'tipo_zona_urbana' => $pdv->tipo_zona_urbana,
+            'detalle_zona_urbana' => $pdv->detalle_zona_urbana,
+            'tipo_senal' => $pdv->tipo_senal,
             // IDs para cargar las listas dependientes
             'zonal_id' => $pdv->route?->circuit?->zonal_id,
             'circuit_id' => $pdv->route?->circuit_id,
@@ -567,25 +585,7 @@ class GlobalPdvController extends Controller
             ? $request->pos_id
             : $this->generateUniquePosId();
 
-        $pdv = Pdv::create([
-            'point_name' => $request->point_name,
-            'pos_id' => $posId,
-            'document_type' => $request->document_type,
-            'document_number' => $request->document_number,
-            'client_name' => $request->client_name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'sells_recharge' => $request->sells_recharge ?? false,
-            'classification' => $request->classification,
-            'status' => $request->status,
-            'address' => $request->address,
-            'reference' => $request->reference,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'route_id' => $request->route_id,
-            'district_id' => $request->district_id,
-            'locality' => $request->locality,
-        ]);
+        $pdv = Pdv::create($this->pdvPayload($request, $posId));
 
         return redirect()->route('dcs.pdvs.index')
             ->with('success', "PDV '{$pdv->point_name}' creado exitosamente con POS ID: {$pdv->pos_id}");
@@ -606,25 +606,7 @@ class GlobalPdvController extends Controller
             ? $request->pos_id
             : ($pdv->pos_id ?: $this->generateUniquePosId());
 
-        $pdv->update([
-            'point_name' => $request->point_name,
-            'pos_id' => $posId,
-            'document_type' => $request->document_type,
-            'document_number' => $request->document_number,
-            'client_name' => $request->client_name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'sells_recharge' => $request->sells_recharge ?? false,
-            'classification' => $request->classification,
-            'status' => $request->status,
-            'address' => $request->address,
-            'reference' => $request->reference,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'route_id' => $request->route_id,
-            'district_id' => $request->district_id,
-            'locality' => $request->locality,
-        ]);
+        $pdv->update($this->pdvPayload($request, $posId));
 
         return redirect()->route('dcs.pdvs.index')
             ->with('success', "PDV '{$pdv->point_name}' actualizado exitosamente.");
@@ -750,5 +732,46 @@ class GlobalPdvController extends Controller
         $circuits = $circuitsQuery->get(['id', 'name', 'code', 'zonal_id']);
 
         return response()->json($circuits);
+    }
+
+    private function pdvPayload(PdvRequest $request, string $posId): array
+    {
+        return [
+            'point_name' => $request->point_name,
+            'pos_id' => $posId,
+            'document_type' => $request->document_type,
+            'document_number' => $request->document_number,
+            'client_name' => $request->client_name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'contacto_referencial' => $request->contacto_referencial,
+            'firmo_contrato' => $request->boolean('firmo_contrato'),
+            'tipo_contrato' => $request->tipo_contrato,
+            'tiene_huellero' => $request->boolean('tiene_huellero'),
+            'propiedad_huellero' => $request->propiedad_huellero,
+            'sells_recharge' => $request->boolean('sells_recharge'),
+            'classification' => $request->classification,
+            'status' => $request->status,
+            'estado_comercial' => $request->estado_comercial,
+            'motivo_no_activo' => $request->motivo_no_activo,
+            'clasificacion_pdv' => $request->clasificacion_pdv,
+            'tipo_pdv' => $request->tipo_pdv,
+            'detalle_pdv' => $request->detalle_pdv,
+            'tipo_portal' => $request->tipo_portal,
+            'comercializacion' => $request->comercializacion,
+            'address' => $request->address,
+            'reference' => $request->reference,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'tipo_zona' => $request->tipo_zona,
+            'tipo_zona_urbana' => $request->tipo_zona_urbana,
+            'detalle_zona_urbana' => $request->detalle_zona_urbana,
+            'tipo_senal' => $request->tipo_senal,
+            'route_id' => $request->route_id,
+            'visita_presencial' => $request->boolean('visita_presencial'),
+            'frecuencia_visita' => $request->frecuencia_visita,
+            'district_id' => $request->district_id,
+            'locality' => $request->locality,
+        ];
     }
 }

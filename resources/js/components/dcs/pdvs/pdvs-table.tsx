@@ -106,18 +106,21 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
     };
 
     const getClassificationBadge = (classification: string) => {
-        const classificationConfig = {
+        const classificationConfig: Record<string, { color: string; label: string }> = {
             'telecomunicaciones': { color: 'bg-blue-100 text-blue-800', label: 'Telecomunicaciones' },
+            'servicio_tecnico': { color: 'bg-slate-100 text-slate-800', label: 'Servicio Técnico' },
             'chalequeros': { color: 'bg-orange-100 text-orange-800', label: 'Chalequeros' },
             'bodega': { color: 'bg-green-100 text-green-800', label: 'Bodega' },
             'otras tiendas': { color: 'bg-purple-100 text-purple-800', label: 'Otras Tiendas' },
             'desconocida': { color: 'bg-gray-100 text-gray-800', label: 'Desconocida' },
             'pusher': { color: 'bg-red-100 text-red-800', label: 'Pusher' },
-            'minimarket': { color: 'bg-yellow-100 text-yellow-800', label: 'Minimarket' },
-            'botica': { color: 'bg-pink-100 text-pink-800', label: 'Bótica' },
+            'minimarket': { color: 'bg-yellow-100 text-yellow-800', label: 'Mini Market' },
+            'modulo_de_venta': { color: 'bg-cyan-100 text-cyan-800', label: 'Módulo de Venta' },
+            'botica': { color: 'bg-pink-100 text-pink-800', label: 'Botica' },
             'farmacia': { color: 'bg-green-100 text-green-800', label: 'Farmacia' },
             'tambo': { color: 'bg-blue-100 text-blue-800', label: 'Tambo' },
-            'cencosud': { color: 'bg-purple-100 text-purple-800', label: 'Cencosud' }
+            'cencosud': { color: 'bg-purple-100 text-purple-800', label: 'Cencosud' },
+            'otros': { color: 'bg-gray-100 text-gray-800', label: 'Otros' },
         };
 
         const config = classificationConfig[classification as keyof typeof classificationConfig] || classificationConfig['desconocida'];

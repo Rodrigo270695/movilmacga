@@ -15,6 +15,7 @@ import { PdvForm } from '@/components/dcs/pdvs/pdv-form';
 import { ConfirmToggleModal } from '@/components/dcs/pdvs/confirm-toggle-modal';
 import { type BreadcrumbItem } from '@/types';
 import { Plus, Download, Search, X, Filter, Store } from 'lucide-react';
+import { PDV_CATALOGS } from '@/lib/pdv-catalogs';
 
 interface PdvModel {
     id: number;
@@ -187,19 +188,7 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
     ], []);
 
     // Opciones de clasificación (memoizadas para evitar re-renders)
-    const classificationOptions = useMemo(() => [
-        { value: 'telecomunicaciones', label: 'Telecomunicaciones' },
-        { value: 'chalequeros', label: 'Chalequeros' },
-        { value: 'bodega', label: 'Bodega' },
-        { value: 'otras tiendas', label: 'Otras Tiendas' },
-        { value: 'desconocida', label: 'Desconocida' },
-        { value: 'pusher', label: 'Pusher' },
-        { value: 'minimarket', label: 'Minimarket' },
-        { value: 'botica', label: 'Bótica' },
-        { value: 'farmacia', label: 'Farmacia' },
-        { value: 'tambo', label: 'Tambo' },
-        { value: 'cencosud', label: 'Cencosud' }
-    ], []);
+    const classificationOptions = useMemo(() => PDV_CATALOGS.rubros, []);
 
     // Filtrar zonales por negocio seleccionado
     const filteredZonales = selectedBusiness && Array.isArray(allZonales)

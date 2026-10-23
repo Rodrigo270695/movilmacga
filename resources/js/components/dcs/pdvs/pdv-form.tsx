@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 // Usando componente Select personalizado para evitar bucles infinitos de Radix UI
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CustomSelect } from '@/components/ui/custom-select';
-import { Checkbox } from '@/components/ui/checkbox';
 // Usando componente Dialog personalizado para evitar bucles infinitos de Radix UI
 // import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -21,6 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { MapSelector } from './map-selector';
+import { PDV_CATALOGS } from '@/lib/pdv-catalogs';
 
 interface PdvModel {
     id: number;
@@ -40,6 +40,24 @@ interface PdvModel {
     route_id: number;
     district_id: number;
     locality: string;
+    estado_comercial?: string;
+    motivo_no_activo?: string;
+    clasificacion_pdv?: string;
+    tipo_pdv?: string;
+    detalle_pdv?: string;
+    tipo_portal?: string;
+    comercializacion?: string;
+    contacto_referencial?: string;
+    firmo_contrato?: boolean;
+    tipo_contrato?: string;
+    tiene_huellero?: boolean;
+    propiedad_huellero?: string;
+    visita_presencial?: boolean;
+    frecuencia_visita?: string;
+    tipo_zona?: string;
+    tipo_zona_urbana?: string;
+    detalle_zona_urbana?: string;
+    tipo_senal?: string;
     route?: { name: string; circuit?: { name: string } };
     district?: { name: string; provincia?: { name: string } };
 }
@@ -104,8 +122,67 @@ interface FormData {
     locality: string;
     departamento_id: string;
     provincia_id: string;
+    estado_comercial: string;
+    motivo_no_activo: string;
+    clasificacion_pdv: string;
+    tipo_pdv: string;
+    detalle_pdv: string;
+    tipo_portal: string;
+    comercializacion: string;
+    contacto_referencial: string;
+    firmo_contrato: boolean;
+    tipo_contrato: string;
+    tiene_huellero: boolean;
+    propiedad_huellero: string;
+    visita_presencial: boolean;
+    frecuencia_visita: string;
+    tipo_zona: string;
+    tipo_zona_urbana: string;
+    detalle_zona_urbana: string;
+    tipo_senal: string;
     [key: string]: string | boolean;
 }
+
+const emptyForm = (): FormData => ({
+    point_name: '',
+    pos_id: '',
+    document_type: 'DNI',
+    document_number: '',
+    client_name: '',
+    phone: '',
+    classification: 'bodega',
+    status: 'vende',
+    sells_recharge: false,
+    address: '',
+    reference: '',
+    latitude: '',
+    longitude: '',
+    zonal_id: '',
+    circuit_id: '',
+    route_id: '',
+    district_id: '',
+    locality: '',
+    departamento_id: '',
+    provincia_id: '',
+    estado_comercial: 'activo',
+    motivo_no_activo: '',
+    clasificacion_pdv: '',
+    tipo_pdv: '',
+    detalle_pdv: '',
+    tipo_portal: '',
+    comercializacion: '',
+    contacto_referencial: '',
+    firmo_contrato: false,
+    tipo_contrato: '',
+    tiene_huellero: false,
+    propiedad_huellero: '',
+    visita_presencial: true,
+    frecuencia_visita: '',
+    tipo_zona: '',
+    tipo_zona_urbana: '',
+    detalle_zona_urbana: '',
+    tipo_senal: '',
+});
 
 export function PdvForm({
     open,
@@ -115,28 +192,7 @@ export function PdvForm({
     circuits,
     departamentos
 }: Props) {
-    const { data, setData, post, patch, processing, errors, reset } = useForm<FormData>({
-        point_name: '',
-        pos_id: '',
-        document_type: 'DNI',
-        document_number: '',
-        client_name: '',
-        phone: '',
-        classification: 'bodega',
-        status: 'vende',
-        sells_recharge: false,
-        address: '',
-        reference: '',
-        latitude: '',
-        longitude: '',
-        zonal_id: '',
-        circuit_id: '',
-        route_id: '',
-        district_id: '',
-        locality: '',
-        departamento_id: '',
-        provincia_id: '',
-    });
+    const { data, setData, post, patch, processing, errors, reset } = useForm<FormData>(emptyForm());
 
     // Estados para carga dinámica
     const [availableCircuits, setAvailableCircuits] = useState<Circuit[]>([]);
@@ -157,28 +213,7 @@ export function PdvForm({
     // Función helper para limpieza completa del formulario
     const clearFormCompletely = () => {
         // Resetear a valores iniciales explícitamente
-        setData({
-            point_name: '',
-            pos_id: '',
-            document_type: 'DNI',
-            document_number: '',
-            client_name: '',
-            phone: '',
-            classification: 'bodega',
-            status: 'vende',
-            sells_recharge: false,
-            address: '',
-            reference: '',
-            latitude: '',
-            longitude: '',
-            zonal_id: '',
-            circuit_id: '',
-            route_id: '',
-            district_id: '',
-            locality: '',
-            departamento_id: '',
-            provincia_id: '',
-        });
+        setData(emptyForm());
         setAvailableCircuits([]);
         setAvailableRoutes([]);
         setProvincias([]);
@@ -407,6 +442,24 @@ export function PdvForm({
                     route_id: pdvDetails.route_id?.toString() || '',
                     district_id: pdvDetails.district_id?.toString() || '',
                     locality: pdvDetails.locality || '',
+                    estado_comercial: pdvDetails.estado_comercial || 'activo',
+                    motivo_no_activo: pdvDetails.motivo_no_activo || '',
+                    clasificacion_pdv: pdvDetails.clasificacion_pdv || '',
+                    tipo_pdv: pdvDetails.tipo_pdv || '',
+                    detalle_pdv: pdvDetails.detalle_pdv || '',
+                    tipo_portal: pdvDetails.tipo_portal || '',
+                    comercializacion: pdvDetails.comercializacion || '',
+                    contacto_referencial: pdvDetails.contacto_referencial || '',
+                    firmo_contrato: pdvDetails.firmo_contrato ?? false,
+                    tipo_contrato: pdvDetails.tipo_contrato || '',
+                    tiene_huellero: pdvDetails.tiene_huellero ?? false,
+                    propiedad_huellero: pdvDetails.propiedad_huellero || '',
+                    visita_presencial: pdvDetails.visita_presencial ?? true,
+                    frecuencia_visita: pdvDetails.frecuencia_visita || '',
+                    tipo_zona: pdvDetails.tipo_zona || '',
+                    tipo_zona_urbana: pdvDetails.tipo_zona_urbana || '',
+                    detalle_zona_urbana: pdvDetails.detalle_zona_urbana || '',
+                    tipo_senal: pdvDetails.tipo_senal || '',
                     // IDs geográficos
                     zonal_id: pdvDetails.zonal_id?.toString() || '',
                     circuit_id: pdvDetails.circuit_id?.toString() || '',
@@ -595,59 +648,116 @@ export function PdvForm({
                                     </p>
                                 </div>
 
-                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
                                     <div>
-                                        <Label htmlFor="classification">
-                                            Clasificación <span className="text-red-500">*</span>
-                                        </Label>
-                                                                    <CustomSelect
-                                value={data.classification}
-                                onValueChange={(value) => setData('classification', value)}
-                                options={[
-                                    { value: "telecomunicaciones", label: "Telecomunicaciones" },
-                                    { value: "chalequeros", label: "Chalequeros" },
-                                    { value: "bodega", label: "Bodega" },
-                                    { value: "otras tiendas", label: "Otras Tiendas" },
-                                    { value: "desconocida", label: "Desconocida" },
-                                    { value: "pusher", label: "Pusher" },
-                                    { value: 'minimarket', label: 'Minimarket' },
-                                    { value: 'botica', label: 'Bótica' },
-                                    { value: 'farmacia', label: 'Farmacia' },
-                                    { value: 'tambo', label: 'Tambo' },
-                                    { value: 'cencosud', label: 'Cencosud' }
-                                ]}
-                                placeholder="Seleccionar clasificación"
-                            />
+                                        <Label>Rubro principal <span className="text-red-500">*</span></Label>
+                                        <CustomSelect
+                                            value={data.classification}
+                                            onValueChange={(value) => setData('classification', value)}
+                                            options={[...PDV_CATALOGS.rubros]}
+                                            placeholder="Seleccionar rubro"
+                                        />
+                                        {errors.classification && <p className="text-sm text-red-500">{errors.classification}</p>}
                                     </div>
-
                                     <div>
-                                        <Label htmlFor="status">
-                                            Estado <span className="text-red-500">*</span>
-                                        </Label>
-                                                                    <CustomSelect
-                                value={data.status}
-                                onValueChange={(value) => setData('status', value)}
-                                options={[
-                                    { value: "vende", label: "Vende" },
-                                    { value: "no vende", label: "No Vende" },
-                                    { value: "no existe", label: "No Existe" },
-                                    { value: "pdv autoactivado", label: "PDV Autoactivado" },
-                                    { value: "pdv impulsador", label: "PDV Impulsador" }
-                                ]}
-                                placeholder="Seleccionar estado"
-                            />
+                                        <Label>Estado comercial</Label>
+                                        <CustomSelect
+                                            value={data.estado_comercial}
+                                            onValueChange={(value) => {
+                                                setData('estado_comercial', value);
+                                                if (value !== 'no_activo') setData('motivo_no_activo', '');
+                                            }}
+                                            options={[...PDV_CATALOGS.estadosComerciales]}
+                                            placeholder="Seleccionar estado"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Motivo de no activo {data.estado_comercial === 'no_activo' && <span className="text-red-500">*</span>}</Label>
+                                        <CustomSelect
+                                            value={data.motivo_no_activo}
+                                            onValueChange={(value) => setData('motivo_no_activo', value)}
+                                            options={[...PDV_CATALOGS.motivosNoActivo]}
+                                            placeholder="Seleccionar motivo"
+                                            disabled={data.estado_comercial !== 'no_activo'}
+                                        />
+                                        {errors.motivo_no_activo && <p className="text-sm text-red-500">{errors.motivo_no_activo}</p>}
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="sells_recharge"
-                                        checked={data.sells_recharge}
-                                        onCheckedChange={(checked) => setData('sells_recharge', !!checked)}
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                                    <div>
+                                        <Label>Clasificación PDV</Label>
+                                        <CustomSelect
+                                            value={data.clasificacion_pdv}
+                                            onValueChange={(value) => setData('clasificacion_pdv', value)}
+                                            options={[...PDV_CATALOGS.clasificacionesPdv]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tipo de PDV</Label>
+                                        <CustomSelect
+                                            value={data.tipo_pdv}
+                                            onValueChange={(value) => setData('tipo_pdv', value)}
+                                            options={[...PDV_CATALOGS.tiposPdv]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Detalle del PDV</Label>
+                                        <CustomSelect
+                                            value={data.detalle_pdv}
+                                            onValueChange={(value) => setData('detalle_pdv', value)}
+                                            options={[...PDV_CATALOGS.detallesPdv]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                                    <div>
+                                        <Label>Vende recargas</Label>
+                                        <CustomSelect
+                                            value={data.sells_recharge ? '1' : '0'}
+                                            onValueChange={(value) => setData('sells_recharge', value === '1')}
+                                            options={[...PDV_CATALOGS.siNo]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tipo de portal</Label>
+                                        <CustomSelect
+                                            value={data.tipo_portal}
+                                            onValueChange={(value) => setData('tipo_portal', value)}
+                                            options={[...PDV_CATALOGS.tiposPortal]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Comercialización</Label>
+                                        <CustomSelect
+                                            value={data.comercializacion}
+                                            onValueChange={(value) => setData('comercializacion', value)}
+                                            options={[...PDV_CATALOGS.comercializaciones]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Label>Estado de venta <span className="text-red-500">*</span></Label>
+                                    <CustomSelect
+                                        value={data.status}
+                                        onValueChange={(value) => setData('status', value)}
+                                        options={[
+                                            { value: 'vende', label: 'Vende' },
+                                            { value: 'no vende', label: 'No Vende' },
+                                            { value: 'no existe', label: 'No Existe' },
+                                            { value: 'pdv autoactivado', label: 'PDV Autoactivado' },
+                                            { value: 'pdv impulsador', label: 'PDV Impulsador' },
+                                        ]}
+                                        placeholder="Seleccionar estado"
                                     />
-                                    <Label htmlFor="sells_recharge" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                        🔋 Vende Recargas
-                                    </Label>
                                 </div>
                             </CardContent>
                         </Card>
@@ -662,7 +772,7 @@ export function PdvForm({
                             <CardContent className={`space-y-4 ${isMobile ? 'px-2' : ''}`}>
                                 <div>
                                     <Label htmlFor="client_name">
-                                        Nombre del Cliente <span className="text-red-500">*</span>
+                                        Nombre del responsable <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         id="client_name"
@@ -707,14 +817,77 @@ export function PdvForm({
                                     </div>
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="phone">Teléfono</Label>
-                                    <Input
-                                        id="phone"
-                                        value={data.phone}
-                                        onChange={(e) => setData('phone', e.target.value)}
-                                        placeholder="999 888 777"
-                                    />
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label htmlFor="phone">Contacto del responsable</Label>
+                                        <Input
+                                            id="phone"
+                                            value={data.phone}
+                                            onChange={(e) => setData('phone', e.target.value)}
+                                            placeholder="999 888 777"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="contacto_referencial">Contacto referencial</Label>
+                                        <Input
+                                            id="contacto_referencial"
+                                            value={data.contacto_referencial}
+                                            onChange={(e) => setData('contacto_referencial', e.target.value)}
+                                            placeholder="999 888 000"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label>Firmó contrato</Label>
+                                        <CustomSelect
+                                            value={data.firmo_contrato ? '1' : '0'}
+                                            onValueChange={(value) => {
+                                                const yes = value === '1';
+                                                setData('firmo_contrato', yes);
+                                                if (!yes) setData('tipo_contrato', '');
+                                            }}
+                                            options={[...PDV_CATALOGS.siNo]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tipo de contrato</Label>
+                                        <CustomSelect
+                                            value={data.tipo_contrato}
+                                            onValueChange={(value) => setData('tipo_contrato', value)}
+                                            options={[...PDV_CATALOGS.tiposContrato]}
+                                            placeholder="Seleccionar"
+                                            disabled={!data.firmo_contrato}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label>Tiene huellero</Label>
+                                        <CustomSelect
+                                            value={data.tiene_huellero ? '1' : '0'}
+                                            onValueChange={(value) => {
+                                                const yes = value === '1';
+                                                setData('tiene_huellero', yes);
+                                                if (!yes) setData('propiedad_huellero', '');
+                                            }}
+                                            options={[...PDV_CATALOGS.siNo]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Estatus huellero</Label>
+                                        <CustomSelect
+                                            value={data.propiedad_huellero}
+                                            onValueChange={(value) => setData('propiedad_huellero', value)}
+                                            options={[...PDV_CATALOGS.propiedadesHuellero]}
+                                            placeholder="Seleccionar"
+                                            disabled={!data.tiene_huellero}
+                                        />
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -787,6 +960,27 @@ export function PdvForm({
                                     {errors.route_id && (
                                         <p className="text-sm text-red-500">{errors.route_id}</p>
                                     )}
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label>Visita presencial</Label>
+                                        <CustomSelect
+                                            value={data.visita_presencial ? '1' : '0'}
+                                            onValueChange={(value) => setData('visita_presencial', value === '1')}
+                                            options={[...PDV_CATALOGS.siNo]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Frecuencia de visita</Label>
+                                        <CustomSelect
+                                            value={data.frecuencia_visita}
+                                            onValueChange={(value) => setData('frecuencia_visita', value)}
+                                            options={[...PDV_CATALOGS.frecuenciasVisita]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -909,6 +1103,56 @@ export function PdvForm({
                                             value={data.longitude}
                                             onChange={(e) => setData('longitude', e.target.value)}
                                             placeholder="-77.0428"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label>Tipo de zona</Label>
+                                        <CustomSelect
+                                            value={data.tipo_zona}
+                                            onValueChange={(value) => {
+                                                setData('tipo_zona', value);
+                                                if (value !== 'urbano') {
+                                                    setData('tipo_zona_urbana', '');
+                                                    setData('detalle_zona_urbana', '');
+                                                }
+                                            }}
+                                            options={[...PDV_CATALOGS.tiposZona]}
+                                            placeholder="Seleccionar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tipo de zona urbana</Label>
+                                        <CustomSelect
+                                            value={data.tipo_zona_urbana}
+                                            onValueChange={(value) => setData('tipo_zona_urbana', value)}
+                                            options={[...PDV_CATALOGS.tiposZonaUrbana]}
+                                            placeholder="Seleccionar"
+                                            disabled={data.tipo_zona !== 'urbano'}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    <div>
+                                        <Label>Detalle conglomerado / zona caliente</Label>
+                                        <CustomSelect
+                                            value={data.detalle_zona_urbana}
+                                            onValueChange={(value) => setData('detalle_zona_urbana', value)}
+                                            options={[...PDV_CATALOGS.detallesZonaUrbana]}
+                                            placeholder="Seleccionar"
+                                            disabled={data.tipo_zona !== 'urbano'}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tipo de señal</Label>
+                                        <CustomSelect
+                                            value={data.tipo_senal}
+                                            onValueChange={(value) => setData('tipo_senal', value)}
+                                            options={[...PDV_CATALOGS.tiposSenal]}
+                                            placeholder="Seleccionar"
                                         />
                                     </div>
                                 </div>

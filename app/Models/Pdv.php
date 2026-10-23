@@ -20,14 +20,32 @@ class Pdv extends Model
         'client_name',
         'email',
         'phone',
+        'contacto_referencial',
+        'firmo_contrato',
+        'tipo_contrato',
+        'tiene_huellero',
+        'propiedad_huellero',
         'sells_recharge',
         'classification',
         'status',
+        'estado_comercial',
+        'motivo_no_activo',
+        'clasificacion_pdv',
+        'tipo_pdv',
+        'detalle_pdv',
+        'tipo_portal',
+        'comercializacion',
         'address',
         'reference',
         'latitude',
         'longitude',
+        'tipo_zona',
+        'tipo_zona_urbana',
+        'detalle_zona_urbana',
+        'tipo_senal',
         'route_id',
+        'visita_presencial',
+        'frecuencia_visita',
         'locality_id',
         'district_id',
         'locality',
@@ -35,6 +53,9 @@ class Pdv extends Model
 
     protected $casts = [
         'sells_recharge' => 'boolean',
+        'firmo_contrato' => 'boolean',
+        'tiene_huellero' => 'boolean',
+        'visita_presencial' => 'boolean',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
     ];
@@ -172,20 +193,7 @@ class Pdv extends Model
 
     public function getClassificationLabelAttribute(): string
     {
-        return match ($this->classification) {
-            'telecomunicaciones' => 'Telecomunicaciones',
-            'chalequeros' => 'Chalequeros',
-            'bodega' => 'Bodega',
-            'otras tiendas' => 'Otras Tiendas',
-            'desconocida' => 'Desconocida',
-            'pusher' => 'Pusher',
-            'minimarket' => 'Minimarket',
-            'botica' => 'Bótica',
-            'farmacia' => 'Farmacia',
-            'tambo' => 'Tambo',
-            'cencosud' => 'Cencosud',
-            default => 'Desconocida'
-        };
+        return \App\Support\PdvCatalogs::label(\App\Support\PdvCatalogs::rubros(), $this->classification) ?: 'Desconocida';
     }
 
     public function getStatusLabelAttribute(): string
