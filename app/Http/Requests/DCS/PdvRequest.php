@@ -71,13 +71,7 @@ class PdvRequest extends FormRequest
             ],
             'status' => [
                 'required',
-                Rule::in(['vende', 'no vende', 'no existe', 'pdv autoactivado', 'pdv impulsador']),
-            ],
-            'estado_comercial' => ['nullable', Rule::in(array_keys(PdvCatalogs::estadosComerciales()))],
-            'motivo_no_activo' => [
-                Rule::requiredIf($this->input('estado_comercial') === 'no_activo'),
-                'nullable',
-                Rule::in(array_keys(PdvCatalogs::motivosNoActivo())),
+                Rule::in(['vende', 'no vende']),
             ],
             'clasificacion_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::clasificacionesPdv()))],
             'tipo_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposPdv()))],
@@ -105,7 +99,7 @@ class PdvRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $nullable = [
-            'estado_comercial', 'motivo_no_activo', 'clasificacion_pdv', 'tipo_pdv',
+            'clasificacion_pdv', 'tipo_pdv',
             'detalle_pdv', 'tipo_portal', 'comercializacion', 'contacto_referencial',
             'tipo_contrato', 'propiedad_huellero', 'frecuencia_visita', 'tipo_zona',
             'tipo_zona_urbana', 'detalle_zona_urbana', 'tipo_senal',

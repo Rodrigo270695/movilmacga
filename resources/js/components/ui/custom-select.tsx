@@ -14,6 +14,10 @@ interface CustomSelectProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    /** Clases extra del panel desplegable (p. ej. ancho mínimo para textos largos) */
+    menuClassName?: string;
+    /** Permite ver el texto completo en opciones y en el valor seleccionado */
+    wrapLabels?: boolean;
 }
 
 export function CustomSelect({
@@ -22,7 +26,9 @@ export function CustomSelect({
     onValueChange,
     placeholder = "Seleccionar...",
     className,
-    disabled = false
+    disabled = false,
+    menuClassName,
+    wrapLabels = false,
 }: CustomSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedValue, setSelectedValue] = useState(value || '');
@@ -104,22 +110,27 @@ export function CustomSelect({
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
                 className={cn(
-                    "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "flex w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    wrapLabels ? "min-h-9 h-auto text-left" : "h-9 whitespace-nowrap",
                     isOpen && "ring-1 ring-ring"
                 )}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
                 aria-labelledby="select-label"
             >
-                <span className={cn(
-                    "block truncate",
-                    !selectedOption && "text-muted-foreground"
-                )}>
+                <span
+                    className={cn(
+                        "block flex-1 pr-2",
+                        wrapLabels ? "whitespace-normal leading-snug" : "truncate",
+                        !selectedOption && "text-muted-foreground"
+                    )}
+                    title={selectedOption?.label}
+                >
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <ChevronDown
                     className={cn(
-                        "h-4 w-4 opacity-50 transition-transform duration-200",
+                        "h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
                         isOpen && "rotate-180"
                     )}
                 />
@@ -127,21 +138,28 @@ export function CustomSelect({
 
             {/* Dropdown Options */}
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95">
-                    <div className="max-h-60 overflow-auto rounded-md p-1">
+                <div
+                    className={cn(
+                        "absolute z-50 mt-1 rounded-md border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95",
+                        menuClassName ?? "w-full"
+                    )}
+                >
+                    <div className="max-h-72 overflow-auto rounded-md p-1">
                         {options.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"
                                 onClick={() => handleSelect(option.value)}
                                 className={cn(
-                                    "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                                    "relative flex w-full cursor-default select-none items-start rounded-sm py-2 pl-2 pr-8 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
                                     selectedValue === option.value && "bg-accent text-accent-foreground"
                                 )}
                                 role="option"
                                 aria-selected={selectedValue === option.value}
                             >
-                                <span className="block truncate">{option.label}</span>
+                                <span className={cn("block", wrapLabels ? "whitespace-normal leading-snug" : "truncate")}>
+                                    {option.label}
+                                </span>
                                 {selectedValue === option.value && (
                                     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
                                         <Check className="h-4 w-4" />

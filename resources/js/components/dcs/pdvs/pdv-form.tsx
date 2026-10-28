@@ -40,8 +40,6 @@ interface PdvModel {
     route_id: number;
     district_id: number;
     locality: string;
-    estado_comercial?: string;
-    motivo_no_activo?: string;
     clasificacion_pdv?: string;
     tipo_pdv?: string;
     detalle_pdv?: string;
@@ -122,8 +120,6 @@ interface FormData {
     locality: string;
     departamento_id: string;
     provincia_id: string;
-    estado_comercial: string;
-    motivo_no_activo: string;
     clasificacion_pdv: string;
     tipo_pdv: string;
     detalle_pdv: string;
@@ -164,8 +160,6 @@ const emptyForm = (): FormData => ({
     locality: '',
     departamento_id: '',
     provincia_id: '',
-    estado_comercial: 'activo',
-    motivo_no_activo: '',
     clasificacion_pdv: '',
     tipo_pdv: '',
     detalle_pdv: '',
@@ -183,6 +177,11 @@ const emptyForm = (): FormData => ({
     detalle_zona_urbana: '',
     tipo_senal: '',
 });
+
+const ESTADO_VENTA_OPTIONS = [
+    { value: 'vende', label: 'Activo' },
+    { value: 'no vende', label: 'Inactivo' },
+] as const;
 
 export function PdvForm({
     open,
@@ -433,7 +432,7 @@ export function PdvForm({
                     client_name: pdvDetails.client_name || '',
                     phone: pdvDetails.phone || '',
                     classification: pdvDetails.classification || 'bodega',
-                    status: pdvDetails.status || 'vende',
+                    status: pdvDetails.status === 'vende' ? 'vende' : 'no vende',
                     sells_recharge: pdvDetails.sells_recharge ?? false,
                     address: pdvDetails.address || '',
                     reference: pdvDetails.reference || '',
@@ -442,8 +441,6 @@ export function PdvForm({
                     route_id: pdvDetails.route_id?.toString() || '',
                     district_id: pdvDetails.district_id?.toString() || '',
                     locality: pdvDetails.locality || '',
-                    estado_comercial: pdvDetails.estado_comercial || 'activo',
-                    motivo_no_activo: pdvDetails.motivo_no_activo || '',
                     clasificacion_pdv: pdvDetails.clasificacion_pdv || '',
                     tipo_pdv: pdvDetails.tipo_pdv || '',
                     detalle_pdv: pdvDetails.detalle_pdv || '',
@@ -648,7 +645,7 @@ export function PdvForm({
                                     </p>
                                 </div>
 
-                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
                                         <Label>Rubro principal <span className="text-red-500">*</span></Label>
                                         <CustomSelect
@@ -660,27 +657,14 @@ export function PdvForm({
                                         {errors.classification && <p className="text-sm text-red-500">{errors.classification}</p>}
                                     </div>
                                     <div>
-                                        <Label>Estado comercial</Label>
+                                        <Label>Estado de venta <span className="text-red-500">*</span></Label>
                                         <CustomSelect
-                                            value={data.estado_comercial}
-                                            onValueChange={(value) => {
-                                                setData('estado_comercial', value);
-                                                if (value !== 'no_activo') setData('motivo_no_activo', '');
-                                            }}
-                                            options={[...PDV_CATALOGS.estadosComerciales]}
+                                            value={data.status}
+                                            onValueChange={(value) => setData('status', value)}
+                                            options={[...ESTADO_VENTA_OPTIONS]}
                                             placeholder="Seleccionar estado"
                                         />
-                                    </div>
-                                    <div>
-                                        <Label>Motivo de no activo {data.estado_comercial === 'no_activo' && <span className="text-red-500">*</span>}</Label>
-                                        <CustomSelect
-                                            value={data.motivo_no_activo}
-                                            onValueChange={(value) => setData('motivo_no_activo', value)}
-                                            options={[...PDV_CATALOGS.motivosNoActivo]}
-                                            placeholder="Seleccionar motivo"
-                                            disabled={data.estado_comercial !== 'no_activo'}
-                                        />
-                                        {errors.motivo_no_activo && <p className="text-sm text-red-500">{errors.motivo_no_activo}</p>}
+                                        {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
                                     </div>
                                 </div>
 
@@ -714,7 +698,7 @@ export function PdvForm({
                                     </div>
                                 </div>
 
-                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
                                         <Label>Vende recargas</Label>
                                         <CustomSelect
@@ -733,30 +717,17 @@ export function PdvForm({
                                             placeholder="Seleccionar"
                                         />
                                     </div>
-                                    <div>
-                                        <Label>Comercialización</Label>
-                                        <CustomSelect
-                                            value={data.comercializacion}
-                                            onValueChange={(value) => setData('comercializacion', value)}
-                                            options={[...PDV_CATALOGS.comercializaciones]}
-                                            placeholder="Seleccionar"
-                                        />
-                                    </div>
                                 </div>
 
                                 <div>
-                                    <Label>Estado de venta <span className="text-red-500">*</span></Label>
+                                    <Label>Comercialización</Label>
                                     <CustomSelect
-                                        value={data.status}
-                                        onValueChange={(value) => setData('status', value)}
-                                        options={[
-                                            { value: 'vende', label: 'Vende' },
-                                            { value: 'no vende', label: 'No Vende' },
-                                            { value: 'no existe', label: 'No Existe' },
-                                            { value: 'pdv autoactivado', label: 'PDV Autoactivado' },
-                                            { value: 'pdv impulsador', label: 'PDV Impulsador' },
-                                        ]}
-                                        placeholder="Seleccionar estado"
+                                        value={data.comercializacion}
+                                        onValueChange={(value) => setData('comercializacion', value)}
+                                        options={[...PDV_CATALOGS.comercializaciones]}
+                                        placeholder="Seleccionar operadores"
+                                        wrapLabels
+                                        menuClassName="left-0 right-auto min-w-[min(100%,22rem)] w-max max-w-[min(calc(100vw-2rem),28rem)]"
                                     />
                                 </div>
                             </CardContent>

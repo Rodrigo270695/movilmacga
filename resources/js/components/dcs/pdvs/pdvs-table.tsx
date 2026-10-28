@@ -89,8 +89,8 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
 
     const getStatusBadge = (status: string) => {
         const statusConfig = {
-            'vende': { color: 'bg-green-100 text-green-800 border-green-200', label: 'Vende' },
-            'no vende': { color: 'bg-red-100 text-red-800 border-red-200', label: 'No Vende' },
+            'vende': { color: 'bg-green-100 text-green-800 border-green-200', label: 'Activo' },
+            'no vende': { color: 'bg-red-100 text-red-800 border-red-200', label: 'Inactivo' },
             'no existe': { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'No Existe' },
             'pdv autoactivado': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Autoactivado' },
             'pdv impulsador': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Impulsador' }

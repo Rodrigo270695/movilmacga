@@ -43,9 +43,12 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
         ])
         ->select([
             'id', 'point_name', 'pos_id', 'document_type', 'document_number',
-            'client_name', 'phone', 'classification', 'status',
-            'sells_recharge', 'address', 'reference', 'latitude', 'longitude',
-            'route_id', 'district_id', 'locality', 'created_at', 'updated_at'
+            'client_name', 'phone', 'contacto_referencial', 'classification', 'status',
+            'clasificacion_pdv', 'tipo_pdv', 'detalle_pdv', 'tipo_portal', 'comercializacion',
+            'firmo_contrato', 'tipo_contrato', 'tiene_huellero', 'propiedad_huellero',
+            'sells_recharge', 'visita_presencial', 'frecuencia_visita',
+            'address', 'reference', 'tipo_zona', 'tipo_zona_urbana', 'detalle_zona_urbana', 'tipo_senal',
+            'route_id', 'district_id', 'locality', 'created_at', 'updated_at',
         ]);
 
         // Aplicar filtros de scope automáticos (negocio y zonal)
@@ -107,18 +110,15 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
     public function headings(): array
     {
         return [
-            'ID',
             'Nombre del Punto',
             'POS ID',
             'Tipo de Documento',
-            'Número de Documento',
-            'Nombre del Cliente',
-            'Teléfono',
+            'N° de Documento (DNI) / RUC',
+            'Nombre y Apellidos del Responsable',
+            'N° de Contacto del Responsable',
             'Contacto referencial',
             'Rubro principal',
             'Estado de venta',
-            'Estado comercial',
-            'Motivo de no activo',
             'Clasificación PDV',
             'Tipo de PDV',
             'Detalle del PDV',
@@ -130,47 +130,40 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'Estatus huellero',
             'Telegestión',
             'Vende Recarga',
-            'Visita presencial',
             'Frecuencia de visita',
             'Dirección',
             'Referencia',
-            'Latitud',
-            'Longitud',
             'Tipo de zona',
             'Tipo de zona urbana',
             'Detalle zona urbana',
             'Tipo de señal',
             'Ruta',
-            'Código de Ruta',
             'Circuito',
             'Zonal',
-            'Negocio',
             'Vendedor Asignado',
             'Distrito',
             'Provincia',
             'Departamento',
             'Localidad',
-            'Fecha de Creación',
-            'Última Actualización',
             'Frecuencia mes actual',
         ];
     }
 
     public function map($pdv): array
     {
-        // Obtener el vendedor asignado al circuito
         $vendedor = 'Sin asignar';
         if ($pdv->route?->circuit?->userCircuits) {
             $activeUserCircuit = $pdv->route->circuit->userCircuits->where('is_active', true)->first();
-            if ($activeUserCircuit && $activeUserCircuit->user) {
-                $vendedor = $activeUserCircuit->user->first_name . ' ' . $activeUserCircuit->user->last_name;
+            if ($activeUserCircuit?->user) {
+                $u = $activeUserCircuit->user;
+                $name = trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
+                $vendedor = $name !== '' ? $name : ($u->name ?? 'Sin asignar');
             }
         }
 
         $frequencyText = $this->currentMonthFrequency($pdv);
 
         return [
-            $pdv->id,
             $pdv->point_name,
             $pdv->pos_id,
             $pdv->document_type,
@@ -179,9 +172,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             $pdv->phone,
             $pdv->contacto_referencial,
             PdvCatalogs::label(PdvCatalogs::rubros(), $pdv->classification),
-            $pdv->status,
-            PdvCatalogs::label(PdvCatalogs::estadosComerciales(), $pdv->estado_comercial),
-            PdvCatalogs::label(PdvCatalogs::motivosNoActivo(), $pdv->motivo_no_activo),
+            $pdv->status === 'vende' ? 'Activo' : ($pdv->status === 'no vende' ? 'Inactivo' : $pdv->status),
             PdvCatalogs::label(PdvCatalogs::clasificacionesPdv(), $pdv->clasificacion_pdv),
             PdvCatalogs::label(PdvCatalogs::tiposPdv(), $pdv->tipo_pdv),
             PdvCatalogs::label(PdvCatalogs::detallesPdv(), $pdv->detalle_pdv),
@@ -193,28 +184,21 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             PdvCatalogs::label(PdvCatalogs::propiedadesHuellero(), $pdv->propiedad_huellero),
             $pdv->route?->telegestion ? 'Sí' : 'No',
             $pdv->sells_recharge ? 'Sí' : 'No',
-            $pdv->visita_presencial ? 'Sí' : 'No',
             PdvCatalogs::label(PdvCatalogs::frecuenciasVisita(), $pdv->frecuencia_visita),
             $pdv->address,
             $pdv->reference,
-            $pdv->latitude,
-            $pdv->longitude,
             PdvCatalogs::label(PdvCatalogs::tiposZona(), $pdv->tipo_zona),
             PdvCatalogs::label(PdvCatalogs::tiposZonaUrbana(), $pdv->tipo_zona_urbana),
             PdvCatalogs::label(PdvCatalogs::detallesZonaUrbana(), $pdv->detalle_zona_urbana),
             PdvCatalogs::label(PdvCatalogs::tiposSenal(), $pdv->tipo_senal),
             $pdv->route?->name ?? 'Sin ruta',
-            $pdv->route?->code ?? 'Sin código',
             $pdv->route?->circuit?->name ?? 'Sin circuito',
             $pdv->route?->circuit?->zonal?->name ?? 'Sin zonal',
-            $pdv->route?->circuit?->zonal?->business?->name ?? 'Sin negocio',
             $vendedor,
             $pdv->district?->name ?? 'Sin distrito',
             $pdv->district?->provincia?->name ?? 'Sin provincia',
             $pdv->district?->provincia?->departamento?->name ?? 'Sin departamento',
             $pdv->locality,
-            $pdv->created_at?->format('d/m/Y H:i:s'),
-            $pdv->updated_at?->format('d/m/Y H:i:s'),
             $frequencyText,
         ];
     }
@@ -296,8 +280,8 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             ],
         ]);
 
-        // Centrar columnas específicas
-        $sheet->getStyle('A:A')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Centrar columna POS ID
+        $sheet->getStyle('B:B')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         return $sheet;
     }

@@ -180,11 +180,8 @@ export default function GlobalPdvsIndex({ pdvs, businesses, zonales, allZonales,
 
     // Opciones de estado (memoizadas para evitar re-renders)
     const statusOptions = useMemo(() => [
-        { value: 'vende', label: 'Vende' },
-        { value: 'no vende', label: 'No Vende' },
-        { value: 'no existe', label: 'No Existe' },
-        { value: 'pdv autoactivado', label: 'PDV Autoactivado' },
-        { value: 'pdv impulsador', label: 'PDV Impulsador' },
+        { value: 'vende', label: 'Activo' },
+        { value: 'no vende', label: 'Inactivo' },
     ], []);
 
     // Opciones de clasificación (memoizadas para evitar re-renders)
