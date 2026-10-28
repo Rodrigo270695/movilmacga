@@ -172,7 +172,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             $pdv->phone,
             $pdv->contacto_referencial,
             PdvCatalogs::label(PdvCatalogs::rubros(), $pdv->classification),
-            $pdv->status === 'vende' ? 'Activo' : ($pdv->status === 'no vende' ? 'Inactivo' : $pdv->status),
+            $pdv->saleStatusDisplayLabel(),
             PdvCatalogs::label(PdvCatalogs::clasificacionesPdv(), $pdv->clasificacion_pdv),
             PdvCatalogs::label(PdvCatalogs::tiposPdv(), $pdv->tipo_pdv),
             PdvCatalogs::label(PdvCatalogs::detallesPdv(), $pdv->detalle_pdv),

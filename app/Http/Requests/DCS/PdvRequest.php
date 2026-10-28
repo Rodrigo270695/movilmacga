@@ -71,7 +71,8 @@ class PdvRequest extends FormRequest
             ],
             'status' => [
                 'required',
-                Rule::in(['vende', 'no vende']),
+                // Valores históricos se conservan para la APK; el gestor usa Activo/Inactivo → vende/no vende
+                Rule::in(['vende', 'no vende', 'no existe', 'pdv autoactivado', 'pdv impulsador']),
             ],
             'clasificacion_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::clasificacionesPdv()))],
             'tipo_pdv' => ['nullable', Rule::in(array_keys(PdvCatalogs::tiposPdv()))],

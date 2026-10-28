@@ -183,6 +183,24 @@ const ESTADO_VENTA_OPTIONS = [
     { value: 'no vende', label: 'Inactivo' },
 ] as const;
 
+const LEGACY_STATUS_LABELS: Record<string, string> = {
+    'no existe': 'No existe (legacy)',
+    'pdv autoactivado': 'PDV autoactivado (legacy)',
+    'pdv impulsador': 'PDV impulsador (legacy)',
+};
+
+function saleStatusOptions(currentStatus: string) {
+    const options = [...ESTADO_VENTA_OPTIONS];
+    if (currentStatus && !['vende', 'no vende'].includes(currentStatus)) {
+        options.push({
+            value: currentStatus,
+            label: LEGACY_STATUS_LABELS[currentStatus] ?? currentStatus,
+        });
+    }
+
+    return options;
+}
+
 export function PdvForm({
     open,
     onClose,
@@ -432,7 +450,7 @@ export function PdvForm({
                     client_name: pdvDetails.client_name || '',
                     phone: pdvDetails.phone || '',
                     classification: pdvDetails.classification || 'bodega',
-                    status: pdvDetails.status === 'vende' ? 'vende' : 'no vende',
+                    status: pdvDetails.status || 'vende',
                     sells_recharge: pdvDetails.sells_recharge ?? false,
                     address: pdvDetails.address || '',
                     reference: pdvDetails.reference || '',
@@ -661,9 +679,18 @@ export function PdvForm({
                                         <CustomSelect
                                             value={data.status}
                                             onValueChange={(value) => setData('status', value)}
-                                            options={[...ESTADO_VENTA_OPTIONS]}
+                                            options={saleStatusOptions(data.status)}
                                             placeholder="Seleccionar estado"
                                         />
+                                        {data.status && !['vende', 'no vende'].includes(data.status) && (
+                                            <p className="text-xs text-amber-700 mt-1">
+                                                Este PDV conserva el estado «{LEGACY_STATUS_LABELS[data.status] ?? data.status}» en base de datos y en la APK.
+                                                Elige Activo o Inactivo solo si deseas cambiarlo a vende / no vende.
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            En la APK se envía el código <strong>vende</strong> o <strong>no vende</strong> (Activo / Inactivo).
+                                        </p>
                                         {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
                                     </div>
                                 </div>

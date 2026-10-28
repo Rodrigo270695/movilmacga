@@ -235,6 +235,7 @@ class UserDataController extends Controller
                 'phone' => $pdv->phone,
                 'classification' => $pdv->classification,
                 'status' => $pdv->status,
+                'status_label' => $pdv->status_label,
                 'address' => $pdv->address,
                 'reference' => $pdv->reference,
                 'latitude' => (float) $pdv->latitude,

@@ -208,6 +208,16 @@ class Pdv extends Model
         };
     }
 
+    /** Etiqueta para reportes web (Activo/Inactivo); la APK sigue usando `status` crudo. */
+    public function saleStatusDisplayLabel(): string
+    {
+        return match ($this->status) {
+            'vende' => 'Activo',
+            'no vende' => 'Inactivo',
+            default => $this->status_label,
+        };
+    }
+
     public function getDocumentTypeFullAttribute(): string
     {
         return $this->document_type === 'DNI' ? 'DNI' : 'RUC';
