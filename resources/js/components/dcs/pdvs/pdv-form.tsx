@@ -688,9 +688,6 @@ export function PdvForm({
                                                 Elige Activo o Inactivo solo si deseas cambiarlo a vende / no vende.
                                             </p>
                                         )}
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            En la APK se envía el código <strong>vende</strong> o <strong>no vende</strong> (Activo / Inactivo).
-                                        </p>
                                         {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
                                     </div>
                                 </div>
