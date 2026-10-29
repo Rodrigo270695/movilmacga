@@ -110,8 +110,8 @@ export function CustomSelect({
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
                 className={cn(
-                    "flex w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-                    wrapLabels ? "min-h-9 h-auto text-left" : "h-9 whitespace-nowrap",
+                    "flex w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm text-left shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    wrapLabels ? "min-h-9 h-auto" : "h-9 whitespace-nowrap",
                     isOpen && "ring-1 ring-ring"
                 )}
                 aria-haspopup="listbox"
@@ -120,7 +120,7 @@ export function CustomSelect({
             >
                 <span
                     className={cn(
-                        "block flex-1 pr-2",
+                        "block flex-1 pr-2 text-left",
                         wrapLabels ? "whitespace-normal leading-snug" : "truncate",
                         !selectedOption && "text-muted-foreground"
                     )}

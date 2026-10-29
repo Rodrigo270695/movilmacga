@@ -135,7 +135,7 @@ class PdvsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
             'Referencia',
             'Tipo de zona',
             'Tipo de zona urbana',
-            'Detalle zona urbana',
+            'Tipo de conglomerado',
             'Tipo de señal',
             'Ruta',
             'Circuito',

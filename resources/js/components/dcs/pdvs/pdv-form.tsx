@@ -996,6 +996,7 @@ export function PdvForm({
                                         Departamento <span className="text-red-500">*</span>
                                     </Label>
                                     <CustomSelect
+                                        className="w-full text-left"
                                         value={data.departamento_id}
                                         onValueChange={(value) => handleDepartamentoChange(value, false)}
                                         options={departamentos.map(dept => ({
@@ -1011,6 +1012,7 @@ export function PdvForm({
                                         Provincia <span className="text-red-500">*</span>
                                     </Label>
                                     <CustomSelect
+                                        className="w-full text-left"
                                         value={data.provincia_id}
                                         onValueChange={(value) => handleProvinciaChange(value, false)}
                                         disabled={provincias.length === 0}
@@ -1027,6 +1029,7 @@ export function PdvForm({
                                         Distrito <span className="text-red-500">*</span>
                                     </Label>
                                     <CustomSelect
+                                        className="w-full text-left"
                                         value={data.district_id}
                                         onValueChange={(value) => handleDistritoChange(value)}
                                         disabled={distritos.length === 0}
@@ -1125,7 +1128,12 @@ export function PdvForm({
                                         <Label>Tipo de zona urbana</Label>
                                         <CustomSelect
                                             value={data.tipo_zona_urbana}
-                                            onValueChange={(value) => setData('tipo_zona_urbana', value)}
+                                            onValueChange={(value) => {
+                                                setData('tipo_zona_urbana', value);
+                                                if (value !== 'conglomerado') {
+                                                    setData('detalle_zona_urbana', '');
+                                                }
+                                            }}
                                             options={[...PDV_CATALOGS.tiposZonaUrbana]}
                                             placeholder="Seleccionar"
                                             disabled={data.tipo_zona !== 'urbano'}
@@ -1135,14 +1143,19 @@ export function PdvForm({
 
                                 <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <div>
-                                        <Label>Detalle conglomerado / zona caliente</Label>
+                                        <Label>Tipo de conglomerado</Label>
                                         <CustomSelect
                                             value={data.detalle_zona_urbana}
                                             onValueChange={(value) => setData('detalle_zona_urbana', value)}
                                             options={[...PDV_CATALOGS.detallesZonaUrbana]}
                                             placeholder="Seleccionar"
-                                            disabled={data.tipo_zona !== 'urbano'}
+                                            disabled={data.tipo_zona !== 'urbano' || data.tipo_zona_urbana !== 'conglomerado'}
                                         />
+                                        {data.tipo_zona === 'urbano' && data.tipo_zona_urbana !== 'conglomerado' && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Disponible cuando el tipo de zona urbana es «Conglomerado».
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <Label>Tipo de señal</Label>

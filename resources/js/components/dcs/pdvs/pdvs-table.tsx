@@ -121,6 +121,8 @@ export function PdvsTable({ pdvs, onEdit, onToggleStatus, onDelete, isGlobalView
             'tambo': { color: 'bg-blue-100 text-blue-800', label: 'Tambo' },
             'cencosud': { color: 'bg-purple-100 text-purple-800', label: 'Cencosud' },
             'otros': { color: 'bg-gray-100 text-gray-800', label: 'Otros' },
+            'financiamiento_equipos': { color: 'bg-indigo-100 text-indigo-800', label: 'Financiamiento de Equipos' },
+            'venta_accesorios': { color: 'bg-teal-100 text-teal-800', label: 'Venta de Accesorios' },
         };
 
         const config = classificationConfig[classification as keyof typeof classificationConfig] || classificationConfig['desconocida'];

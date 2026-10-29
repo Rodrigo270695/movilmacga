@@ -15,6 +15,8 @@ class PdvCatalogs
             'bodega' => 'Bodega',
             'tambo' => 'Tambo',
             'otros' => 'Otros',
+            'financiamiento_equipos' => 'Financiamiento de Equipos',
+            'venta_accesorios' => 'Venta de Accesorios',
             'chalequeros' => 'Chalequeros',
             'otras tiendas' => 'Otras Tiendas',
             'desconocida' => 'Desconocida',
@@ -41,6 +43,8 @@ class PdvCatalogs
             'traspaso_negocio' => 'Traspasó su Negocio',
             'usuario_bloqueado' => 'Usuario Bloqueado',
             'localidad_sin_senal' => 'Localidad sin Señal',
+            'no_existe' => 'No Existe',
+            'se_dedica_otras_actividades' => 'Se dedica a otras actividades',
         ];
     }
 
@@ -57,6 +61,7 @@ class PdvCatalogs
     {
         return [
             'monopunto' => 'Monopunto',
+            'multipunto' => 'Multipunto',
         ];
     }
 
@@ -131,6 +136,7 @@ class PdvCatalogs
         return [
             'conglomerado' => 'Conglomerado',
             'zona_caliente' => 'Zona Caliente',
+            'zona_caliente_telco' => 'Zona Caliente Telco',
             'zona_calmada' => 'Zona Calmada',
         ];
     }

@@ -8,6 +8,8 @@ export const PDV_CATALOGS = {
         { value: 'bodega', label: 'Bodega' },
         { value: 'tambo', label: 'Tambo' },
         { value: 'otros', label: 'Otros' },
+        { value: 'financiamiento_equipos', label: 'Financiamiento de Equipos' },
+        { value: 'venta_accesorios', label: 'Venta de Accesorios' },
         { value: 'chalequeros', label: 'Chalequeros' },
         { value: 'otras tiendas', label: 'Otras Tiendas' },
         { value: 'desconocida', label: 'Desconocida' },
@@ -26,6 +28,8 @@ export const PDV_CATALOGS = {
         { value: 'traspaso_negocio', label: 'Traspasó su Negocio' },
         { value: 'usuario_bloqueado', label: 'Usuario Bloqueado' },
         { value: 'localidad_sin_senal', label: 'Localidad sin Señal' },
+        { value: 'no_existe', label: 'No Existe' },
+        { value: 'se_dedica_otras_actividades', label: 'Se dedica a otras actividades' },
     ],
     clasificacionesPdv: [
         { value: 'regular', label: 'PdV Regular' },
@@ -34,6 +38,7 @@ export const PDV_CATALOGS = {
     ],
     tiposPdv: [
         { value: 'monopunto', label: 'Monopunto' },
+        { value: 'multipunto', label: 'Multipunto' },
     ],
     detallesPdv: [
         { value: 'principal', label: 'Principal' },
@@ -80,6 +85,7 @@ export const PDV_CATALOGS = {
     tiposZonaUrbana: [
         { value: 'conglomerado', label: 'Conglomerado' },
         { value: 'zona_caliente', label: 'Zona Caliente' },
+        { value: 'zona_caliente_telco', label: 'Zona Caliente Telco' },
         { value: 'zona_calmada', label: 'Zona Calmada' },
     ],
     detallesZonaUrbana: [
